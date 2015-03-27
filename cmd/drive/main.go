@@ -250,7 +250,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
 	cmd.force = fs.Bool("force", false, "forces a pull even if no changes present")
-	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
 	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
@@ -326,7 +326,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
 	cmd.ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
 	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
-	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
@@ -495,7 +495,7 @@ type diffCmd struct {
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
-	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }

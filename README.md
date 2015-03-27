@@ -96,11 +96,17 @@ To pull specific files or directories, pass in one or more paths:
 $ drive pull photos/img001.png docs
 ```
 
-Note: To ignore checksum verification during a pull:
 
-```shell
-$ drive pull -ignore-checksum
-```
+## Note: Checksum verification:
+    * By default checksum-ing is turned off because it was deemed to be quite vigorous and unnecessary for most cases.
+    * Due to popular demand to cover the common case in which size + modTime differences are sufficient to detect file changes. The discussion stemmed from issue [#117](https://github.com/odeke-em/drive/issues/117).
+
+    To turn checksum verification back on:
+
+    ```shell
+    $ drive pull -ignore-checksum=false
+    ```
+
 
 drive also supports piping pulled content to stdout which can be accomplished by:
 
