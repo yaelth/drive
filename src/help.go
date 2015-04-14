@@ -16,8 +16,6 @@ package drive
 
 import (
 	"fmt"
-
-	"github.com/odeke-em/xon/pkger/src"
 )
 
 const (
@@ -193,12 +191,7 @@ func ShowAllDescriptions() {
 }
 
 func PrintVersion() {
-	fmt.Printf("drive version %s", Version)
-	pkgInfo, err := pkger.Recon(DriveRepoRelPath)
-	if err == nil && pkgInfo != nil {
-		fmt.Printf("\n%s", pkgInfo)
-	}
-	fmt.Println()
+	fmt.Printf("drive version %s\n%s\n", Version, pkgInfo)
 }
 
 func ShowDescription(topic string) {
