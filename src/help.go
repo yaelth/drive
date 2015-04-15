@@ -199,6 +199,7 @@ func ShowDescription(topic string) {
 		ShowAllDescriptions()
 		return
 	}
+
 	help, ok := docMap[topic]
 	if !ok {
 		fmt.Printf("Unkown command '%s' type `drive help all` for entire usage documentation\n", topic)
