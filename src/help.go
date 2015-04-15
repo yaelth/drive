@@ -190,10 +190,6 @@ func ShowAllDescriptions() {
 	}
 }
 
-func PrintVersion() {
-	fmt.Printf("drive version %s\n%s\n", Version, pkgInfo)
-}
-
 func ShowDescription(topic string) {
 	if topic == AllKey {
 		ShowAllDescriptions()

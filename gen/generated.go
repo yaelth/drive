@@ -13,15 +13,16 @@
 // limitations under the License.
 
 
-// This file was auto-generated at 2015-04-15 01:09:07.52 -0600 MDT
+// This file was auto-generated at 2015-04-15 01:38:47.768 -0600 MDT
 // Edits will be overwritten!
 
-package drive
+
+package generated
 
 import "github.com/odeke-em/xon/pkger/src"
 
-var pkgInfo = &pkger.PkgInfo {
-	CommitHash: "<BUILD_COMMIT_HASH>",
+var PkgInfo = &pkger.PkgInfo {
+	CommitHash: "<CURRENT_COMMIT>",
 	GoVersion: "<GO_VERSION>",
 	OsInfo: "<OS_INFO>",
 }
