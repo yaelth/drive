@@ -54,10 +54,10 @@ type sizeCounter struct {
 func (t *sizeCounter) String() string {
 	str := fmt.Sprintf("count %v", t.count)
 	if t.src > 0 {
-		str = fmt.Sprintf("%s src: %v", str, prettyBytes(t.src))
+		str = fmt.Sprintf("%s src: %v (%v)", str, prettyBytes(t.src), t.src)
 	}
 	if t.dest > 0 {
-		str = fmt.Sprintf("%s dest: %v", str, prettyBytes(t.dest))
+		str = fmt.Sprintf("%s dest: %v (%v)", str, prettyBytes(t.dest), t.dest)
 	}
 	return str
 }
