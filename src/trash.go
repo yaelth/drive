@@ -157,7 +157,7 @@ func (g *Commands) reduce(args []string, toTrash bool) error {
 
 func (g *Commands) playTrashChangeList(cl []*Change, toTrash bool) (err error) {
 	trashSize, unTrashSize := reduceToSize(cl, SelectDest|SelectSrc)
-	g.taskStart(int64(len(cl)) + trashSize + unTrashSize)
+	g.taskStart(trashSize + unTrashSize)
 
 	var f = g.remoteUntrash
 	if toTrash {

@@ -168,7 +168,7 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 		totalSize += counter.src
 	}
 
-	g.taskStart(int64(len(cl)) + totalSize)
+	g.taskStart(totalSize)
 
 	defer close(g.rem.progressChan)
 
@@ -228,7 +228,6 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, wErr)
 			}
 		}
-		g.taskDone()
 		wg.Done()
 	}()
 
@@ -272,7 +271,6 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, sErr)
 			}
 		}
-		g.taskDone()
 		wg.Done()
 	}()
 
@@ -309,8 +307,6 @@ func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 				g.rem.progressChan <- n
 			}
 		}
-
-		g.taskDone()
 		wg.Done()
 	}()
 	err = os.RemoveAll(change.Dest.BlobAt)

@@ -228,7 +228,7 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 		totalSize += counter.src
 	}
 
-	g.taskStart(int64(len(cl)) + totalSize)
+	g.taskStart(totalSize)
 
 	defer close(g.rem.progressChan)
 
@@ -292,8 +292,6 @@ func (g *Commands) parentPather(absPath string) string {
 }
 
 func (g *Commands) remoteMod(change *Change) (err error) {
-	defer g.taskDone()
-
 	if change.Dest == nil && change.Src == nil {
 		err = fmt.Errorf("bug on: both dest and src cannot be nil")
 		g.log.LogErrln(err)
@@ -352,7 +350,6 @@ func (g *Commands) remoteUntrash(change *Change) (err error) {
 	target := change.Src
 	defer func() {
 		g.taskAdd(target.Size)
-		g.taskDone()
 	}()
 
 	err = g.rem.Untrash(target.Id)
@@ -373,7 +370,6 @@ func (g *Commands) remoteUntrash(change *Change) (err error) {
 func (g *Commands) remoteDelete(change *Change) (err error) {
 	defer func() {
 		g.taskAdd(change.Dest.Size)
-		g.taskDone()
 	}()
 
 	err = g.rem.Trash(change.Dest.Id)

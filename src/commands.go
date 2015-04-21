@@ -162,12 +162,6 @@ func (g *Commands) taskAdd(n int64) {
 	}
 }
 
-func (g *Commands) taskDone() {
-	if g.progress != nil {
-		g.progress.Increment()
-	}
-}
-
 func (g *Commands) taskFinish() {
 	if g.progress != nil {
 		g.progress.Finish()
