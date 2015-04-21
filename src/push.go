@@ -113,7 +113,6 @@ func (g *Commands) Push() (err error) {
 		}
 	}
 
-	// func printChangeList(logy *log.Logger, changes []*Change, noPrompt bool, noClobber bool) bool {
 	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
 	if !ok {
 		return

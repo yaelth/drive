@@ -393,10 +393,10 @@ func opChangeCount(changes []*Change) map[Operation]sizeCounter {
 		}
 		counter := opMap[op]
 		counter.count += 1
-		if c.Src != nil {
+		if c.Src != nil && !c.Src.IsDir {
 			counter.src += c.Src.Size
 		}
-		if c.Dest != nil {
+		if c.Dest != nil && !c.Dest.IsDir {
 			counter.dest += c.Dest.Size
 		}
 		opMap[op] = counter
