@@ -308,7 +308,7 @@ func (cmd *pullCmd) Run(args []string) {
 	}
 
 	// Filter out empty strings.
-	exports := drive.NonEmptyStrings(strings.Split(*cmd.export, ","))
+	exports := drive.NonEmptyStrings(strings.Split(*cmd.export, ",")...)
 
 	options := &drive.Options{
 		Exports:        uniqOrderedStr(exports),
@@ -352,6 +352,7 @@ type pushCmd struct {
 	ignoreChecksum *bool
 	ignoreConflict *bool
 	quiet          *bool
+	coercedMimeKey *string
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -367,6 +368,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.coercedMimeKey = fs.String(drive.CoercedMimeKeyKey, "", "the mimeType you are trying to coerce this file to be")
 	return fs
 }
 
@@ -434,6 +436,10 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		mask |= drive.OptOCR
 	}
 
+	meta := map[string][]string{
+		drive.CoercedMimeKeyKey: drive.NonEmptyStrings(*cmd.coercedMimeKey),
+	}
+
 	return &drive.Options{
 		Force:          *cmd.force,
 		Hidden:         *cmd.hidden,
@@ -444,6 +450,7 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		Recursive:      *cmd.recursive,
 		Piped:          *cmd.piped,
 		Quiet:          *cmd.quiet,
+		Meta:           &meta,
 		TypeMask:       mask,
 	}
 }
@@ -469,7 +476,7 @@ func (cmd *pushCmd) pushMounted(args []string) {
 		}
 	}
 
-	rest = drive.NonEmptyStrings(rest)
+	rest = drive.NonEmptyStrings(rest...)
 	context, path := discoverContext(contextArgs)
 	contextAbsPath, err := filepath.Abs(path)
 	exitWithError(err)
@@ -716,7 +723,7 @@ func (cmd *unshareCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
 
 	meta := map[string][]string{
-		"accountType": uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.accountType, ","))),
+		"accountType": uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.accountType, ",")...)),
 	}
 
 	exitWithError(drive.New(context, &drive.Options{
@@ -800,9 +807,9 @@ func (cmd *shareCmd) Run(args []string) {
 
 	meta := map[string][]string{
 		"emailMessage": []string{*cmd.message},
-		"emails":       uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.emails, ","))),
-		"role":         uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.role, ","))),
-		"accountType":  uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.accountType, ","))),
+		"emails":       uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.emails, ",")...)),
+		"role":         uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.role, ",")...)),
+		"accountType":  uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.accountType, ",")...)),
 	}
 
 	mask := drive.NoopOnShare

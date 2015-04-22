@@ -221,6 +221,17 @@ Note: To use OCR, your account should have this feature. You can find out if you
 $ drive features
 ```
 
+## Note:
+
+In relation to [issue #154](https://github.com/odeke-em/drive/issues/154):
+
+Google Drive might not properly certain files and package them as archives due to incorrect
+mimeType guesses. To coerce a certain mimeType that you'd prefer to assert with Google Drive pushes, use flag `-coerce-mime <short-key>`
+
+```shell
+$ drive push -coerce-mime docx test_doc.docx
+```
+
 ### Publishing
 
 The `pub` command publishes a file or directory globally so that anyone can view it on the web using the link returned.

@@ -47,11 +47,12 @@ const (
 	UnpubKey      = "unpub"
 	VersionKey    = "version"
 
-	ForceKey         = "force"
-	QuietKey         = "quiet"
-	QuitShortKey     = "q"
-	QuitLongKey      = "quit"
-	DriveRepoRelPath = "github.com/odeke-em/drive"
+	CoercedMimeKeyKey = "coerced-mime"
+	ForceKey          = "force"
+	QuietKey          = "quiet"
+	QuitShortKey      = "q"
+	QuitLongKey       = "quit"
+	DriveRepoRelPath  = "github.com/odeke-em/drive"
 )
 
 const (

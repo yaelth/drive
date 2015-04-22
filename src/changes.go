@@ -169,6 +169,22 @@ func (g *Commands) differ(a, b *File) bool {
 	return fileDifferences(a, b, g.opts.IgnoreChecksum) == DifferNone
 }
 
+func (g *Commands) coercedMimeKey() (coerced string, ok bool) {
+	if g.opts.Meta == nil {
+		return
+	}
+
+	var values []string
+	dict := *g.opts.Meta
+	values, ok = dict[CoercedMimeKeyKey]
+
+	if len(values) >= 1 {
+		coerced = values[0]
+	}
+
+	return
+}
+
 func (g *Commands) resolveChangeListRecv(
 	isPush bool, d, p string, r *File, l *File) (cl []*Change, err error) {
 	var change *Change

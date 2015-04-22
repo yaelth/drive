@@ -320,6 +320,11 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		ignoreChecksum: g.opts.IgnoreChecksum,
 	}
 
+	coercedMimeKey, ok := g.coercedMimeKey()
+	if ok {
+		args.coercedMimeKey = coercedMimeKey
+	}
+
 	rem, err := g.rem.UpsertByComparison(&args)
 	if err != nil {
 		g.log.LogErrf("%s: %v\n", change.Path, err)

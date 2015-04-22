@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	// "path/filepath"
 	"strings"
 
 	spinner "github.com/odeke-em/cli-spinner"
@@ -121,7 +122,7 @@ func sepJoin(sep string, args ...string) string {
 }
 
 func sepJoinNonEmpty(sep string, args ...string) string {
-	nonEmpties := NonEmptyStrings(args)
+	nonEmpties := NonEmptyStrings(args...)
 	return sepJoin(sep, nonEmpties...)
 }
 
@@ -274,11 +275,16 @@ func chunkInt64(v int64) chan int {
 	return chunks
 }
 
-func NonEmptyStrings(v []string) (splits []string) {
+func NonEmptyStrings(v ...string) (splits []string) {
 	for _, elem := range v {
 		if elem != "" {
 			splits = append(splits, elem)
 		}
 	}
 	return
+}
+
+func guessMimeType(p string) string {
+	resolvedMimeType := mimeTypeFromExt(p)
+	return resolvedMimeType
 }

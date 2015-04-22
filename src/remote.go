@@ -408,6 +408,7 @@ type upsertOpt struct {
 	dest           *File
 	mask           int
 	ignoreChecksum bool
+	coercedMimeKey string
 	nonStatable    bool
 }
 
@@ -430,7 +431,6 @@ func togglePropertiesInsertCall(req *drive.FilesInsertCall, mask int) *drive.Fil
 
 func togglePropertiesUpdateCall(req *drive.FilesUpdateCall, mask int) *drive.FilesUpdateCall {
 	// TODO: if ocr toggled respect the quota limits if ocr is enabled.
-	fmt.Println("CONVERT SET", mask)
 	if ocr(mask) {
 		req = req.Ocr(true)
 	}
@@ -454,6 +454,10 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 	}
 	if args.src.IsDir {
 		uploaded.MimeType = DriveFolderMimeType
+	}
+
+	if args.coercedMimeKey != "" {
+		uploaded.MimeType = guessMimeType(args.coercedMimeKey)
 	}
 
 	// Ensure that the ModifiedDate is retrieved from local
