@@ -411,6 +411,40 @@ type upsertOpt struct {
 	nonStatable    bool
 }
 
+func togglePropertiesInsertCall(req *drive.FilesInsertCall, mask int) *drive.FilesInsertCall {
+	// TODO: if ocr toggled respect the quota limits if ocr is enabled.
+	if ocr(mask) {
+		req = req.Ocr(true)
+	}
+	if convert(mask) {
+		req = req.Convert(true)
+	}
+	if pin(mask) {
+		req = req.Pinned(true)
+	}
+	if indexContent(mask) {
+		req = req.UseContentAsIndexableText(true)
+	}
+	return req
+}
+
+func togglePropertiesUpdateCall(req *drive.FilesUpdateCall, mask int) *drive.FilesUpdateCall {
+	// TODO: if ocr toggled respect the quota limits if ocr is enabled.
+	if ocr(mask) {
+		req = req.Ocr(true)
+	}
+	if convert(mask) {
+		req = req.Convert(true)
+	}
+	if pin(mask) {
+		req = req.Pinned(true)
+	}
+	if indexContent(mask) {
+		req = req.UseContentAsIndexableText(true)
+	}
+	return req
+}
+
 func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, mediaInserted bool, err error) {
 	uploaded := &drive.File{
 		// Must ensure that the path is prepared for a URL upload
@@ -426,13 +460,19 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 
 	if args.src.Id == "" {
 		req := r.service.Files.Insert(uploaded)
+
 		if !args.src.IsDir && body != nil {
 			req = req.Media(body)
 			mediaInserted = true
 		}
+
+		// Toggle the respective properties
+		req = togglePropertiesInsertCall(req, args.mask)
+
 		if uploaded, err = req.Do(); err != nil {
 			return
 		}
+
 		f = NewRemoteFile(uploaded)
 		return
 	}
@@ -443,21 +483,6 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 	// We always want it to match up with the local time
 	req.SetModifiedDate(true)
 
-	// Next set all the desired attributes
-	// TODO: if ocr toggled respect the quota limits if ocr is enabled.
-	if ocr(args.mask) {
-		req.Ocr(true)
-	}
-	if convert(args.mask) {
-		req.Convert(true)
-	}
-	if pin(args.mask) {
-		req.Pinned(true)
-	}
-	if indexContent(args.mask) {
-		req.UseContentAsIndexableText(true)
-	}
-
 	if !args.src.IsDir {
 		if args.dest == nil || args.nonStatable {
 			req = req.Media(body)
@@ -467,6 +492,10 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 			req = req.Media(body)
 		}
 	}
+
+	// Next toggle the appropriate properties
+	req = togglePropertiesUpdateCall(req, args.mask)
+
 	if uploaded, err = req.Do(); err != nil {
 		return
 	}
