@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -68,46 +67,6 @@ var (
 	UnescapedPathSep = fmt.Sprintf("%c", os.PathSeparator)
 	EscapedPathSep   = url.QueryEscape(UnescapedPathSep)
 )
-
-var regExtStrMap = map[string]string{
-	"csv":   "text/csv",
-	"html?": "text/html",
-	"te?xt": "text/plain",
-
-	"gif":   "image/gif",
-	"png":   "image/png",
-	"svg":   "image/svg+xml",
-	"jpe?g": "image/jpeg",
-
-	"odt": "application/vnd.oasis.opendocument.text",
-	"rtf": "application/rtf",
-	"pdf": "application/pdf",
-
-	"docx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	"pptx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.presentation",
-	"xlsx?": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-}
-
-var regExtMap = func() map[*regexp.Regexp]string {
-	regMap := make(map[*regexp.Regexp]string)
-	for regStr, mimeType := range regExtStrMap {
-		regExComp, err := regexp.Compile(regStr)
-		if err == nil {
-			regMap[regExComp] = mimeType
-		}
-	}
-	return regMap
-}()
-
-func mimeTypeFromExt(ext string) string {
-	bExt := []byte(ext)
-	for regEx, mimeType := range regExtMap {
-		if regEx != nil && regEx.Match(bExt) {
-			return mimeType
-		}
-	}
-	return ""
-}
 
 type Remote struct {
 	transport    *oauth.Transport
@@ -408,6 +367,7 @@ type upsertOpt struct {
 	dest           *File
 	mask           int
 	ignoreChecksum bool
+	mimeKey        string
 	nonStatable    bool
 }
 
@@ -451,8 +411,13 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 		Title:   urlToPath(args.src.Name, false),
 		Parents: []*drive.ParentReference{&drive.ParentReference{Id: args.parentId}},
 	}
+
 	if args.src.IsDir {
 		uploaded.MimeType = DriveFolderMimeType
+	}
+
+	if args.mimeKey != "" {
+		uploaded.MimeType = guessMimeType(args.mimeKey)
 	}
 
 	// Ensure that the ModifiedDate is retrieved from local

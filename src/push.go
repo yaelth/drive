@@ -320,6 +320,13 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		ignoreChecksum: g.opts.IgnoreChecksum,
 	}
 
+	coercedMimeKey, ok := g.coercedMimeKey()
+	if ok {
+		args.mimeKey = coercedMimeKey
+	} else if args.src != nil { // Infer it from the extension
+		args.mimeKey = filepath.Ext(args.src.Name)
+	}
+
 	rem, err := g.rem.UpsertByComparison(&args)
 	if err != nil {
 		g.log.LogErrf("%s: %v\n", change.Path, err)

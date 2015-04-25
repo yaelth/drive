@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	spinner "github.com/odeke-em/cli-spinner"
@@ -121,7 +122,7 @@ func sepJoin(sep string, args ...string) string {
 }
 
 func sepJoinNonEmpty(sep string, args ...string) string {
-	nonEmpties := NonEmptyStrings(args)
+	nonEmpties := NonEmptyStrings(args...)
 	return sepJoin(sep, nonEmpties...)
 }
 
@@ -274,11 +275,73 @@ func chunkInt64(v int64) chan int {
 	return chunks
 }
 
-func NonEmptyStrings(v []string) (splits []string) {
+func NonEmptyStrings(v ...string) (splits []string) {
 	for _, elem := range v {
 		if elem != "" {
 			splits = append(splits, elem)
 		}
 	}
 	return
+}
+
+var regExtStrMap = map[string]string{
+	"csv":   "text/csv",
+	"html?": "text/html",
+	"te?xt": "text/plain",
+
+	"gif":   "image/gif",
+	"png":   "image/png",
+	"svg":   "image/svg+xml",
+	"jpe?g": "image/jpeg",
+
+	"odt": "application/vnd.oasis.opendocument.text",
+	"rtf": "application/rtf",
+	"pdf": "application/pdf",
+
+    "apk": "application/vnd.android.package-archive",
+    "bin": "application/octet-stream",
+
+	"docx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"pptx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.presentation",
+	"xlsx?": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+var regExtMap = func() map[*regexp.Regexp]string {
+	regMap := make(map[*regexp.Regexp]string)
+	for regStr, mimeType := range regExtStrMap {
+		regExComp, err := regexp.Compile(regStr)
+		if err == nil {
+			regMap[regExComp] = mimeType
+		}
+	}
+	return regMap
+}()
+
+func _mimeTyper() func(string) string {
+	cache := map[string]string{}
+
+	return func(ext string) string {
+		memoized, ok := cache[ext]
+		if ok {
+			return memoized
+		}
+
+		bExt := []byte(ext)
+		for regEx, mimeType := range regExtMap {
+			if regEx != nil && regEx.Match(bExt) {
+				memoized = mimeType
+				break
+			}
+		}
+
+		cache[ext] = memoized
+		return memoized
+	}
+}
+
+var mimeTypeFromExt = _mimeTyper()
+
+func guessMimeType(p string) string {
+	resolvedMimeType := mimeTypeFromExt(p)
+	return resolvedMimeType
 }

@@ -221,6 +221,16 @@ Note: To use OCR, your account should have this feature. You can find out if you
 $ drive features
 ```
 
+## Note:
+
+MimeType inference is from the file's extension.
+
+If you would like to coerce a certain mimeType that you'd prefer to assert with Google Drive pushes, use flag `-coerce-mime <short-key>`
+
+```shell
+$ drive push -coerce-mime docx my_test_doc
+```
+
 ### Publishing
 
 The `pub` command publishes a file or directory globally so that anyone can view it on the web using the link returned.
