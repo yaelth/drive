@@ -180,6 +180,8 @@ func (g *Commands) coercedMimeKey() (coerced string, ok bool) {
 
 	if len(values) >= 1 {
 		coerced = values[0]
+	} else {
+		ok = false
 	}
 
 	return

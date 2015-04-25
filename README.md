@@ -223,13 +223,12 @@ $ drive features
 
 ## Note:
 
-In relation to [issue #154](https://github.com/odeke-em/drive/issues/154):
+MimeType inference is from the file's extension.
 
-Google Drive might not properly certain files and package them as archives due to incorrect
-mimeType guesses. To coerce a certain mimeType that you'd prefer to assert with Google Drive pushes, use flag `-coerce-mime <short-key>`
+If you would like to coerce a certain mimeType that you'd prefer to assert with Google Drive pushes, use flag `-coerce-mime <short-key>`
 
 ```shell
-$ drive push -coerce-mime docx test_doc.docx
+$ drive push -coerce-mime docx my_test_doc
 ```
 
 ### Publishing

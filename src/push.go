@@ -322,7 +322,9 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	coercedMimeKey, ok := g.coercedMimeKey()
 	if ok {
-		args.coercedMimeKey = coercedMimeKey
+		args.mimeKey = coercedMimeKey
+	} else if args.src != nil { // Infer it from the extension
+		args.mimeKey = filepath.Ext(args.src.Name)
 	}
 
 	rem, err := g.rem.UpsertByComparison(&args)
