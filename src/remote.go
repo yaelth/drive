@@ -146,11 +146,10 @@ func (r *Remote) change(changeId string) (*drive.Change, error) {
 func RetrieveRefreshToken(context *config.Context) (string, error) {
 	transport := newTransport(context)
 	url := transport.Config.AuthCodeURL("")
-	fmt.Println("Visit this URL to get an authorization code")
-	fmt.Println(url)
-	fmt.Print("Paste the authorization code: ")
-	var code string
-	fmt.Scanln(&code)
+	fmt.Printf("Visit this URL to get an authorization code\n%s\n", url)
+
+	code := prompt(os.Stdin, os.Stdout, "Paste the authorization code: ")
+
 	token, err := transport.Exchange(code)
 	if err != nil {
 		return "", err

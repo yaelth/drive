@@ -16,7 +16,6 @@ package drive
 
 import (
 	"fmt"
-	"strings"
 )
 
 func (g *Commands) Trash() (err error) {
@@ -52,11 +51,7 @@ func (g *Commands) EmptyTrash() error {
 	if g.opts.canPrompt() {
 		g.log.Logln("Empty trash: (Yn)? ")
 
-		input := "Y"
-		fmt.Print("Proceed with the changes? [Y/n]: ")
-		fmt.Scanln(&input)
-
-		if strings.ToUpper(input) != "Y" {
+		if !promptForChanges() {
 			g.log.Logln("Aborted emptying trash")
 			return nil
 		}

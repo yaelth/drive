@@ -20,6 +20,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"text/scanner"
 
 	spinner "github.com/odeke-em/cli-spinner"
 )
@@ -133,10 +134,27 @@ func isHidden(p string, ignore bool) bool {
 	return false
 }
 
+func prompt(r *os.File, w *os.File, promptText ...interface{}) (input string) {
+
+	var s scanner.Scanner
+	s.Init(r)
+
+	// Drain the reader
+	for {
+		tok := s.Next()
+		if tok == scanner.EOF || tok == '\n' {
+			break
+		}
+	}
+
+	fmt.Fprint(w, promptText...)
+
+	fmt.Fscanln(r, &input)
+	return
+}
+
 func nextPage() bool {
-	var input string
-	fmt.Printf("---More---")
-	fmt.Scanln(&input)
+	input := prompt(os.Stdin, os.Stdout, "---More---")
 	if len(input) >= 1 && strings.ToLower(input[:1]) == QuitShortKey {
 		return false
 	}
@@ -144,10 +162,12 @@ func nextPage() bool {
 }
 
 func promptForChanges() bool {
-	input := "Y"
-	fmt.Print("Proceed with the changes? [Y/n]: ")
-	fmt.Scanln(&input)
-	return strings.ToUpper(input) == "Y"
+	input := prompt(os.Stdin, os.Stdout, "Proceed with the changes? [Y/n]: ")
+	if input == "" {
+		input = YesShortKey
+	}
+
+	return strings.ToUpper(input) == YesShortKey
 }
 
 func (f *File) toDesktopEntry(urlMExt *urlMimeTypeExt) *desktopEntry {
@@ -298,8 +318,8 @@ var regExtStrMap = map[string]string{
 	"rtf": "application/rtf",
 	"pdf": "application/pdf",
 
-    "apk": "application/vnd.android.package-archive",
-    "bin": "application/octet-stream",
+	"apk": "application/vnd.android.package-archive",
+	"bin": "application/octet-stream",
 
 	"docx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 	"pptx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.presentation",

@@ -51,6 +51,7 @@ const (
 	ForceKey          = "force"
 	QuietKey          = "quiet"
 	QuitShortKey      = "q"
+	YesShortKey       = "Y"
 	QuitLongKey       = "quit"
 	DriveRepoRelPath  = "github.com/odeke-em/drive"
 )
