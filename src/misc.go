@@ -298,8 +298,8 @@ var regExtStrMap = map[string]string{
 	"rtf": "application/rtf",
 	"pdf": "application/pdf",
 
-    "apk": "application/vnd.android.package-archive",
-    "bin": "application/octet-stream",
+	"apk": "application/vnd.android.package-archive",
+	"bin": "application/octet-stream",
 
 	"docx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 	"pptx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.presentation",
