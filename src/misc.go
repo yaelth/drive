@@ -145,6 +145,7 @@ func nextPage() bool {
 
 func promptForChanges() bool {
 	input := "Y"
+	flushTTYin()
 	fmt.Print("Proceed with the changes? [Y/n]: ")
 	fmt.Scanln(&input)
 	return strings.ToUpper(input) == "Y"
