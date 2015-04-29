@@ -53,6 +53,7 @@ func (g *Commands) EmptyTrash() error {
 		g.log.Logln("Empty trash: (Yn)? ")
 
 		input := "Y"
+		flushTTYin()
 		fmt.Print("Proceed with the changes? [Y/n]: ")
 		fmt.Scanln(&input)
 
