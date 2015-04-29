@@ -133,10 +133,18 @@ func isHidden(p string, ignore bool) bool {
 	return false
 }
 
+func prompt(r *os.File, w *os.File, promptText ...interface{}) (input string) {
+
+	fmt.Fprint(w, promptText...)
+
+	flushTTYin()
+
+	fmt.Fscanln(r, &input)
+	return
+}
+
 func nextPage() bool {
-	var input string
-	fmt.Printf("---More---")
-	fmt.Scanln(&input)
+	input := prompt(os.Stdin, os.Stdout, "---More---")
 	if len(input) >= 1 && strings.ToLower(input[:1]) == QuitShortKey {
 		return false
 	}
@@ -144,11 +152,12 @@ func nextPage() bool {
 }
 
 func promptForChanges() bool {
-	input := "Y"
-	flushTTYin()
-	fmt.Print("Proceed with the changes? [Y/n]: ")
-	fmt.Scanln(&input)
-	return strings.ToUpper(input) == "Y"
+	input := prompt(os.Stdin, os.Stdout, "Proceed with the changes? [Y/n]: ")
+	if input == "" {
+		input = YesShortKey
+	}
+
+	return strings.ToUpper(input) == YesShortKey
 }
 
 func (f *File) toDesktopEntry(urlMExt *urlMimeTypeExt) *desktopEntry {
