@@ -61,6 +61,7 @@ const (
 
 var (
 	ErrPathNotExists = errors.New("remote path doesn't exist")
+	ErrNetLookup     = errors.New("net lookup failed")
 )
 
 var (
@@ -618,9 +619,14 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 
 	// We only need the head file since we expect only one File to be created
 	req.MaxResults(1)
+
 	files, err := req.Do()
-	if err != nil || len(files.Items) < 1 {
-		// TODO: make sure only 404s are handled here
+
+	if err != nil {
+		return nil, err
+	}
+
+	if files == nil || len(files.Items) < 1 {
 		return nil, ErrPathNotExists
 	}
 
