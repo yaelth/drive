@@ -98,7 +98,7 @@ func (g *Commands) resolveToLocalFile(relToRoot, fsPath string) (local *File, er
 	}
 
 	localinfo, statErr := os.Stat(fsPath)
-	if !os.IsNotExist(statErr) {
+	if statErr != nil && !os.IsNotExist(statErr) {
 		err = statErr
 		return
 	}
