@@ -16,8 +16,6 @@ package drive
 
 import (
 	"fmt"
-
-	"github.com/odeke-em/xon/pkger/src"
 )
 
 const (
@@ -201,20 +199,12 @@ func ShowAllDescriptions() {
 	}
 }
 
-func PrintVersion() {
-	fmt.Printf("drive version %s", Version)
-	pkgInfo, err := pkger.Recon(DriveRepoRelPath)
-	if err == nil && pkgInfo != nil {
-		fmt.Printf("\n%s", pkgInfo)
-	}
-	fmt.Println()
-}
-
 func ShowDescription(topic string) {
 	if topic == AllKey {
 		ShowAllDescriptions()
 		return
 	}
+
 	help, ok := docMap[topic]
 	if !ok {
 		fmt.Printf("Unkown command '%s' type `drive help all` for entire usage documentation\n", topic)

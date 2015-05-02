@@ -51,6 +51,15 @@ go 1.2 or higher is required. See [here](https://golang.org/doc/install) for ins
 
 ## Installation
 
+
+* Note:
+In order to address [issue #138](https://github.com/odeke-em/drive/issues/138), where debug information should be bundled with the binary, you'll need to run:
+
+```shell
+$ go get -u github.com/odeke-em/drive-gen && drive-gen
+```
+Otherwise:
+
 To install from the latest source, run:
 
 ```shell

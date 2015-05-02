@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/odeke-em/drive/config"
+	"github.com/odeke-em/drive/gen"
 	"github.com/odeke-em/drive/src"
 	"github.com/rakyll/command"
 )
@@ -115,7 +116,7 @@ func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *versionCmd) Run(args []string) {
-	drive.PrintVersion()
+	fmt.Printf("drive version: %s\n%s\n", drive.Version, generated.PkgInfo)
 	exitWithError(nil)
 }
 
