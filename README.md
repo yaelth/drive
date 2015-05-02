@@ -24,6 +24,7 @@
   - [Touching](#touch)
   - [Trashing and Untrashing](#trashing-and-untrashing)
   - [Emptying the Trash](#emptying-the-trash)
+  - [Deleting](#deleting)
   - [Listing Files](#listing-files)
   - [Stating Files](#stating-files)
   - [Quota](#quota)
@@ -320,6 +321,19 @@ Emptying the trash will permanently delete all trashed files. They will be unrec
 ```shell
 $ drive emptytrash
 ```
+
+### Deleting
+
+Deleting items will PERMANENTLY remove the items from your drive. This operation is irreversible.
+
+```shell
+$ drive delete flux.mp4
+```
+
+```shell
+$ drive delete --matches onyx swp
+```
+
 
 ### Listing Files
 

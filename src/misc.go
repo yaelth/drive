@@ -151,8 +151,16 @@ func nextPage() bool {
 	return true
 }
 
-func promptForChanges() bool {
-	input := prompt(os.Stdin, os.Stdout, "Proceed with the changes? [Y/n]: ")
+func promptForChanges(args ...interface{}) bool {
+	argv := []interface{}{
+		"Proceed with the changes? [Y/n]:",
+	}
+	if len(args) >= 1 {
+		argv = args
+	}
+
+	input := prompt(os.Stdin, os.Stdout, argv...)
+
 	if input == "" {
 		input = YesShortKey
 	}

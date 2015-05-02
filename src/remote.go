@@ -249,6 +249,10 @@ func (r *Remote) Untrash(id string) error {
 	return err
 }
 
+func (r *Remote) Delete(id string) error {
+	return r.service.Files.Delete(id).Do()
+}
+
 func (r *Remote) idForEmail(email string) (string, error) {
 	perm, err := r.service.Permissions.GetIdForEmail(email).Do()
 	if err != nil {

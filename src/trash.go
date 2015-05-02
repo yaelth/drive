@@ -19,11 +19,15 @@ import (
 )
 
 func (g *Commands) Trash() (err error) {
-	return g.reduce(g.opts.Sources, true)
+	return g.reduceForTrash(g.opts.Sources, true, false)
+}
+
+func (g *Commands) Delete() (err error) {
+	return g.reduceForTrash(g.opts.Sources, true, true)
 }
 
 func (g *Commands) Untrash() (err error) {
-	return g.reduce(g.opts.Sources, false)
+	return g.reduceForTrash(g.opts.Sources, false, false)
 }
 
 func (g *Commands) EmptyTrash() error {
@@ -88,7 +92,7 @@ func (g *Commands) trasher(relToRoot string, toTrash bool) (change *Change, err 
 	return
 }
 
-func (g *Commands) trashByMatch(inTrash bool) error {
+func (g *Commands) trashByMatch(inTrash, permanent bool) error {
 	matches, err := g.rem.FindMatches(g.opts.Path, g.opts.Sources, inTrash)
 	if err != nil {
 		return err
@@ -121,18 +125,22 @@ func (g *Commands) trashByMatch(inTrash bool) error {
 		return nil
 	}
 
-	return g.playTrashChangeList(cl, toTrash)
+	return g.playTrashChangeList(cl, toTrash, permanent)
 }
 
 func (g *Commands) TrashByMatch() error {
-	return g.trashByMatch(false)
+	return g.trashByMatch(false, false)
 }
 
 func (g *Commands) UntrashByMatch() error {
-	return g.trashByMatch(true)
+	return g.trashByMatch(true, false)
 }
 
-func (g *Commands) reduce(args []string, toTrash bool) error {
+func (g *Commands) DeleteByMatch() error {
+	return g.trashByMatch(false, true)
+}
+
+func (g *Commands) reduceForTrash(args []string, toTrash, permanent bool) error {
 	var cl []*Change
 	for _, relToRoot := range args {
 		c, cErr := g.trasher(relToRoot, toTrash)
@@ -147,16 +155,26 @@ func (g *Commands) reduce(args []string, toTrash bool) error {
 	if !ok {
 		return nil
 	}
-	return g.playTrashChangeList(cl, toTrash)
+	if permanent && g.opts.canPrompt() {
+		if !promptForChanges("This operation is irreversible. Continue [Y/N] ") {
+			return nil
+		}
+	}
+	return g.playTrashChangeList(cl, toTrash, permanent)
 }
 
-func (g *Commands) playTrashChangeList(cl []*Change, toTrash bool) (err error) {
+func (g *Commands) playTrashChangeList(cl []*Change, toTrash, permanent bool) (err error) {
 	trashSize, unTrashSize := reduceToSize(cl, SelectDest|SelectSrc)
 	g.taskStart(trashSize + unTrashSize)
 
-	var f = g.remoteUntrash
-	if toTrash {
-		f = g.remoteDelete
+	var fn func(*Change) error
+	if permanent {
+		fn = g.remoteDelete
+	} else {
+		fn = g.remoteUntrash
+		if toTrash {
+			fn = g.remoteTrash
+		}
 	}
 
 	for _, c := range cl {
@@ -164,7 +182,7 @@ func (g *Commands) playTrashChangeList(cl []*Change, toTrash bool) (err error) {
 			continue
 		}
 
-		cErr := f(c)
+		cErr := fn(c)
 		if cErr != nil {
 			g.log.LogErrln(cErr)
 		}

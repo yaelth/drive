@@ -24,6 +24,7 @@ const (
 	AboutKey      = "about"
 	AllKey        = "all"
 	CopyKey       = "copy"
+	DeleteKey     = "delete"
 	DiffKey       = "diff"
 	EmptyTrashKey = "emptytrash"
 	FeaturesKey   = "features"
@@ -60,6 +61,7 @@ const (
 	DescAbout          = "print out information about your Google drive"
 	DescAll            = "print out the entire help section"
 	DescCopy           = "copy remote paths to a destination"
+	DescDelete         = "deletes the items permanently. This operation is irreversible"
 	DescDiff           = "compares local files with their remote equivalent"
 	DescEmptyTrash     = "permanently cleans out your trash"
 	DescFeatures       = "returns information about the features of your drive"
@@ -104,6 +106,9 @@ var docMap = map[string][]string{
 	},
 	CopyKey: []string{
 		DescCopy,
+	},
+	DeleteKey: []string{
+		DescDelete,
 	},
 	DiffKey: []string{
 		DescDiff, "Accepts multiple remote paths for line by line comparison",

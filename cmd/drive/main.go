@@ -71,6 +71,7 @@ func main() {
 	bindCommandWithAliases(drive.TouchKey, drive.DescTouch, &touchCmd{}, []string{})
 	bindCommandWithAliases(drive.TrashKey, drive.DescTrash, &trashCmd{}, []string{})
 	bindCommandWithAliases(drive.UntrashKey, drive.DescUntrash, &untrashCmd{}, []string{})
+	bindCommandWithAliases(drive.DeleteKey, drive.DescDelete, &deleteCmd{}, []string{})
 	bindCommandWithAliases(drive.UnpubKey, drive.DescUnpublish, &unpublishCmd{}, []string{})
 	bindCommandWithAliases(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
 	command.ParseAndRun()
@@ -605,6 +606,39 @@ func (cmd *emptyTrashCmd) Run(args []string) {
 		NoPrompt: *cmd.noPrompt,
 		Quiet:    *cmd.quiet,
 	}).EmptyTrash())
+}
+
+type deleteCmd struct {
+	hidden  *bool
+	matches *bool
+	quiet   *bool
+}
+
+func (cmd *deleteCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "allows trashing hidden paths")
+	cmd.matches = fs.Bool("matches", false, "search by prefix and trash")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	return fs
+}
+
+func (cmd *deleteCmd) Run(args []string) {
+	if !*cmd.matches {
+		sources, context, path := preprocessArgs(args)
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: sources,
+			Quiet:   *cmd.quiet,
+		}).Delete())
+	} else {
+		cwd, err := os.Getwd()
+		exitWithError(err)
+		_, context, path := preprocessArgs([]string{cwd})
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: args,
+			Quiet:   *cmd.quiet,
+		}).DeleteByMatch())
+	}
 }
 
 type trashCmd struct {
