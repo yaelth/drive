@@ -235,7 +235,7 @@ func (g *Commands) resolveChangeListRecv(
 
 	// look-up for children
 	var localChildren chan *File
-	if l == nil {
+	if l == nil || !l.IsDir {
 		localChildren = make(chan *File)
 		close(localChildren)
 	} else {
