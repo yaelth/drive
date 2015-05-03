@@ -122,11 +122,8 @@ func (g *Commands) byRemoteResolve(relToRoot, fsPath string, r *File, isPush boo
 func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl []*Change, err error) {
 	var r *File
 	r, err = g.rem.FindByPath(relToRoot)
-	if err != nil {
-		// We cannot pull from a non-existant remote
-		if !isPush || err != ErrPathNotExists {
-			return
-		}
+	if err != nil && err != ErrPathNotExists {
+		return
 	}
 
 	return g.byRemoteResolve(relToRoot, fsPath, r, isPush)
