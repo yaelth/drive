@@ -208,6 +208,11 @@ func (g *Commands) resolveChangeListRecv(
 		change = &Change{Path: p, Src: r, Dest: l, Parent: d}
 	}
 
+	forbiddenOp := (g.opts.ExcludeCrudMask & change.crudValue()) != 0
+	if forbiddenOp {
+		return cl, nil
+	}
+
 	change.Force = g.opts.Force
 	change.NoClobber = g.opts.NoClobber
 	change.IgnoreChecksum = g.opts.IgnoreChecksum
@@ -215,6 +220,7 @@ func (g *Commands) resolveChangeListRecv(
 	if change.Op() != OpNone {
 		cl = append(cl, change)
 	}
+
 	if !g.opts.Recursive {
 		return cl, nil
 	}
@@ -249,10 +255,14 @@ func (g *Commands) resolveChangeListRecv(
 	dirlist, clashes := merge(remoteChildren, localChildren, g.opts.IgnoreNameClashes)
 
 	if !g.opts.IgnoreNameClashes && len(clashes) >= 1 {
+		if rootLike(p) {
+			p = ""
+		}
+
 		for _, dup := range clashes {
 			g.log.LogErrf("\033[91mX\033[00m %s/%v \"%v\"\n", p, dup.Name, dup.Id)
 		}
-		err = fmt.Errorf("clashes detected")
+		err = fmt.Errorf("clashes detected. use `%s` to override this behavior", CLIOptionIgnoreNameClashes)
 		return
 	}
 
@@ -287,7 +297,7 @@ func (g *Commands) resolveChangeListRecv(
 				}
 				childChanges, cErr := g.resolveChangeListRecv(isPush, p, joined, l.remote, l.local)
 				if cErr != nil && cErr != ErrPathNotExists {
-					g.log.LogErrf("%v\n", err)
+					g.log.LogErrf("%s: %v\n", p, cErr)
 					break
 				}
 

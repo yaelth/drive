@@ -265,6 +265,7 @@ func (cmd *statCmd) Run(args []string) {
 type pullCmd struct {
 	exportsDir        *string
 	export            *string
+	excludeOps        *string
 	force             *bool
 	hidden            *bool
 	matches           *bool
@@ -293,6 +294,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.matches = fs.Bool("matches", false, "search by prefix")
 	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
 
 	return fs
 }
@@ -311,8 +313,14 @@ func (cmd *pullCmd) Run(args []string) {
 		_, context, path = preprocessArgs([]string{cwd})
 	}
 
+	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.excludeOps, ",")...)
+	excludeCrudMask := drive.CrudAtoi(excludes...)
+	if excludeCrudMask == drive.AllCrudOperations {
+		exitWithError(fmt.Errorf("all CRUD operations forbidden"))
+	}
+
 	// Filter out empty strings.
-	exports := drive.NonEmptyStrings(strings.Split(*cmd.export, ",")...)
+	exports := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.export, ",")...)
 
 	options := &drive.Options{
 		Exports:           uniqOrderedStr(exports),
@@ -329,6 +337,7 @@ func (cmd *pullCmd) Run(args []string) {
 		Piped:             *cmd.piped,
 		Quiet:             *cmd.quiet,
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
+		ExcludeCrudMask:   excludeCrudMask,
 	}
 
 	if *cmd.matches {
@@ -359,6 +368,7 @@ type pushCmd struct {
 	ignoreNameClashes *bool
 	quiet             *bool
 	coercedMimeKey    *string
+	excludeOps        *string
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -376,6 +386,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.coercedMimeKey = fs.String(drive.CoercedMimeKeyKey, "", "the mimeType you are trying to coerce this file to be")
 	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
+	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
 	return fs
 }
 
@@ -444,7 +455,13 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 	}
 
 	meta := map[string][]string{
-		drive.CoercedMimeKeyKey: drive.NonEmptyStrings(*cmd.coercedMimeKey),
+		drive.CoercedMimeKeyKey: drive.NonEmptyTrimmedStrings(*cmd.coercedMimeKey),
+	}
+
+	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.excludeOps, ",")...)
+	excludeCrudMask := drive.CrudAtoi(excludes...)
+	if excludeCrudMask == drive.AllCrudOperations {
+		exitWithError(fmt.Errorf("all CRUD operations forbidden yet asking to push"))
 	}
 
 	return &drive.Options{
@@ -459,6 +476,7 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		Quiet:             *cmd.quiet,
 		Meta:              &meta,
 		TypeMask:          mask,
+		ExcludeCrudMask:   excludeCrudMask,
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
 	}
 }
@@ -764,7 +782,7 @@ func (cmd *unshareCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
 
 	meta := map[string][]string{
-		"accountType": uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.accountType, ",")...)),
+		"accountType": uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.accountType, ",")...)),
 	}
 
 	exitWithError(drive.New(context, &drive.Options{
@@ -848,9 +866,9 @@ func (cmd *shareCmd) Run(args []string) {
 
 	meta := map[string][]string{
 		"emailMessage": []string{*cmd.message},
-		"emails":       uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.emails, ",")...)),
-		"role":         uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.role, ",")...)),
-		"accountType":  uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.accountType, ",")...)),
+		"emails":       uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.emails, ",")...)),
+		"role":         uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.role, ",")...)),
+		"accountType":  uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.accountType, ",")...)),
 	}
 
 	mask := drive.NoopOnShare

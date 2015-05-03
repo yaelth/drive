@@ -80,6 +80,7 @@ type Options struct {
 	Quiet             bool
 	StdoutIsTty       bool
 	IgnoreNameClashes bool
+	ExcludeCrudMask   CrudValue
 }
 
 type Commands struct {

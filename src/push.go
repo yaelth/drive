@@ -461,12 +461,16 @@ func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp)
 			if ignore != nil && ignore.Match([]byte(file.Name())) {
 				continue
 			}
-			if !isHidden(file.Name(), hidden) {
-				fileChan <- NewLocalFile(gopath.Join(absPath, file.Name()), file)
+			if isHidden(file.Name(), hidden) {
+				continue
 			}
 
 			symlink := (file.Mode() & os.ModeSymlink) != 0
-			if symlink {
+
+			if !symlink {
+				resPath := gopath.Join(absPath, file.Name())
+				fileChan <- NewLocalFile(resPath, file)
+			} else {
 				symAbsPath := gopath.Join(absPath, file.Name())
 				var symResolvPath string
 				symResolvPath, err = filepath.EvalSymlinks(symAbsPath)
@@ -479,7 +483,7 @@ func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp)
 				if err != nil {
 					continue
 				}
-				fileChan <- NewLocalFile(symAbsPath, symInfo)
+				fileChan <- NewLocalFile(symResolvPath, symInfo)
 			}
 		}
 		close(fileChan)

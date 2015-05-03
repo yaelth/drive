@@ -237,12 +237,22 @@ $ drive features
 
 ## Note:
 
-MimeType inference is from the file's extension.
++ MimeType inference is from the file's extension.
 
-If you would like to coerce a certain mimeType that you'd prefer to assert with Google Drive pushes, use flag `-coerce-mime <short-key>`
+  If you would like to coerce a certain mimeType that you'd prefer to assert with Google Drive pushes, use flag `-coerce-mime <short-key>`
 
 ```shell
 $ drive push -coerce-mime docx my_test_doc
+```
+
++ Excluding certain operations can be done both for pull and push by passing in flag
+`--exclude-ops` <csv_crud_values>
+
+e.g
+
+```shell
+$ drive pull --exclude-ops "delete,update" vines
+$ drive push --exclude-ops "create" sensitive_files
 ```
 
 ### Publishing

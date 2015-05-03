@@ -62,6 +62,7 @@ const (
 	DescDelete         = "deletes the items permanently. This operation is irreversible"
 	DescDiff           = "compares local files with their remote equivalent"
 	DescEmptyTrash     = "permanently cleans out your trash"
+	DescExcludeOps     = "exclude operations"
 	DescFeatures       = "returns information about the features of your drive"
 	DescHelp           = "Get help for a topic"
 	DescInit           = "initializes a directory and authenticates user"
@@ -93,6 +94,7 @@ const (
 	CLIOptionIgnoreChecksum    = "ignore-checksum"
 	CLIOptionIgnoreConflict    = "ignore-conflict"
 	CLIOptionIgnoreNameClashes = "ignore-name-clashes"
+	CLIOptionExcludeOperations = "exclude-ops"
 )
 
 var skipChecksumNote = fmt.Sprintf(
