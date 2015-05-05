@@ -485,7 +485,12 @@ func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp)
 				if err != nil {
 					continue
 				}
-				fileChan <- NewLocalFile(symResolvPath, symInfo)
+
+				lf := NewLocalFile(symResolvPath, symInfo)
+				// Retain the original name as appeared in
+				// the manifest instead of the resolved one
+				lf.Name = file.Name()
+				fileChan <- lf
 			}
 		}
 		close(fileChan)
