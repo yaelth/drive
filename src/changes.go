@@ -186,6 +186,8 @@ func (g *Commands) resolveChangeListRecv(
 	isPush bool, d, p string, r *File, l *File) (cl []*Change, err error) {
 	var change *Change
 
+	explicitlyRequested := hasExportLinks(r) && len(g.opts.Exports) >= 1
+
 	if isPush {
 		// Handle the case of doc files for which we don't have a direct download
 		// url but have exportable links. These files should not be clobbered on push
@@ -194,7 +196,8 @@ func (g *Commands) resolveChangeListRecv(
 		}
 		change = &Change{Path: p, Src: l, Dest: r, Parent: d}
 	} else {
-		if !g.opts.Force && hasExportLinks(r) {
+		exportable := !g.opts.Force && hasExportLinks(r)
+		if exportable && !explicitlyRequested {
 			// The case when we have files that don't provide the download urls
 			// but exportable links, we just need to check that mod times are the same.
 			mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
@@ -210,9 +213,14 @@ func (g *Commands) resolveChangeListRecv(
 		return cl, nil
 	}
 
-	change.Force = g.opts.Force
 	change.NoClobber = g.opts.NoClobber
 	change.IgnoreChecksum = g.opts.IgnoreChecksum
+
+	if explicitlyRequested {
+		change.Force = true
+	} else {
+		change.Force = g.opts.Force
+	}
 
 	if change.Op() != OpNone {
 		cl = append(cl, change)
