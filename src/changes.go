@@ -208,11 +208,6 @@ func (g *Commands) resolveChangeListRecv(
 		change = &Change{Path: p, Src: r, Dest: l, Parent: d}
 	}
 
-	forbiddenOp := (g.opts.ExcludeCrudMask & change.crudValue()) != 0
-	if forbiddenOp {
-		return cl, nil
-	}
-
 	change.NoClobber = g.opts.NoClobber
 	change.IgnoreChecksum = g.opts.IgnoreChecksum
 
@@ -220,6 +215,11 @@ func (g *Commands) resolveChangeListRecv(
 		change.Force = true
 	} else {
 		change.Force = g.opts.Force
+	}
+
+	forbiddenOp := (g.opts.ExcludeCrudMask & change.crudValue()) != 0
+	if forbiddenOp {
+		return cl, nil
 	}
 
 	if change.Op() != OpNone {
