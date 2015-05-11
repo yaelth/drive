@@ -49,6 +49,17 @@
 
 go 1.2 or higher is required. See [here](https://golang.org/doc/install) for installation instructions and platform installers.
 
+* Make sure to set your GOPATH in your env, .bashrc or .bash\_profile file. If you have not yet set it, you can do so like this:
+
+```shell
+$ cat << ! >> ~/.bashrc
+> export GOPATH=\$HOME/gopath
+> export PATH=\$GOPATH:\$GOPATH/bin:\$PATH
+> !
+$ source ~/.bashrc # To reload the settings and get the newly set ones # Or open a fresh terminal
+```
+The above setup will ensure that the drive binary after compilation can be invoked from your current path.
+
 ## Installation
 
 To install from the latest source, run:
