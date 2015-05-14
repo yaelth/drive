@@ -441,12 +441,12 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 		urlMExt := urlMimeTypeExt{
 			url:      f.AlternateLink,
-			ext:      DesktopExtension,
+			ext:      "",
 			mimeType: f.MimeType,
 		}
 
 		dirPath = filepath.Join(dirPath, f.Name)
-		desktopEntryPath := sepJoin(".", dirPath, urlMExt.ext)
+		desktopEntryPath := sepJoin(".", dirPath, DesktopExtension)
 
 		_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
 		if dentErr != nil {
