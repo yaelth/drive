@@ -190,8 +190,14 @@ func (f *File) serializeAsDesktopEntry(destPath string, urlMExt *urlMimeTypeExt)
 	defer func() {
 		handle.Close()
 		chmodErr := os.Chmod(destPath, 0755)
+
 		if chmodErr != nil {
 			fmt.Fprintf(os.Stderr, "%s: [desktopEntry]::chmod %v\n", destPath, chmodErr)
+		}
+
+		chTimeErr := os.Chtimes(destPath, f.ModTime, f.ModTime)
+		if chTimeErr != nil {
+			fmt.Fprintf(os.Stderr, "%s: [desktopEntry]::chtime %v\n", destPath, chTimeErr)
 		}
 	}()
 
