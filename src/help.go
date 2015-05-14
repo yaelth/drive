@@ -97,6 +97,10 @@ const (
 	CLIOptionExcludeOperations = "exclude-ops"
 )
 
+const (
+	DesktopExtension = "desktop"
+)
+
 var skipChecksumNote = fmt.Sprintf(
 	"\nNote: You can skip checksum verification by passing in flag `-%s`", CLIOptionIgnoreChecksum)
 
