@@ -186,7 +186,15 @@ func (f *File) serializeAsDesktopEntry(destPath string, urlMExt *urlMimeTypeExt)
 	if err != nil {
 		return 0, err
 	}
-	defer handle.Close()
+
+	defer func() {
+		handle.Close()
+		chmodErr := os.Chmod(destPath, 0755)
+		if chmodErr != nil {
+			fmt.Fprintf(os.Stderr, "%s: [desktopEntry]::chmod %v\n", destPath, chmodErr)
+		}
+	}()
+
 	icon := strings.Replace(deskEnt.icon, UnescapedPathSep, MimeTypeJoiner, -1)
 
 	return fmt.Fprintf(handle, "[Desktop Entry]\nIcon=%s\nName=%s\nType=%s\nURL=%s\n",

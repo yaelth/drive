@@ -376,7 +376,7 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 
 			// TODO: Decide if users should get to make *.desktop users even for exports
 			if runtime.GOOS == OSLinuxKey && false {
-				desktopEntryPath := sepJoin(".", exportPath, "desktop")
+				desktopEntryPath := sepJoin(".", exportPath, DesktopExtension)
 
 				_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, urlMExt)
 				if dentErr != nil {
@@ -409,7 +409,7 @@ func isLocalFile(f *File) bool {
 
 func (g *Commands) download(change *Change, exports []string) (err error) {
 	if change.Src == nil {
-		return fmt.Errorf("Tried to download nil change.Src")
+		return fmt.Errorf("tried to download nil change.Src")
 	}
 
 	destAbsPath := g.context.AbsPathOf(change.Path)
@@ -441,12 +441,12 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 		urlMExt := urlMimeTypeExt{
 			url:      f.AlternateLink,
-			ext:      "",
+			ext:      DesktopExtension,
 			mimeType: f.MimeType,
 		}
 
 		dirPath = filepath.Join(dirPath, f.Name)
-		desktopEntryPath := sepJoin(".", dirPath)
+		desktopEntryPath := sepJoin(".", dirPath, urlMExt.ext)
 
 		_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
 		if dentErr != nil {
