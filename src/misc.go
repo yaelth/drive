@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 
 	spinner "github.com/odeke-em/cli-spinner"
@@ -54,6 +55,13 @@ func noopPlayable() *playable {
 		reset: noop,
 		stop:  noop,
 	}
+}
+
+func internalIgnores() (ignores []string) {
+	if runtime.GOOS == OSLinuxKey {
+		ignores = append(ignores, "\\.\\s*desktop$")
+	}
+	return ignores
 }
 
 func newPlayable(freq int64) *playable {
