@@ -28,6 +28,23 @@ type keyValue struct {
 	value interface{}
 }
 
+func (g *Commands) StatById() error {
+	for _, srcId := range g.opts.Sources {
+		f, err := g.rem.FindById(srcId)
+		fmt.Println(err)
+		if err != nil {
+			g.log.LogErrf("statById: %s err: %v\n", srcId, err)
+			continue
+		}
+
+		fch := g.stat(srcId, f)
+		for _ = range fch {
+		}
+	}
+
+	return nil
+}
+
 func (g *Commands) Stat() error {
 	channelMap := make(map[int]chan *keyValue)
 	var wg sync.WaitGroup
@@ -99,7 +116,9 @@ func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 	}
 
 	logf("\n\033[92m%s\033[00m\n", relToRootPath)
+
 	kvList := []*keyValue{
+		&keyValue{"Filename", file.Name},
 		&keyValue{"FileId", file.Id},
 		&keyValue{"Bytes", fmt.Sprintf("%v", file.Size)},
 		&keyValue{"Size", prettyBytes(file.Size)},
@@ -107,12 +126,19 @@ func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 		&keyValue{"MimeType", file.MimeType},
 		&keyValue{"Etag", file.Etag},
 		&keyValue{"ModTime", fmt.Sprintf("%v", file.ModTime)},
+		&keyValue{"Owners", sepJoin(" & ", file.OwnerNames...)},
+		&keyValue{"LastModifyingUsername", file.LastModifyingUsername},
 	}
+
+	if file.Name != file.OriginalFilename {
+		kvList = append(kvList, &keyValue{"OriginalFilename", file.OriginalFilename})
+	}
+
 	if !file.IsDir {
 		kvList = append(kvList, &keyValue{"Md5Checksum", file.Md5Checksum})
 	}
 	for _, kv := range kvList {
-		logf("%-20s %-30v\n", kv.key, kv.value.(string))
+		logf("%-25s %-30v\n", kv.key, kv.value.(string))
 	}
 }
 

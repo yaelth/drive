@@ -243,25 +243,50 @@ type statCmd struct {
 	hidden    *bool
 	recursive *bool
 	quiet     *bool
+	byId      *bool
 }
 
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "discover hidden paths")
 	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "stat by id instead of path")
 	return fs
 }
 
-func (cmd *statCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
+func (cmd *statCmd) statById(args []string) {
+	context, path := discoverContext([]string{"."})
 
-	exitWithError(drive.New(context, &drive.Options{
+	sources := uniqOrderedStr(args)
+
+	opts := drive.Options{
 		Hidden:    *cmd.hidden,
 		Path:      path,
 		Recursive: *cmd.recursive,
 		Sources:   sources,
 		Quiet:     *cmd.quiet,
-	}).Stat())
+	}
+
+	exitWithError(drive.New(context, &opts).StatById())
+}
+
+func (cmd *statCmd) Run(args []string) {
+	if *cmd.byId {
+		cmd.statById(args)
+		return
+	}
+
+	sources, context, path := preprocessArgs(args)
+	opts := drive.Options{
+		Hidden:    *cmd.hidden,
+		Path:      path,
+		Recursive: *cmd.recursive,
+		Sources:   sources,
+		Quiet:     *cmd.quiet,
+	}
+
+	exitWithError(drive.New(context, &opts).Stat())
+
 }
 
 type pullCmd struct {
