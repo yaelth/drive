@@ -401,6 +401,7 @@ func (cmd *pushCmd) Run(args []string) {
 }
 
 type touchCmd struct {
+	byId      *bool
 	hidden    *bool
 	recursive *bool
 	matches   *bool
@@ -412,28 +413,25 @@ func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.recursive = fs.Bool("r", false, "toggles recursive touching")
 	cmd.matches = fs.Bool("matches", false, "search by prefix and touch")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
 	return fs
 }
 
 func (cmd *touchCmd) Run(args []string) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
+
+	opts := drive.Options{
+		Hidden:    *cmd.hidden,
+		Path:      path,
+		Recursive: *cmd.recursive,
+		Sources:   sources,
+		Quiet:     *cmd.quiet,
+	}
+
 	if *cmd.matches {
-		cwd, err := os.Getwd()
-		exitWithError(err)
-		_, context, path := preprocessArgs([]string{cwd})
-		exitWithError(drive.New(context, &drive.Options{
-			Path:    path,
-			Sources: args,
-			Quiet:   *cmd.quiet,
-		}).TouchByMatch())
+		exitWithError(drive.New(context, &opts).TouchByMatch())
 	} else {
-		sources, context, path := preprocessArgs(args)
-		exitWithError(drive.New(context, &drive.Options{
-			Hidden:    *cmd.hidden,
-			Path:      path,
-			Recursive: *cmd.recursive,
-			Sources:   sources,
-			Quiet:     *cmd.quiet,
-		}).Touch())
+		exitWithError(drive.New(context, &opts).Touch(*cmd.byId))
 	}
 }
 
