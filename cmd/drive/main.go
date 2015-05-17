@@ -700,13 +700,28 @@ func (cmd *copyCmd) Run(args []string) {
 	if len(args) < 2 {
 		args = append(args, ".")
 	}
-	sources, context, path := preprocessArgs(args)
+
+	end := len(args) - 1
+	if end < 1 {
+		exitWithError(fmt.Errorf("copy: expected more than one path"))
+	}
+
+	dest := args[end]
+	srcs := args[:end]
+
+	sources, context, path := preprocessArgsByToggle(srcs, *cmd.byId)
+	destRels, err := relativePaths(context.AbsPathOf(""), dest)
+	exitWithError(err)
+
+	dest = destRels[0]
+	sources = append(sources, dest)
+
 	exitWithError(drive.New(context, &drive.Options{
 		Path:      path,
 		Sources:   sources,
 		Recursive: *cmd.recursive,
 		Quiet:     *cmd.quiet,
-	}).Copy())
+	}).Copy(*cmd.byId))
 }
 
 type untrashCmd struct {
@@ -954,7 +969,7 @@ func exitWithError(err error) {
 	}
 }
 
-func relativePaths(root string, args []string) ([]string, error) {
+func relativePaths(root string, args ...string) ([]string, error) {
 	return relativePathsOpt(root, args, false)
 }
 
@@ -1001,7 +1016,7 @@ func preprocessArgs(args []string) ([]string, *config.Context, string) {
 		args = []string{"."}
 	}
 
-	relPaths, err := relativePaths(root, args)
+	relPaths, err := relativePaths(root, args...)
 	exitWithError(err)
 
 	return uniqOrderedStr(relPaths), context, path
