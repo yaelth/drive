@@ -226,7 +226,7 @@ func (cmd *listCmd) Run(args []string) {
 	} else if *cmd.matches {
 		exitWithError(drive.New(context, &options).ListMatches())
 	} else {
-		exitWithError(drive.New(context, &options).List())
+		exitWithError(drive.New(context, &options).List(*cmd.byId))
 	}
 }
 

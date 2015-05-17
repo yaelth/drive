@@ -15,6 +15,7 @@
 package drive
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -85,19 +86,20 @@ func (g *Commands) ListMatches() error {
 	return nil
 }
 
-func (g *Commands) List() (err error) {
+func (g *Commands) List(byId bool) error {
+	var kvList []*keyValue
+
 	resolver := g.rem.FindByPath
-	if g.opts.InTrash {
+	if byId {
+		resolver = g.rem.FindById
+	} else if g.opts.InTrash {
 		resolver = g.rem.FindByPathTrashed
 	}
 
-	var kvList []*keyValue
-
 	for _, relPath := range g.opts.Sources {
 		r, rErr := resolver(relPath)
-		if rErr != nil {
-			g.log.LogErrf("%v: '%s'\n", rErr, relPath)
-			return
+		if rErr != nil && rErr != ErrPathNotExists {
+			return fmt.Errorf("%v: '%s'", rErr, relPath)
 		}
 
 		if r == nil {
@@ -105,7 +107,12 @@ func (g *Commands) List() (err error) {
 			continue
 		}
 
-		parentPath := g.parentPather(relPath)
+		parentPath := ""
+		if !byId {
+			parentPath = g.parentPather(relPath)
+		} else {
+			parentPath = r.Id
+		}
 
 		if remoteRootLike(parentPath) {
 			parentPath = ""
@@ -140,7 +147,8 @@ func (g *Commands) List() (err error) {
 		}
 	}
 	spin.stop()
-	return
+
+	return nil
 }
 
 func (g *Commands) ListShared() (err error) {
