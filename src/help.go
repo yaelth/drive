@@ -95,6 +95,7 @@ const (
 	CLIOptionIgnoreConflict    = "ignore-conflict"
 	CLIOptionIgnoreNameClashes = "ignore-name-clashes"
 	CLIOptionExcludeOperations = "exclude-ops"
+	CLIOptionId                = "id"
 )
 
 const (
