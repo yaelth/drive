@@ -100,6 +100,7 @@ type File struct {
 	Permissions           []*drive.Permission
 	LastModifyingUsername string
 	OriginalFilename      string
+	Labels                *drive.FileLabels
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -126,6 +127,7 @@ func NewRemoteFile(f *drive.File) *File {
 		Permissions:           f.Permissions,
 		LastModifyingUsername: f.LastModifyingUserName,
 		OriginalFilename:      f.OriginalFilename,
+		Labels:                f.Labels,
 	}
 }
 

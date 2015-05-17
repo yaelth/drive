@@ -31,7 +31,6 @@ type keyValue struct {
 func (g *Commands) StatById() error {
 	for _, srcId := range g.opts.Sources {
 		f, err := g.rem.FindById(srcId)
-		fmt.Println(err)
 		if err != nil {
 			g.log.LogErrf("statById: %s err: %v\n", srcId, err)
 			continue
@@ -132,6 +131,15 @@ func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 
 	if file.Name != file.OriginalFilename {
 		kvList = append(kvList, &keyValue{"OriginalFilename", file.OriginalFilename})
+	}
+
+	if file.Labels != nil {
+		kvList = append(kvList,
+			&keyValue{"Starred", fmt.Sprintf("%v", file.Labels.Starred)},
+			&keyValue{"Viewed", fmt.Sprintf("%v", file.Labels.Viewed)},
+			&keyValue{"Trashed", fmt.Sprintf("%v", file.Labels.Trashed)},
+			&keyValue{"ViewersCanDownload", fmt.Sprintf("%v", file.Labels.Restricted)},
+		)
 	}
 
 	if !file.IsDir {
