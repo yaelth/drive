@@ -290,6 +290,7 @@ func (cmd *statCmd) Run(args []string) {
 }
 
 type pullCmd struct {
+	byId              *bool
 	exportsDir        *string
 	export            *string
 	excludeOps        *string
@@ -322,6 +323,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "pull by id instead of path")
 
 	return fs
 }
@@ -331,12 +333,12 @@ func (cmd *pullCmd) Run(args []string) {
 	var sources []string
 	var context *config.Context
 
-	if !*cmd.matches {
+	if !(*cmd.matches || *cmd.byId) {
 		sources, context, path = preprocessArgs(args)
 	} else {
 		cwd, err := os.Getwd()
 		exitWithError(err)
-		sources = args
+		sources = uniqOrderedStr(args)
 		_, context, path = preprocessArgs([]string{cwd})
 	}
 
@@ -370,9 +372,9 @@ func (cmd *pullCmd) Run(args []string) {
 	if *cmd.matches {
 		exitWithError(drive.New(context, options).PullMatches())
 	} else if *cmd.piped {
-		exitWithError(drive.New(context, options).PullPiped())
+		exitWithError(drive.New(context, options).PullPiped(*cmd.byId))
 	} else {
-		exitWithError(drive.New(context, options).Pull())
+		exitWithError(drive.New(context, options).Pull(*cmd.byId))
 	}
 }
 
