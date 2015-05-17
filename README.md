@@ -126,6 +126,12 @@ To pull specific files or directories, pass in one or more paths:
 $ drive pull photos/img001.png docs
 ```
 
+Pulling by id is also supported
+
+```shell
+$ drive pull --id 0fM9rt0Yc9RTPaDdsNzg1dXVjM0E 0fM9rt0Yc9RTPaTVGc1pzODN1NjQ 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU
+```
+
 
 ## Note: Checksum verification:
 
@@ -275,12 +281,24 @@ The `pub` command publishes a file or directory globally so that anyone can view
 $ drive pub photos
 ```
 
++ Publishing by fileId is also supported
+
+```shell
+$ drive pub --id 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU 0fM9rt0Yc9RTPSTZEanBsamZjUXM
+```
+
 ### Unpublishing
 
 The `unpub` command is the opposite of `pub`. It unpublishes a previously published file or directory.
 
 ```shell
 $ drive unpub photos
+```
+
++ Publishing by fileId is also supported
+
+```shell
+$ drive unpub --id 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU 0fM9rt0Yc9RTPSTZEanBsamZjUXM
 ```
 
 ### Sharing and Emailing
@@ -297,6 +315,12 @@ For example to share a file with users of a mailing list and a custom message
 $ drive share -emails drive-mailing-list@gmail.com -message "Here is the drive code" -role group mnt/drive
 ```
 
++ Also supports sharing by fileId
+
+```shell
+$ drive share --emails developers@developers.devs --message "Developers, developers developers" --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+```
+
 ### Unsharing
 
 The `unshare` command revokes access of a specific accountType to a set of files.
@@ -305,6 +329,11 @@ The `unshare` command revokes access of a specific accountType to a set of files
 $ drive unshare -type group mnt/drive
 ```
 
++ Also supports unsharing by fileId
+
+```shell
+$ drive unshare --type group --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+```
 ### Touching
 
 Files that exist remotely can be touched i.e their modification time updated to that on the remote server using the `touch` command:
@@ -317,6 +346,12 @@ For example to touch all files that begin with digits 0  to 9:
 
 ```shell
 $ drive touch -matches $(seq 0 9)
+```
+
++ Also supports touching of files by fileId
+
+```shell
+$ drive touch --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
 ### Trashing and Untrashing
@@ -347,6 +382,13 @@ To untrash files that match a certain prefix pattern
 $ drive untrash -matches pQueue photos Untitled
 ```
 
++ Also supports trashing/untrashing by fileId
+
+```shell
+$ drive trash --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+$ drive untrash --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+```
+
 
 ### Emptying the Trash
 
@@ -366,6 +408,12 @@ $ drive delete flux.mp4
 
 ```shell
 $ drive delete --matches onyx swp
+```
+
++ Also supports deletion by fileIds
+
+```shell
+$ drive delete --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
 
@@ -403,6 +451,12 @@ To get detailed information about the listings e.g owner information and the ver
 $ drive list -owners -l -version
 ```
 
++ Also supports listing by fileIds
+
+```shell
+$ drive list -m 3 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+```
+
 ### Stating Files
 
 The `stat` commands show detailed file information for example people with whom it is shared, their roles and accountTypes, and
@@ -416,6 +470,12 @@ By default `stat` won't recursively stat a directory, to enable recursive statin
 
 ```shell
 $ drive stat -r mnt
+```
+
++ Also supports stat-ing by fileIds
+
+```shell
+$ drive stat -r --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
 ### Quota
@@ -479,6 +539,13 @@ $ drive copy -r blobStore.py mnt flagging
 $ drive copy blobStore.py blobStoreDuplicated.py
 ```
 
++ Also supports copying by fileIds
+
+```shell
+$ drive copy -r --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U ../content
+```
+
+
 ### Rename
 
 drive allows you to rename a file/folder remotely. To do so:
@@ -488,12 +555,25 @@ $ drive rename url_test url_test_results
 $ drive rename openSrc/2015 2015-Contributions
 ```
 
++ Also supports renaming by fileId
+
+```shell
+$ drive rename 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 fluxing
+```
+
+
 ### Move
 
 drive allows you to move content remotely between folders. To do so:
 
 ```shell
 $ drive move photos/2015 angles library archives/storage
+```
+
++ Also supports moving by fileId
+
+```shell
+$ drive rename 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U ../../new_location
 ```
 
 
