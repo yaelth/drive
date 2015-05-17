@@ -707,9 +707,10 @@ func (cmd *copyCmd) Run(args []string) {
 	}
 
 	dest := args[end]
-	srcs := args[:end]
 
-	sources, context, path := preprocessArgsByToggle(srcs, *cmd.byId)
+	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+	// Unshift by the end path
+	sources = sources[:len(sources)-1]
 	destRels, err := relativePaths(context.AbsPathOf(""), dest)
 	exitWithError(err)
 
@@ -804,40 +805,57 @@ func (cmd *unshareCmd) Run(args []string) {
 
 type moveCmd struct {
 	quiet *bool
+	byId  *bool
 }
 
 func (cmd *moveCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "unshare by id instead of path")
 	return fs
 }
 
 func (cmd *moveCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
+	argc := len(args)
+	if argc < 1 {
+		exitWithError(fmt.Errorf("move: expecting a path or more"))
+	}
+	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+	// Unshift by the end path
+	sources = sources[:len(sources)-1]
+
+	dest := args[argc-1]
+	destRels, err := relativePaths(context.AbsPathOf(""), dest)
+	exitWithError(err)
+
+	sources = append(sources, destRels[0])
+
 	exitWithError(drive.New(context, &drive.Options{
 		Path:    path,
 		Sources: sources,
 		Quiet:   *cmd.quiet,
-	}).Move())
+	}).Move(*cmd.byId))
 }
 
 type renameCmd struct {
 	force *bool
 	quiet *bool
+	byId  *bool
 }
 
 func (cmd *renameCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.force = fs.Bool("force", false, "coerce rename even if remote already exists")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "unshare by id instead of path")
 	return fs
 }
 
 func (cmd *renameCmd) Run(args []string) {
 	argc := len(args)
 	if argc < 2 {
-		exitWithError(fmt.Errorf("move: expecting <src> <dest>"))
+		exitWithError(fmt.Errorf("rename: expecting <src> <dest>"))
 	}
 	rest, last := args[:argc-1], args[argc-1]
-	sources, context, path := preprocessArgs(rest)
+	sources, context, path := preprocessArgsByToggle(rest, *cmd.byId)
 
 	sources = append(sources, last)
 	exitWithError(drive.New(context, &drive.Options{
@@ -845,7 +863,7 @@ func (cmd *renameCmd) Run(args []string) {
 		Sources: sources,
 		Force:   *cmd.force,
 		Quiet:   *cmd.quiet,
-	}).Rename())
+	}).Rename(*cmd.byId))
 }
 
 type shareCmd struct {
