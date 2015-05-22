@@ -103,12 +103,12 @@ func (g *Commands) resolveToLocalFile(relToRoot, fsPath string) (local *File, er
 		return
 	}
 
-	if namedPipe(localinfo.Mode()) {
-		err = fmt.Errorf("%s (%s) is a named pipe, yet not reading from it", relToRoot, fsPath)
-		return
-	}
-
 	if localinfo != nil {
+		if namedPipe(localinfo.Mode()) {
+			err = fmt.Errorf("%s (%s) is a named pipe, yet not reading from it", relToRoot, fsPath)
+			return
+		}
+
 		local = NewLocalFile(fsPath, localinfo)
 	}
 
