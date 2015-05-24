@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 
 	spinner "github.com/odeke-em/cli-spinner"
 )
@@ -28,6 +29,8 @@ import (
 const (
 	MimeTypeJoiner      = "-"
 	RemoteDriveRootPath = "My Drive"
+
+	FmtTimeString = "2006-01-02T15:04:05.000Z"
 )
 
 var BytesPerKB = float64(1024)
@@ -55,6 +58,18 @@ func noopPlayable() *playable {
 		reset: noop,
 		stop:  noop,
 	}
+}
+
+func parseTime(ts string, round bool) (t time.Time) {
+	t, _ = time.Parse(FmtTimeString, ts)
+	if !round {
+		return
+	}
+	return t.Round(time.Second)
+}
+
+func parseTimeAndRound(ts string) (t time.Time) {
+	return parseTime(ts, true)
 }
 
 func internalIgnores() (ignores []string) {
