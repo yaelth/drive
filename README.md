@@ -11,6 +11,7 @@
 - [Requirements](#requirements)
 - [Installation](#installation)
   - [Platform Packages](#platform-packages)
+  - [Godep](#godep)
 - [Configuration](#configuration)
 - [Usage](#usage)
   - [Initializing](#initializing)
@@ -76,12 +77,26 @@ Otherwise:
 $ go get github.com/odeke-em/drive/drive-gen && drive-gen
 ```
 
+### Godep
+
++ Using godep
+```
+$ cd $GOPATH/src/github.com/odeke-em/drive/drive-gen && godep save
+```
+
++ Unravelling/Restoring dependencies
+```
+$ cd $GOPATH/src/github.com/odeke-em/drive/drive-gen && godep restore
+```
+
+Please see file `drive-gen/README.md` for more information.
+
+
 ### Platform Packages
 
 For curated packages on your favorite platform, please see file [Platform Packages.md](https://github.com/odeke-em/drive/blob/master/platform_packages.md).
 
 Is your platform missing a package? Feel free to prepare / contribute an installation package and then submit a PR to add it in.
-
 
 ## Configuration
 
