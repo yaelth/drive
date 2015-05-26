@@ -361,6 +361,19 @@ var regExtStrMap = map[string]string{
 	"jpe?g": "image/jpeg",
 
 	"odt": "application/vnd.oasis.opendocument.text",
+	"odm": "application/vnd.oasis.opendocument.text-master",
+	"ott": "application/vnd.oasis.opendocument.text-template",
+	"ods": "application/vnd.oasis.opendocument.sheet",
+	"ots": "application/vnd.oasis.opendocument.spreadsheet-template",
+	"odg": "application/vnd.oasis.opendocument.graphics",
+	"otg": "application/vnd.oasis.opendocument.graphics-template",
+	"oth": "application/vnd.oasis.opendocument.text-web",
+	"odp": "application/vnd.oasis.opendocument.presentation",
+	"otp": "application/vnd.oasis.opendocument.presentation-template",
+	"odi": "application/vnd.oasis.opendocument.image",
+	"odb": "application/vnd.oasis.opendocument.database",
+	"oxt": "application/vnd.openofficeorg.extension",
+
 	"rtf": "application/rtf",
 	"pdf": "application/pdf",
 
