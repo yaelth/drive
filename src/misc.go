@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	spinner "github.com/odeke-em/cli-spinner"
@@ -116,7 +117,12 @@ func memoizeBytes() byteDescription {
 	suffixes := []string{"B", "KB", "MB", "GB", "TB", "PB"}
 	maxLen := len(suffixes) - 1
 
+	var cacheMu sync.Mutex
+
 	return func(b int64) string {
+		cacheMu.Lock()
+		defer cacheMu.Unlock()
+
 		description, ok := cache[b]
 		if ok {
 			return description
@@ -397,9 +403,13 @@ var regExtMap = func() map[*regexp.Regexp]string {
 }()
 
 func _mimeTyper() func(string) string {
-	cache := map[string]string{}
+	var cache = make(map[string]string)
+	var cacheMu sync.Mutex
 
 	return func(ext string) string {
+		cacheMu.Lock()
+		defer cacheMu.Unlock()
+
 		memoized, ok := cache[ext]
 		if ok {
 			return memoized
