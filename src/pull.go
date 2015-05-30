@@ -319,14 +319,14 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 
 func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
 	defer func() {
-		if err == nil {
-			src := change.Src
-			index := src.ToIndex()
-			sErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+		if err == nil && change.Src != nil {
+			fileToSerialize := change.Src
+			index := fileToSerialize.ToIndex()
+			indexErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
 
 			// TODO: Should indexing errors be reported?
-			if sErr != nil {
-				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, sErr)
+			if indexErr != nil {
+				g.log.LogErrf("serializeIndex %s: %v\n", fileToSerialize.Name, indexErr)
 			}
 		}
 		wg.Done()

@@ -447,3 +447,7 @@ func CrudAtoi(ops ...string) CrudValue {
 
 	return opValue
 }
+
+func httpOk(statusCode int) bool {
+	return statusCode >= 200 && statusCode <= 299
+}
