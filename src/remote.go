@@ -318,16 +318,26 @@ func urlToPath(p string, fsBound bool) string {
 
 func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	var url string
+	var body io.ReadCloser
+
 	if len(exportURL) < 1 {
 		url = DriveResourceHostURL + id
 	} else {
 		url = exportURL
 	}
+
 	resp, err := r.transport.Client().Get(url)
-	if err != nil || resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return resp.Body, err
+	if err == nil {
+		if resp == nil {
+			err = fmt.Errorf("bug on: download for url \"%s\". resp and err are both nil", url)
+		} else if httpOk(resp.StatusCode) { // TODO: Handle other statusCodes e.g redirects?
+			body = resp.Body
+		} else {
+			err = fmt.Errorf("download: failed for url \"%s\". StatusCode: %v", url, resp.StatusCode)
+		}
 	}
-	return resp.Body, nil
+
+	return body, err
 }
 
 func (r *Remote) Touch(id string) (*File, error) {
