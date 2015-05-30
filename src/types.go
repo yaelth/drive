@@ -371,8 +371,11 @@ func (c *Change) Op() Operation {
 	if c.Force {
 		if op == OpModConflict {
 			return OpMod
+		} else if op == OpNone {
+			return OpAdd
 		}
-		return OpAdd
+
+		return op
 	}
 	if op != OpAdd && c.NoClobber {
 		return OpNone
