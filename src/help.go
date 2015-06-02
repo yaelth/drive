@@ -52,6 +52,10 @@ const (
 	QuitShortKey      = "q"
 	YesShortKey       = "Y"
 	QuitLongKey       = "quit"
+	MatchesKey        = "matches"
+	HiddenKey         = "hidden"
+	NoPromptKey       = "no-prompt"
+	TrashedKey        = "trashed"
 	DriveRepoRelPath  = "github.com/odeke-em/drive"
 )
 
@@ -95,6 +99,11 @@ const (
 	CLIOptionIgnoreConflict    = "ignore-conflict"
 	CLIOptionIgnoreNameClashes = "ignore-name-clashes"
 	CLIOptionExcludeOperations = "exclude-ops"
+	CLIOptionId                = "id"
+)
+
+const (
+	DesktopExtension = "desktop"
 )
 
 var skipChecksumNote = fmt.Sprintf(

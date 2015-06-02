@@ -19,7 +19,10 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
+	"sync"
+	"time"
 
 	spinner "github.com/odeke-em/cli-spinner"
 )
@@ -27,6 +30,8 @@ import (
 const (
 	MimeTypeJoiner      = "-"
 	RemoteDriveRootPath = "My Drive"
+
+	FmtTimeString = "2006-01-02T15:04:05.000Z"
 )
 
 var BytesPerKB = float64(1024)
@@ -54,6 +59,25 @@ func noopPlayable() *playable {
 		reset: noop,
 		stop:  noop,
 	}
+}
+
+func parseTime(ts string, round bool) (t time.Time) {
+	t, _ = time.Parse(FmtTimeString, ts)
+	if !round {
+		return
+	}
+	return t.Round(time.Second)
+}
+
+func parseTimeAndRound(ts string) (t time.Time) {
+	return parseTime(ts, true)
+}
+
+func internalIgnores() (ignores []string) {
+	if runtime.GOOS == OSLinuxKey {
+		ignores = append(ignores, "\\.\\s*desktop$")
+	}
+	return ignores
 }
 
 func newPlayable(freq int64) *playable {
@@ -93,7 +117,12 @@ func memoizeBytes() byteDescription {
 	suffixes := []string{"B", "KB", "MB", "GB", "TB", "PB"}
 	maxLen := len(suffixes) - 1
 
+	var cacheMu sync.Mutex
+
 	return func(b int64) string {
+		cacheMu.Lock()
+		defer cacheMu.Unlock()
+
 		description, ok := cache[b]
 		if ok {
 			return description
@@ -186,7 +215,21 @@ func (f *File) serializeAsDesktopEntry(destPath string, urlMExt *urlMimeTypeExt)
 	if err != nil {
 		return 0, err
 	}
-	defer handle.Close()
+
+	defer func() {
+		handle.Close()
+		chmodErr := os.Chmod(destPath, 0755)
+
+		if chmodErr != nil {
+			fmt.Fprintf(os.Stderr, "%s: [desktopEntry]::chmod %v\n", destPath, chmodErr)
+		}
+
+		chTimeErr := os.Chtimes(destPath, f.ModTime, f.ModTime)
+		if chTimeErr != nil {
+			fmt.Fprintf(os.Stderr, "%s: [desktopEntry]::chtime %v\n", destPath, chTimeErr)
+		}
+	}()
+
 	icon := strings.Replace(deskEnt.icon, UnescapedPathSep, MimeTypeJoiner, -1)
 
 	return fmt.Fprintf(handle, "[Desktop Entry]\nIcon=%s\nName=%s\nType=%s\nURL=%s\n",
@@ -324,6 +367,19 @@ var regExtStrMap = map[string]string{
 	"jpe?g": "image/jpeg",
 
 	"odt": "application/vnd.oasis.opendocument.text",
+	"odm": "application/vnd.oasis.opendocument.text-master",
+	"ott": "application/vnd.oasis.opendocument.text-template",
+	"ods": "application/vnd.oasis.opendocument.sheet",
+	"ots": "application/vnd.oasis.opendocument.spreadsheet-template",
+	"odg": "application/vnd.oasis.opendocument.graphics",
+	"otg": "application/vnd.oasis.opendocument.graphics-template",
+	"oth": "application/vnd.oasis.opendocument.text-web",
+	"odp": "application/vnd.oasis.opendocument.presentation",
+	"otp": "application/vnd.oasis.opendocument.presentation-template",
+	"odi": "application/vnd.oasis.opendocument.image",
+	"odb": "application/vnd.oasis.opendocument.database",
+	"oxt": "application/vnd.openofficeorg.extension",
+
 	"rtf": "application/rtf",
 	"pdf": "application/pdf",
 
@@ -347,9 +403,13 @@ var regExtMap = func() map[*regexp.Regexp]string {
 }()
 
 func _mimeTyper() func(string) string {
-	cache := map[string]string{}
+	var cache = make(map[string]string)
+	var cacheMu sync.Mutex
 
 	return func(ext string) string {
+		cacheMu.Lock()
+		defer cacheMu.Unlock()
+
 		memoized, ok := cache[ext]
 		if ok {
 			return memoized
@@ -396,4 +456,8 @@ func CrudAtoi(ops ...string) CrudValue {
 	}
 
 	return opValue
+}
+
+func httpOk(statusCode int) bool {
+	return statusCode >= 200 && statusCode <= 299
 }

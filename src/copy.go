@@ -27,11 +27,17 @@ type copyArgs struct {
 	dest     *File
 }
 
-func (g *Commands) Copy() error {
+func (g *Commands) Copy(byId bool) error {
 	argc := len(g.opts.Sources)
 	if argc < 2 {
 		return fmt.Errorf("expecting src [src1....] dest got: %v", g.opts.Sources)
 	}
+
+	g.log.Logln("Processing...")
+
+	spin := g.playabler()
+	spin.play()
+	defer spin.stop()
 
 	end := argc - 1
 	sources, dest := g.opts.Sources[:end], g.opts.Sources[end]
@@ -52,17 +58,34 @@ func (g *Commands) Copy() error {
 		}
 	}
 
+	srcResolver := g.rem.FindByPath
+	if byId {
+		srcResolver = g.rem.FindById
+	}
+
+	done := make(chan bool)
+	waitCount := uint64(0)
+
 	for _, srcPath := range sources {
-		srcFile, srcErr := g.rem.FindByPath(srcPath)
+		srcFile, srcErr := srcResolver(srcPath)
 		if srcErr != nil {
 			g.log.LogErrf("%s: %v\n", srcPath, srcErr)
 			continue
 		}
 
-		_, copyErr := g.copy(srcFile, dest)
-		if copyErr != nil {
-			g.log.LogErrf("%s: %v\n", srcPath, copyErr)
-		}
+		waitCount += 1
+
+		go func(fromPath, toPath string, fromFile *File) {
+			_, copyErr := g.copy(fromFile, toPath)
+			if copyErr != nil {
+				g.log.LogErrf("%s: %v\n", fromPath, copyErr)
+			}
+			done <- true
+		}(srcPath, dest, srcFile)
+	}
+
+	for i := uint64(0); i < waitCount; i += 1 {
+		<-done
 	}
 
 	return nil
@@ -103,10 +126,15 @@ func (g *Commands) copy(src *File, destPath string) (*File, error) {
 	}
 
 	children := g.rem.findChildren(src.Id, false)
+
 	for child := range children {
-		_, childErr := g.copy(child, destPath+"/"+child.Name)
-		if childErr != nil {
-			return nil, childErr
+		// TODO: add concurrency after retry scheme is added
+		// because could suffer from rate limit restrictions
+		chName := sepJoin("/", destPath, child.Name)
+		_, chErr := g.copy(child, chName)
+
+		if chErr != nil {
+			g.log.LogErrf("copy: %s: %v\n", chName, chErr)
 		}
 	}
 

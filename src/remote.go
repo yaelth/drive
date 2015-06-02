@@ -60,8 +60,9 @@ const (
 )
 
 var (
-	ErrPathNotExists = errors.New("remote path doesn't exist")
-	ErrNetLookup     = errors.New("net lookup failed")
+	ErrPathNotExists   = errors.New("remote path doesn't exist")
+	ErrNetLookup       = errors.New("net lookup failed")
+	ErrClashesDetected = fmt.Errorf("clashes detected. use `%s` to override this behavior", CLIOptionIgnoreNameClashes)
 )
 
 var (
@@ -317,16 +318,26 @@ func urlToPath(p string, fsBound bool) string {
 
 func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	var url string
+	var body io.ReadCloser
+
 	if len(exportURL) < 1 {
 		url = DriveResourceHostURL + id
 	} else {
 		url = exportURL
 	}
+
 	resp, err := r.transport.Client().Get(url)
-	if err != nil || resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return resp.Body, err
+	if err == nil {
+		if resp == nil {
+			err = fmt.Errorf("bug on: download for url \"%s\". resp and err are both nil", url)
+		} else if httpOk(resp.StatusCode) { // TODO: Handle other statusCodes e.g redirects?
+			body = resp.Body
+		} else {
+			err = fmt.Errorf("download: failed for url \"%s\". StatusCode: %v", url, resp.StatusCode)
+		}
 	}
-	return resp.Body, nil
+
+	return body, err
 }
 
 func (r *Remote) Touch(id string) (*File, error) {
@@ -514,6 +525,11 @@ func (r *Remote) copy(newName, parentId string, srcFile *File) (*File, error) {
 func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	var body io.Reader
 	body, err = os.Open(args.fsAbsPath)
+	/*
+	   // TODO: (@odeke-em) decide:
+	   //   + if to reject FIFO
+	   //   + perform an assertion for fileStated.IsDir() == args.src.IsDir
+	*/
 	if args.src == nil {
 		err = fmt.Errorf("bug on: src cannot be nil")
 		return

@@ -45,7 +45,7 @@ func (g *Commands) Push() (err error) {
 	spin := g.playabler()
 	spin.play()
 
-	// To Ensure mount points are cleared in the event of external exceptios
+	// To Ensure mount points are cleared in the event of external exceptions
 	go func() {
 		_ = <-c
 		spin.stop()
@@ -445,6 +445,14 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	return parent, parentErr
 }
 
+func namedPipe(mode os.FileMode) bool {
+	return (mode & os.ModeNamedPipe) != 0
+}
+
+func symlink(mode os.FileMode) bool {
+	return (mode & os.ModeSymlink) != 0
+}
+
 func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp) (fileChan chan *File, err error) {
 	absPath := context.AbsPathOf(p)
 	var f []os.FileInfo
@@ -468,10 +476,15 @@ func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp)
 				continue
 			}
 
-			symlink := (file.Mode() & os.ModeSymlink) != 0
 			resPath := gopath.Join(absPath, fileName)
 
-			if !symlink {
+			// TODO: (@odeke-em) decide on how to deal with isFifo
+			if namedPipe(file.Mode()) {
+				fmt.Fprintf(os.Stderr, "%s (%s) is a named pipe, not reading from it\n", p, resPath)
+				continue
+			}
+
+			if !symlink(file.Mode()) {
 				fileChan <- NewLocalFile(resPath, file)
 			} else {
 				var symResolvPath string

@@ -77,17 +77,18 @@ type File struct {
 	AlternateLink string
 	BlobAt        string
 	// Copyable decides if the user has allowed for the file to be copied
-	Copyable    bool
-	ExportLinks map[string]string
-	Id          string
-	IsDir       bool
-	Md5Checksum string
-	MimeType    string
-	ModTime     time.Time
-	Name        string
-	Size        int64
-	Etag        string
-	Shared      bool
+	Copyable           bool
+	ExportLinks        map[string]string
+	Id                 string
+	IsDir              bool
+	Md5Checksum        string
+	MimeType           string
+	ModTime            time.Time
+	LastViewedByMeTime time.Time
+	Name               string
+	Size               int64
+	Etag               string
+	Shared             bool
 	// UserPermission contains the permissions for the authenticated user on this file
 	UserPermission *drive.Permission
 	// CacheChecksum when set avoids recomputation of checksums
@@ -97,31 +98,36 @@ type File struct {
 	// The onwers of this file.
 	OwnerNames []string
 	// Permissions contains the overall permissions for this file
-	Permissions []*drive.Permission
+	Permissions           []*drive.Permission
+	LastModifyingUsername string
+	OriginalFilename      string
+	Labels                *drive.FileLabels
 }
 
 func NewRemoteFile(f *drive.File) *File {
-	mtime, _ := time.Parse("2006-01-02T15:04:05.000Z", f.ModifiedDate)
-	mtime = mtime.Round(time.Second)
 	return &File{
-		AlternateLink: f.AlternateLink,
-		BlobAt:        f.DownloadUrl,
-		Copyable:      f.Copyable,
-		Etag:          f.Etag,
-		ExportLinks:   f.ExportLinks,
-		Id:            f.Id,
-		IsDir:         f.MimeType == DriveFolderMimeType,
-		Md5Checksum:   f.Md5Checksum,
-		MimeType:      f.MimeType,
-		ModTime:       mtime,
+		AlternateLink:      f.AlternateLink,
+		BlobAt:             f.DownloadUrl,
+		Copyable:           f.Copyable,
+		Etag:               f.Etag,
+		ExportLinks:        f.ExportLinks,
+		Id:                 f.Id,
+		IsDir:              f.MimeType == DriveFolderMimeType,
+		Md5Checksum:        f.Md5Checksum,
+		MimeType:           f.MimeType,
+		ModTime:            parseTimeAndRound(f.ModifiedDate),
+		LastViewedByMeTime: parseTimeAndRound(f.LastViewedByMeDate),
 		// We must convert each title to match that on the FS.
-		Name:           urlToPath(f.Title, true),
-		Size:           f.FileSize,
-		Shared:         f.Shared,
-		UserPermission: f.UserPermission,
-		Version:        f.Version,
-		OwnerNames:     f.OwnerNames,
-		Permissions:    f.Permissions,
+		Name:                  urlToPath(f.Title, true),
+		Size:                  f.FileSize,
+		Shared:                f.Shared,
+		UserPermission:        f.UserPermission,
+		Version:               f.Version,
+		OwnerNames:            f.OwnerNames,
+		Permissions:           f.Permissions,
+		LastModifyingUsername: f.LastModifyingUserName,
+		OriginalFilename:      f.OriginalFilename,
+		Labels:                f.Labels,
 	}
 }
 
@@ -137,13 +143,17 @@ func DupFile(f *File) *File {
 		ModTime:     f.ModTime,
 		Copyable:    f.Copyable,
 		// We must convert each title to match that on the FS.
-		Name:           f.Name,
-		Size:           f.Size,
-		Shared:         f.Shared,
-		UserPermission: f.UserPermission,
-		Version:        f.Version,
-		OwnerNames:     f.OwnerNames,
-		Permissions:    f.Permissions,
+		Name:               f.Name,
+		Size:               f.Size,
+		Shared:             f.Shared,
+		UserPermission:     f.UserPermission,
+		Version:            f.Version,
+		OwnerNames:         f.OwnerNames,
+		Permissions:        f.Permissions,
+		LastViewedByMeTime: f.LastViewedByMeTime,
+		Labels:             f.Labels,
+		AlternateLink:      f.AlternateLink,
+		OriginalFilename:   f.OriginalFilename,
 	}
 }
 
@@ -361,8 +371,11 @@ func (c *Change) Op() Operation {
 	if c.Force {
 		if op == OpModConflict {
 			return OpMod
+		} else if op == OpNone {
+			return OpAdd
 		}
-		return OpAdd
+
+		return op
 	}
 	if op != OpAdd && c.NoClobber {
 		return OpNone
