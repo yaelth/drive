@@ -16,6 +16,7 @@ package drive
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -87,6 +88,7 @@ type Commands struct {
 	context *config.Context
 	rem     *Remote
 	opts    *Options
+	rcOpts  *Options
 	log     *log.Logger
 
 	progress *pb.ProgressBar
@@ -102,6 +104,28 @@ func (opts *Options) canPrompt() bool {
 	return !opts.NoPrompt
 }
 
+func rcPathChecker(absDir string) (string, error) {
+	p := rcPath(absDir)
+	statInfo, err := os.Stat(p)
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+
+	if statInfo == nil {
+		return "", os.ErrNotExist
+	}
+	return p, nil
+}
+
+func (opts *Options) rcPath() (string, error) {
+	localRCPath, lRCErr := rcPathChecker(opts.Path)
+	if lRCErr == nil || !os.IsNotExist(lRCErr) {
+		return localRCPath, lRCErr
+	}
+
+	return rcPathChecker(FsHomeDir)
+}
+
 func New(context *config.Context, opts *Options) *Commands {
 	var r *Remote
 	if context != nil {
@@ -113,6 +137,13 @@ func New(context *config.Context, opts *Options) *Commands {
 	logger := log.New(stdin, stdout, stderr)
 
 	if opts != nil {
+
+		rcP, rcErr := opts.rcPath()
+		if rcErr == nil {
+			kvmap, err := kvifyCommentedFile(rcP, CommentStr)
+			fmt.Println("kvmap", kvmap, "err", err)
+		}
+
 		// should always start with /
 		opts.Path = path.Clean(path.Join("/", opts.Path))
 

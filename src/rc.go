@@ -14,16 +14,58 @@
 
 package drive
 
+import (
+	"fmt"
+	"os"
+	"path"
+	"regexp"
+	"strings"
+)
+
 const (
 	DriveResourceConfiguration = ".driverc"
 )
 
-type ResourceConfiguration struct {
-	ExcludeOps string `json:"exclude-ops"`
+var (
+	HomeEnvKey           = "HOME"
+	HomeShellEnvKey      = "$" + HomeEnvKey
+	FsHomeDir            = os.Getenv(HomeEnvKey)
+	ShellVarSplitsRegStr = "(\\$+[^\\s\\/]*)"
+)
+
+var (
+	ShellVarRegCompile, _ = regexp.Compile(ShellVarSplitsRegStr)
+)
+
+func envResolved(v string) string {
+
+	matches := ShellVarRegCompile.FindAll([]byte(v), -1)
+	if len(matches) < 1 {
+		return v
+	}
+
+	uniq := make(map[string]string)
+
+	for _, match := range matches {
+		strMatch := string(match)
+		if _, ok := uniq[strMatch]; ok {
+			continue
+		}
+		uniq[strMatch] = strMatch
+	}
+
+	for envKey, _ := range uniq {
+		qKey := strings.Replace(envKey, "$", "", -1)
+		resolved := os.Getenv(qKey)
+		v = strings.Replace(v, envKey, resolved, -1)
+	}
+
+	return v
 }
 
 func kvifyCommentedFile(p, comment string) (kvMap map[string]string, err error) {
 	var clauses []string
+	kvMap = make(map[string]string)
 	clauses, err = readCommentedFile(p, comment)
 	if err != nil {
 		return
@@ -47,11 +89,59 @@ func kvifyCommentedFile(p, comment string) (kvMap map[string]string, err error) 
 	return
 }
 
+const (
+	TBool = iota
+	TString
+	TStringArray
+	TByteArray
+	TInt
+	TInt64
+)
+
+type typeEmitterPair struct {
+	value        string
+	valueEmitter func(v string) interface{}
+}
+
+func rcMapToOptions(rcMap map[string]string) (*Options, error) {
+	targetKeys := []string{
+		CoercedMimeKeyKey,
+		ForceKey,
+		QuietKey,
+		HiddenKey,
+		NoPromptKey,
+	}
+
+	accepted := make(map[string]string)
+	for _, key := range targetKeys {
+		retr, ok := rcMap[key]
+		if !ok {
+			continue
+		}
+
+		accepted[key] = retr
+	}
+
+	if len(accepted) < 1 {
+		return nil, fmt.Errorf("rcMapping: no keys matched")
+	}
+
+	return nil, fmt.Errorf("not yet implemented")
+}
+
+func rcPath(absDirPath string) string {
+	return path.Join(absDirPath, DriveResourceConfiguration)
+}
+
+func globalRcFile() string {
+	ps := rcPath(FsHomeDir)
+	return ps
+}
+
 func splitAndStrip(line string, resolveFromEnv bool) (kv keyValue, err error) {
 	line = strings.Trim(line, " ")
 	subStrCount := 2
 	splits := strings.SplitN(line, "=", subStrCount)
-	fmt.Println(splits)
 
 	splitsLen := len(splits)
 	if splitsLen < subStrCount-1 {
@@ -70,7 +160,7 @@ func splitAndStrip(line string, resolveFromEnv bool) (kv keyValue, err error) {
 	resolvedValue := joinedValue
 
 	if resolveFromEnv {
-		resolvedValue = os.Getenv(resolvedValue)
+		resolvedValue = envResolved(resolvedValue)
 	}
 
 	if resolvedValue != "" && joinedValue != "" {

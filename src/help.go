@@ -57,6 +57,7 @@ const (
 	NoPromptKey       = "no-prompt"
 	TrashedKey        = "trashed"
 	DriveRepoRelPath  = "github.com/odeke-em/drive"
+	CommentStr        = "#"
 )
 
 const (
