@@ -25,10 +25,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/odeke-em/command"
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/drive/gen"
 	"github.com/odeke-em/drive/src"
-	"github.com/rakyll/command"
 )
 
 var context *config.Context
@@ -75,6 +75,8 @@ func main() {
 	bindCommandWithAliases(drive.DeleteKey, drive.DescDelete, &deleteCmd{}, []string{})
 	bindCommandWithAliases(drive.UnpubKey, drive.DescUnpublish, &unpublishCmd{}, []string{})
 	bindCommandWithAliases(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
+
+	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
 }
 
@@ -87,12 +89,7 @@ func (cmd *helpCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *helpCmd) Run(args []string) {
-	arg := drive.AllKey
-	if len(args) >= 1 {
-		arg = args[0]
-	}
-
-	drive.ShowDescription(arg)
+	drive.ShowDescriptions(args...)
 	exitWithError(nil)
 }
 

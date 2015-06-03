@@ -210,6 +210,17 @@ func ShowAllDescriptions() {
 	}
 }
 
+func ShowDescriptions(topics ...string) {
+	if len(topics) < 1 {
+		topics = append(topics, AllKey)
+	}
+
+	for _, topic := range topics {
+		ShowDescription(topic)
+		fmt.Println()
+	}
+}
+
 func ShowDescription(topic string) {
 	if topic == AllKey {
 		ShowAllDescriptions()
