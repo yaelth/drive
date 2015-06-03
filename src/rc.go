@@ -97,6 +97,16 @@ func rcFileToOptions(rcPath string) (*Options, error) {
 	return rcMapToOptions(rcMap)
 }
 
+func ResourceConfigurationToOptions(path string) (*Options, error) {
+	beginOpts := Options{Path: path}
+	rcP, rcErr := beginOpts.rcPath()
+	if rcErr != nil {
+		return nil, rcErr
+	}
+
+	return rcFileToOptions(rcP)
+}
+
 func rcMapToOptions(rcMap map[string]string) (*Options, error) {
 	targetKeys := []typeResolver{
 		{

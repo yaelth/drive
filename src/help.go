@@ -221,6 +221,17 @@ func ShowAllDescriptions() {
 	}
 }
 
+func ShowDescriptions(topics ...string) {
+	if len(topics) < 1 {
+		topics = append(topics, AllKey)
+	}
+
+	for _, topic := range topics {
+		ShowDescription(topic)
+		fmt.Println()
+	}
+}
+
 func ShowDescription(topic string) {
 	if topic == AllKey {
 		ShowAllDescriptions()
@@ -230,7 +241,9 @@ func ShowDescription(topic string) {
 	help, ok := docMap[topic]
 	if !ok {
 		fmt.Printf("Unkown command '%s' type `drive help all` for entire usage documentation\n", topic)
-		ShowAllDescriptions()
+		if false { // Decide in the future whether to show everything
+			ShowAllDescriptions()
+		}
 	} else {
 		description, documentation := help[0], help[1:]
 		fmt.Printf("Name\n\t%s - %s\n", topic, description)

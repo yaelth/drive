@@ -25,10 +25,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/odeke-em/command"
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/drive/gen"
 	"github.com/odeke-em/drive/src"
-	"github.com/rakyll/command"
 )
 
 var context *config.Context
@@ -75,6 +75,8 @@ func main() {
 	bindCommandWithAliases(drive.DeleteKey, drive.DescDelete, &deleteCmd{}, []string{})
 	bindCommandWithAliases(drive.UnpubKey, drive.DescUnpublish, &unpublishCmd{}, []string{})
 	bindCommandWithAliases(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
+
+	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
 }
 
@@ -87,12 +89,7 @@ func (cmd *helpCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *helpCmd) Run(args []string) {
-	arg := drive.AllKey
-	if len(args) >= 1 {
-		arg = args[0]
-	}
-
-	drive.ShowDescription(arg)
+	drive.ShowDescriptions(args...)
 	exitWithError(nil)
 }
 
@@ -104,9 +101,16 @@ func (cmd *featuresCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *featuresCmd) Run(args []string) {
 	context, path := discoverContext(args)
-	exitWithError(drive.New(context, &drive.Options{
-		Path: path,
-	}).About(drive.AboutFeatures))
+
+	opts, _ := drive.ResourceConfigurationToOptions(path)
+	// TODO: Log resource config errors if being verbose
+	if opts == nil {
+		opts = &drive.Options{}
+	}
+
+	opts.Path = path
+
+	exitWithError(drive.New(context, opts).About(drive.AboutFeatures))
 }
 
 type versionCmd struct{}
@@ -138,9 +142,16 @@ func (cmd *quotaCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *quotaCmd) Run(args []string) {
 	context, path := discoverContext(args)
-	exitWithError(drive.New(context, &drive.Options{
-		Path: path,
-	}).About(drive.AboutQuota))
+
+	opts, _ := drive.ResourceConfigurationToOptions(path)
+	// TODO: Log resource config errors if being verbose
+	if opts == nil {
+		opts = &drive.Options{}
+	}
+
+	opts.Path = path
+
+	exitWithError(drive.New(context, opts).About(drive.AboutQuota))
 }
 
 type listCmd struct {
@@ -160,10 +171,23 @@ type listCmd struct {
 	matches     *bool
 	owners      *bool
 	quiet       *bool
+	set         map[interface{}]bool
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int("m", 1, "maximum recursion depth")
+	fmt.Println("fs", fs)
+
+	actuallySet := make(map[string]*flag.Flag)
+	fs.Visit(func(f *flag.Flag) {
+		fmt.Println("f", f)
+		actuallySet[f.Name] = f
+	})
+	fmt.Println("actuallySet", actuallySet)
+
+	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
+	lp := fs.Lookup(drive.DepthKey)
+	depthPtr := flag.Int(drive.DepthKey, 1, "maximum recursion depth")
+	fmt.Println("lp", lp, lp.Value, lp.Name, depthPtr)
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "list all paths even hidden ones")
 	cmd.files = fs.Bool("f", false, "list only files")
 	cmd.directories = fs.Bool("d", false, "list all directories")
@@ -208,25 +232,50 @@ func (cmd *listCmd) Run(args []string) {
 		typeMask |= drive.Minimal
 	}
 
-	options := drive.Options{
-		Depth:     *cmd.depth,
-		Hidden:    *cmd.hidden,
-		InTrash:   *cmd.inTrash,
-		PageSize:  *cmd.pageSize,
-		Path:      path,
-		NoPrompt:  *cmd.noPrompt,
-		Recursive: *cmd.recursive,
-		Sources:   sources,
-		TypeMask:  typeMask,
-		Quiet:     *cmd.quiet,
+	opts, _ := drive.ResourceConfigurationToOptions(path)
+	// TODO: Log resource config errors if being verbose
+	if opts == nil {
+		opts = &drive.Options{}
 	}
 
+	opts.Path = path
+	if cmd.hidden != nil {
+		opts.Hidden = *cmd.hidden
+	}
+
+	if cmd.depth != nil {
+		opts.Depth = *cmd.depth
+	}
+
+	if cmd.inTrash != nil {
+		opts.InTrash = *cmd.inTrash
+	}
+
+	if cmd.pageSize != nil {
+		opts.PageSize = *cmd.pageSize
+	}
+
+	if cmd.noPrompt != nil {
+		opts.NoPrompt = *cmd.noPrompt
+	}
+
+	if cmd.recursive != nil {
+		opts.Recursive = *cmd.recursive
+	}
+
+	if cmd.quiet != nil {
+		opts.Quiet = *cmd.quiet
+	}
+
+	opts.Sources = sources
+	opts.TypeMask = typeMask
+
 	if *cmd.shared {
-		exitWithError(drive.New(context, &options).ListShared())
+		exitWithError(drive.New(context, opts).ListShared())
 	} else if *cmd.matches {
-		exitWithError(drive.New(context, &options).ListMatches())
+		exitWithError(drive.New(context, opts).ListMatches())
 	} else {
-		exitWithError(drive.New(context, &options).List(*cmd.byId))
+		exitWithError(drive.New(context, opts).List(*cmd.byId))
 	}
 }
 
