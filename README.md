@@ -34,6 +34,7 @@
   - [Move](#move)
   - [Rename](#rename)
   - [DriveIgnore](#driveignore)
+  - [DriveRC](#driverc)
   - [DesktopEntry](#desktopentry)
   - [Command Aliases](#command-aliases)
 - [Revoking Account Access](#revoking-account-access)
@@ -593,7 +594,31 @@ $ cat << $ >> .driveignore
 > $
 ```
 
+
 Note: Pattern matching and suffixes are done by regular expression matching so make sure to use a valid regular expression suffix.
+
+
+### DriveRC
+
+drive supports resource configuration files (.driverc) that you can place both globally(in your home directory) and locally(in the mounted drive dir):
+
+```shell
+$ cat << ! >> ~/.driverc
+> # My local .driverc file
+> exports=doc,pdf
+> depth=100
+> !
+$
+$ cat << $ >> ~/emm.odeke-drive/.driverc
+> # My global .driverc file
+> exports-dir=$HOME/Desktop/exports
+> exports=pdf,csv,txt
+> hidden=true
+> depth=10
+> exclude-ops=delete,update
+> $
+```
+
 
 ## DesktopEntry
 

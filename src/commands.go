@@ -140,8 +140,10 @@ func New(context *config.Context, opts *Options) *Commands {
 
 		rcP, rcErr := opts.rcPath()
 		if rcErr == nil {
-			kvmap, err := kvifyCommentedFile(rcP, CommentStr)
-			fmt.Println("kvmap", kvmap, "err", err)
+			rcOpt, err := rcFileToOptions(rcP)
+			if false { // DEBUG
+				fmt.Println("kvmap", rcOpt, "err", err)
+			}
 		}
 
 		// should always start with /

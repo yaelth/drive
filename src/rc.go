@@ -89,44 +89,80 @@ func kvifyCommentedFile(p, comment string) (kvMap map[string]string, err error) 
 	return
 }
 
-const (
-	TBool = iota
-	TString
-	TStringArray
-	TByteArray
-	TInt
-	TInt64
-)
-
-type typeEmitterPair struct {
-	value        string
-	valueEmitter func(v string) interface{}
+func rcFileToOptions(rcPath string) (*Options, error) {
+	rcMap, err := kvifyCommentedFile(rcPath, CommentStr)
+	if err != nil {
+		return nil, err
+	}
+	return rcMapToOptions(rcMap)
 }
 
 func rcMapToOptions(rcMap map[string]string) (*Options, error) {
-	targetKeys := []string{
-		CoercedMimeKeyKey,
-		ForceKey,
-		QuietKey,
-		HiddenKey,
-		NoPromptKey,
+	targetKeys := []typeResolver{
+		{
+			key: ForceKey, resolver: boolfer,
+		},
+		{
+			key: QuietKey, resolver: boolfer,
+		},
+		{
+			key: HiddenKey, resolver: boolfer,
+		},
+		{
+			key: NoPromptKey, resolver: boolfer,
+		},
+		{
+			key: NoClobberKey, resolver: boolfer,
+		},
+		{
+			key: IgnoreConflictKey, resolver: boolfer,
+		},
+		{
+			key: RecursiveKey, resolver: boolfer,
+		},
+
+		{
+			key: DepthKey, resolver: intfer,
+		},
+		{
+			key: ExportsDirKey, resolver: stringfer,
+		},
+		{
+			key: ExportsKey, resolver: stringArrayfer,
+		},
+		{
+			key: ExcludeOpsKey, resolver: stringArrayfer,
+		},
 	}
 
-	accepted := make(map[string]string)
-	for _, key := range targetKeys {
-		retr, ok := rcMap[key]
+	accepted := make(map[string]typeResolver)
+	for _, stK := range targetKeys {
+		lowerKey := strings.ToLower(stK.key)
+		retr, ok := rcMap[lowerKey]
 		if !ok {
 			continue
 		}
 
-		accepted[key] = retr
+		stK.value = retr
+		accepted[lowerKey] = stK
 	}
 
 	if len(accepted) < 1 {
 		return nil, fmt.Errorf("rcMapping: no keys matched")
 	}
 
-	return nil, fmt.Errorf("not yet implemented")
+	if false {
+		fmt.Println("rcMap", rcMap, "accepted", accepted)
+	}
+
+	opts := &Options{}
+	for lowerKey, stK := range accepted {
+		if err := stK.resolver(lowerKey, stK.value, opts); err != nil {
+			return nil, err
+		}
+	}
+
+	return opts, nil
 }
 
 func rcPath(absDirPath string) string {
