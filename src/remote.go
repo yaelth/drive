@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,17 +26,16 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+
 	"github.com/odeke-em/drive/config"
-	"github.com/odeke-em/goauth2/oauth"
 	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"github.com/odeke-em/statos"
 )
 
 const (
-	// Google OAuth 2.0 service URLs
-	GoogleOAuth2AuthURL  = "https://accounts.google.com/o/oauth2/auth"
-	GoogleOAuth2TokenURL = "https://accounts.google.com/o/oauth2/token"
-
 	// OAuth 2.0 OOB redirect URL for authorization.
 	RedirectURL = "urn:ietf:wg:oauth:2.0:oob"
 
@@ -71,19 +71,19 @@ var (
 )
 
 type Remote struct {
-	transport    *oauth.Transport
+	client       *http.Client
 	service      *drive.Service
 	progressChan chan int
 }
 
 func NewRemoteContext(context *config.Context) *Remote {
-	transport := newTransport(context)
-	service, _ := drive.New(transport.Client())
+	client := newOAuthClient(context)
+	service, _ := drive.New(client)
 	progressChan := make(chan int)
 	return &Remote{
 		progressChan: progressChan,
 		service:      service,
-		transport:    transport,
+		client:       client,
 	}
 }
 
@@ -145,14 +145,16 @@ func (r *Remote) change(changeId string) (*drive.Change, error) {
 	return r.service.Changes.Get(changeId).Do()
 }
 
-func RetrieveRefreshToken(context *config.Context) (string, error) {
-	transport := newTransport(context)
-	url := transport.Config.AuthCodeURL("")
-	fmt.Printf("Visit this URL to get an authorization code\n%s\n", url)
+func RetrieveRefreshToken(ctx context.Context, context *config.Context) (string, error) {
+	config := newAuthConfig(context)
 
+	randState := fmt.Sprintf("%s%v", time.Now(), rand.Uint32())
+	url := config.AuthCodeURL(randState, oauth2.AccessTypeOffline)
+
+	fmt.Printf("Visit this URL to get an authorization code\n%s\n", url)
 	code := prompt(os.Stdin, os.Stdout, "Paste the authorization code: ")
 
-	token, err := transport.Exchange(code)
+	token, err := config.Exchange(ctx, code)
 	if err != nil {
 		return "", err
 	}
@@ -326,7 +328,7 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 		url = exportURL
 	}
 
-	resp, err := r.transport.Client().Get(url)
+	resp, err := r.client.Get(url)
 	if err == nil {
 		if resp == nil {
 			err = fmt.Errorf("bug on: download for url \"%s\". resp and err are both nil", url)
@@ -665,26 +667,23 @@ func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err
 	return r.findByPathRecvRaw(parentId, p, true)
 }
 
-func newAuthConfig(context *config.Context) *oauth.Config {
-	return &oauth.Config{
-		ClientId:     context.ClientId,
+func newAuthConfig(context *config.Context) *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     context.ClientId,
 		ClientSecret: context.ClientSecret,
-		AuthURL:      GoogleOAuth2AuthURL,
-		TokenURL:     GoogleOAuth2TokenURL,
 		RedirectURL:  RedirectURL,
-		AccessType:   AccessType,
-		Scope:        DriveScope,
+		Endpoint:     google.Endpoint,
+		Scopes:       []string{DriveScope},
 	}
 }
 
-func newTransport(context *config.Context) *oauth.Transport {
-	return &oauth.Transport{
-		Config:    newAuthConfig(context),
-		Transport: http.DefaultTransport,
-		Token: &oauth.Token{
-			RefreshToken: context.RefreshToken,
-			// TODO: Fix this temporary bad hack with periodic refresh
-			Expiry: time.Now().Add(time.Hour * 10),
-		},
+func newOAuthClient(configContext *config.Context) *http.Client {
+	config := newAuthConfig(configContext)
+
+	token := oauth2.Token{
+		RefreshToken: configContext.RefreshToken,
+		Expiry:       time.Now().Add(1 * time.Hour),
 	}
+
+	return config.Client(context.Background(), &token)
 }
