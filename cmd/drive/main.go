@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/odeke-em/command"
+	"github.com/odeke-em/command" // branch -- track-visited
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/drive/gen"
 	"github.com/odeke-em/drive/src"
@@ -88,7 +88,7 @@ func (cmd *helpCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *helpCmd) Run(args []string) {
+func (cmd *helpCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	drive.ShowDescriptions(args...)
 	exitWithError(nil)
 }
@@ -99,7 +99,7 @@ func (cmd *featuresCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *featuresCmd) Run(args []string) {
+func (cmd *featuresCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	context, path := discoverContext(args)
 
 	opts, _ := drive.ResourceConfigurationToOptions(path)
@@ -119,7 +119,7 @@ func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *versionCmd) Run(args []string) {
+func (cmd *versionCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	fmt.Printf("drive version: %s\n%s\n", drive.Version, generated.PkgInfo)
 	exitWithError(nil)
 }
@@ -130,7 +130,7 @@ func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *initCmd) Run(args []string) {
+func (cmd *initCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	exitWithError(drive.New(initContext(args), nil).Init())
 }
 
@@ -140,7 +140,7 @@ func (cmd *quotaCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *quotaCmd) Run(args []string) {
+func (cmd *quotaCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	context, path := discoverContext(args)
 
 	opts, _ := drive.ResourceConfigurationToOptions(path)
@@ -175,14 +175,7 @@ type listCmd struct {
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	fmt.Println("fs", fs)
-
-	actuallySet := make(map[string]*flag.Flag)
-	fs.Visit(func(f *flag.Flag) {
-		fmt.Println("f", f)
-		actuallySet[f.Name] = f
-	})
-	fmt.Println("actuallySet", actuallySet)
+	// fmt.Println("fs", fs)
 
 	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
 	lp := fs.Lookup(drive.DepthKey)
@@ -206,7 +199,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *listCmd) Run(args []string) {
+func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, (*cmd.byId || *cmd.matches))
 
 	typeMask := 0
@@ -294,7 +287,7 @@ func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *statCmd) Run(args []string) {
+func (cmd *statCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
 	opts := drive.Options{
@@ -351,7 +344,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *pullCmd) Run(args []string) {
+func (cmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, (*cmd.byId || *cmd.matches))
 
 	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.excludeOps, ",")...)
@@ -431,7 +424,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *pushCmd) Run(args []string) {
+func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	if *cmd.mountedPush {
 		cmd.pushMounted(args)
 	} else {
@@ -466,7 +459,7 @@ func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *touchCmd) Run(args []string) {
+func (cmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
 
 	opts := drive.Options{
@@ -579,7 +572,7 @@ func (cmd *aboutCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *aboutCmd) Run(args []string) {
+func (cmd *aboutCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	_, context, _ := preprocessArgs(args)
 
 	mask := drive.AboutNone
@@ -610,7 +603,7 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *diffCmd) Run(args []string) {
+func (cmd *diffCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
 		Recursive:      true,
@@ -641,7 +634,7 @@ func (cmd *unpublishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *unpublishCmd) Run(args []string) {
+func (cmd *unpublishCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 	exitWithError(drive.New(context, &drive.Options{
 		Path:    path,
@@ -661,7 +654,7 @@ func (cmd *emptyTrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *emptyTrashCmd) Run(args []string) {
+func (cmd *emptyTrashCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	_, context, _ := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
 		NoPrompt: *cmd.noPrompt,
@@ -684,7 +677,7 @@ func (cmd *deleteCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *deleteCmd) Run(args []string) {
+func (cmd *deleteCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
 
 	opts := drive.Options{
@@ -715,7 +708,7 @@ func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *trashCmd) Run(args []string) {
+func (cmd *trashCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
 	opts := drive.Options{
 		Path:    path,
@@ -743,7 +736,7 @@ func (cmd *copyCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *copyCmd) Run(args []string) {
+func (cmd *copyCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	if len(args) < 2 {
 		args = append(args, ".")
 	}
@@ -787,7 +780,7 @@ func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *untrashCmd) Run(args []string) {
+func (cmd *untrashCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId || *cmd.matches)
 
 	opts := drive.Options{
@@ -810,7 +803,7 @@ func (cmd *publishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *publishCmd) Run(args []string) {
+func (cmd *publishCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 	exitWithError(drive.New(context, &drive.Options{
 		Path:    path,
@@ -834,7 +827,7 @@ func (cmd *unshareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *unshareCmd) Run(args []string) {
+func (cmd *unshareCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
 	meta := map[string][]string{
@@ -861,7 +854,7 @@ func (cmd *moveCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *moveCmd) Run(args []string) {
+func (cmd *moveCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	argc := len(args)
 	if argc < 1 {
 		exitWithError(fmt.Errorf("move: expecting a path or more"))
@@ -896,7 +889,7 @@ func (cmd *renameCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *renameCmd) Run(args []string) {
+func (cmd *renameCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	argc := len(args)
 	if argc < 2 {
 		exitWithError(fmt.Errorf("rename: expecting <src> <dest>"))
@@ -936,7 +929,7 @@ func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *shareCmd) Run(args []string) {
+func (cmd *shareCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
 	meta := map[string][]string{
