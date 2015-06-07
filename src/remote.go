@@ -525,8 +525,6 @@ func (r *Remote) copy(newName, parentId string, srcFile *File) (*File, error) {
 }
 
 func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
-	var body io.Reader
-	body, err = os.Open(args.fsAbsPath)
 	/*
 	   // TODO: (@odeke-em) decide:
 	   //   + if to reject FIFO
@@ -536,9 +534,15 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 		err = fmt.Errorf("bug on: src cannot be nil")
 		return
 	}
-	if err != nil && !args.src.IsDir {
-		return
+
+	var body io.Reader
+	if !args.src.IsDir {
+		body, err = os.Open(args.fsAbsPath)
+		if err != nil {
+			return
+		}
 	}
+
 	bd := statos.NewReader(body)
 
 	go func() {
