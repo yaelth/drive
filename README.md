@@ -472,6 +472,14 @@ $ drive list -owners -l -version
 $ drive list -depth 3 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
++ Listing allows for sorting by fields e.g `name`, `version`, `size, `modtime`, lastModifiedByMeTime `lvt`, `md5`. To do this in reverse order, suffix `_r` or `-` to the selected key
+
+e.g to first sort by modTime, then largest-to-smallest and finally most number of saves:
+
+```
+$ drive list --sort modtime,size_r,version_r Photos
+```
+
 ### Stating Files
 
 The `stat` commands show detailed file information for example people with whom it is shared, their roles and accountTypes, and
