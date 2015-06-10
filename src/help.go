@@ -47,6 +47,7 @@ const (
 	VersionKey    = "version"
 
 	CoercedMimeKeyKey = "coerced-mime"
+	DepthKey          = "depth"
 	ForceKey          = "force"
 	QuietKey          = "quiet"
 	QuitShortKey      = "q"
@@ -104,6 +105,10 @@ const (
 
 const (
 	DesktopExtension = "desktop"
+)
+
+const (
+	InfiniteDepth = -1
 )
 
 var skipChecksumNote = fmt.Sprintf(

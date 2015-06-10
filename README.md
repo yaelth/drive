@@ -469,7 +469,7 @@ $ drive list -owners -l -version
 + Also supports listing by fileIds
 
 ```shell
-$ drive list -m 3 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+$ drive list -depth 3 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
 ### Stating Files
@@ -492,6 +492,13 @@ $ drive stat -r mnt
 ```shell
 $ drive stat -r --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
+
+OR
+
+```shell
+$ drive stat -depth 4 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+```
+
 
 ### Quota
 

@@ -160,7 +160,7 @@ type listCmd struct {
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int("m", 1, "maximum recursion depth")
+	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "list all paths even hidden ones")
 	cmd.files = fs.Bool("f", false, "list only files")
 	cmd.directories = fs.Bool("d", false, "list all directories")
@@ -205,8 +205,13 @@ func (cmd *listCmd) Run(args []string) {
 		typeMask |= drive.Minimal
 	}
 
+	depth := *cmd.depth
+	if *cmd.recursive {
+		depth = drive.InfiniteDepth
+	}
+
 	options := drive.Options{
-		Depth:     *cmd.depth,
+		Depth:     depth,
 		Hidden:    *cmd.hidden,
 		InTrash:   *cmd.inTrash,
 		PageSize:  *cmd.pageSize,
@@ -228,13 +233,15 @@ func (cmd *listCmd) Run(args []string) {
 }
 
 type statCmd struct {
+	byId      *bool
+	depth     *int
 	hidden    *bool
 	recursive *bool
 	quiet     *bool
-	byId      *bool
 }
 
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "discover hidden paths")
 	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
@@ -245,12 +252,18 @@ func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *statCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
+	depth := *cmd.depth
+	if *cmd.recursive {
+		depth = drive.InfiniteDepth
+	}
+
 	opts := drive.Options{
 		Hidden:    *cmd.hidden,
 		Path:      path,
 		Recursive: *cmd.recursive,
 		Sources:   sources,
 		Quiet:     *cmd.quiet,
+		Depth:     depth,
 	}
 
 	if *cmd.byId {
