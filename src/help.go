@@ -46,18 +46,26 @@ const (
 	UnpubKey      = "unpub"
 	VersionKey    = "version"
 
-	CoercedMimeKeyKey = "coerced-mime"
-	DepthKey          = "depth"
-	ForceKey          = "force"
-	QuietKey          = "quiet"
-	QuitShortKey      = "q"
-	YesShortKey       = "Y"
-	QuitLongKey       = "quit"
-	MatchesKey        = "matches"
-	HiddenKey         = "hidden"
-	NoPromptKey       = "no-prompt"
-	TrashedKey        = "trashed"
-	DriveRepoRelPath  = "github.com/odeke-em/drive"
+	CoercedMimeKeyKey     = "coerced-mime"
+	DepthKey              = "depth"
+	ForceKey              = "force"
+	QuietKey              = "quiet"
+	QuitShortKey          = "q"
+	YesShortKey           = "Y"
+	QuitLongKey           = "quit"
+	MatchesKey            = "matches"
+	HiddenKey             = "hidden"
+	Md5Key                = "md5"
+	NoPromptKey           = "no-prompt"
+	SizeKey               = "size"
+	NameKey               = "name"
+	OriginalNameKey       = "oname"
+	ModTimeKey            = "modt"
+	LastViewedByMeTimeKey = "lvt"
+	TypeKey               = "type"
+	TrashedKey            = "trashed"
+	SortKey               = "sort"
+	DriveRepoRelPath      = "github.com/odeke-em/drive"
 )
 
 const (
@@ -93,6 +101,7 @@ const (
 		"\n\t* Are on a low power device"
 	DescIgnoreConflict    = "turns off the conflict resolution safety"
 	DescIgnoreNameClashes = "ignore name clashes"
+	DescSort              = "sort items in the order\n\t* md5.\n\t* name.\n\t* size.\n\t* type.\n\t* version"
 )
 
 const (

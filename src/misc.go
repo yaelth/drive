@@ -461,3 +461,20 @@ func CrudAtoi(ops ...string) CrudValue {
 func httpOk(statusCode int) bool {
 	return statusCode >= 200 && statusCode <= 299
 }
+
+func hasAnyPrefix(value string, prefixes ...string) bool {
+	return _hasAnyAtExtreme(value, strings.HasPrefix, prefixes)
+}
+
+func hasAnySuffix(value string, prefixes ...string) bool {
+	return _hasAnyAtExtreme(value, strings.HasSuffix, prefixes)
+}
+
+func _hasAnyAtExtreme(value string, fn func(string, string) bool, queries []string) bool {
+	for _, query := range queries {
+		if fn(value, query) {
+			return true
+		}
+	}
+	return false
+}

@@ -157,6 +157,7 @@ type listCmd struct {
 	matches     *bool
 	owners      *bool
 	quiet       *bool
+	sort        *string
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -172,6 +173,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before pagination")
 	cmd.owners = fs.Bool("owners", false, "shows the owner names per file")
 	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
+	cmd.sort = fs.String(drive.SortKey, "", drive.DescSort)
 	cmd.matches = fs.Bool(drive.MatchesKey, false, "list by prefix")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "list by id instead of path")
@@ -210,6 +212,10 @@ func (cmd *listCmd) Run(args []string) {
 		depth = drive.InfiniteDepth
 	}
 
+	meta := map[string][]string{
+		drive.SortKey: drive.NonEmptyTrimmedStrings(*cmd.sort),
+	}
+
 	options := drive.Options{
 		Depth:     depth,
 		Hidden:    *cmd.hidden,
@@ -221,6 +227,7 @@ func (cmd *listCmd) Run(args []string) {
 		Sources:   sources,
 		TypeMask:  typeMask,
 		Quiet:     *cmd.quiet,
+		Meta:      &meta,
 	}
 
 	if *cmd.shared {
