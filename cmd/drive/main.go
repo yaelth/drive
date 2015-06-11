@@ -259,7 +259,7 @@ func (cmd *md5SumCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *md5SumCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
-	
+
 	depth := *cmd.depth
 	if *cmd.recursive {
 		depth = drive.InfiniteDepth
@@ -272,7 +272,7 @@ func (cmd *md5SumCmd) Run(args []string) {
 		Sources:   sources,
 		Quiet:     *cmd.quiet,
 		Depth:     depth,
-		Md5sum:    true,		
+		Md5sum:    true,
 	}
 
 	if *cmd.byId {
