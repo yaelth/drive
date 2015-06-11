@@ -116,13 +116,6 @@ func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 }
 
 func (g *Commands) stat(relToRootPath string, file *File, depth int) error {
-	if depth == 0 {
-		return nil
-	}
-
-	if depth >= 1 {
-		depth -= 1
-	}
 
 	// Arbitrary value for throttle pause duration
 	throttle := time.Tick(1e9 / 5)
@@ -137,8 +130,12 @@ func (g *Commands) stat(relToRootPath string, file *File, depth int) error {
 		prettyPermission(g.log.Logf, perm)
 	}
 
-	if !file.IsDir {
+	if depth == 0 || !file.IsDir {
 		return nil
+	}
+
+	if depth >= 1 {
+		depth -= 1
 	}
 
 	remoteChildren := g.rem.FindByParentId(file.Id, g.opts.Hidden)
