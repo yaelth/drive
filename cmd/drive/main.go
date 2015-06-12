@@ -342,16 +342,17 @@ type pullCmd struct {
 	piped             *bool
 	quiet             *bool
 	ignoreNameClashes *bool
+	explicitlyExport  *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.noClobber = fs.Bool("no-clobber", false, "prevents overwriting of old content")
+	cmd.noClobber = fs.Bool(drive.CLIOptionNoClobber, false, "prevents overwriting of old content")
 	cmd.export = fs.String(
 		"export", "", "comma separated list of formats to export your docs + sheets files")
 	cmd.recursive = fs.Bool("r", true, "performs the pull action recursively")
 	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the pull action")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "allows pulling of hidden paths")
-	cmd.force = fs.Bool("force", false, "forces a pull even if no changes present")
+	cmd.force = fs.Bool(drive.ForceKey, false, "forces a pull even if no changes present")
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
@@ -361,6 +362,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "pull by id instead of path")
+	cmd.explicitlyExport = fs.Bool(drive.CLIOptionExplicitlyExport, false, drive.DescExplicitylPullExports)
 
 	return fs
 }
@@ -393,6 +395,7 @@ func (cmd *pullCmd) Run(args []string) {
 		Quiet:             *cmd.quiet,
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
 		ExcludeCrudMask:   excludeCrudMask,
+		ExplicitlyExport:  *cmd.explicitlyExport,
 	}
 
 	if *cmd.matches {
@@ -427,11 +430,11 @@ type pushCmd struct {
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.noClobber = fs.Bool("no-clobber", false, "allows overwriting of old content")
+	cmd.noClobber = fs.Bool(drive.CLIOptionNoClobber, false, "allows overwriting of old content")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "allows pushing of hidden paths")
 	cmd.recursive = fs.Bool("r", true, "performs the push action recursively")
 	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the push action")
-	cmd.force = fs.Bool("force", false, "forces a push even if no changes present")
+	cmd.force = fs.Bool(drive.ForceKey, false, "forces a push even if no changes present")
 	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
 	cmd.convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
 	cmd.ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
@@ -841,7 +844,7 @@ type unshareCmd struct {
 }
 
 func (cmd *unshareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.accountType = fs.String("type", "", "scope of account to revoke access to")
+	cmd.accountType = fs.String(drive.TypeKey, "", "scope of account to revoke access to")
 	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "unshare by id instead of path")
@@ -904,7 +907,7 @@ type renameCmd struct {
 }
 
 func (cmd *renameCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.force = fs.Bool("force", false, "coerce rename even if remote already exists")
+	cmd.force = fs.Bool(drive.ForceKey, false, "coerce rename even if remote already exists")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "unshare by id instead of path")
 	return fs
@@ -939,11 +942,11 @@ type shareCmd struct {
 }
 
 func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.emails = fs.String("emails", "", "emails to share the file to")
+	cmd.emails = fs.String(drive.EmailsKey, "", "emails to share the file to")
 	cmd.message = fs.String("message", "", "message to send receipients")
-	cmd.role = fs.String("role", "", "role to set to receipients of share. Possible values: "+drive.DescRoles)
-	cmd.accountType = fs.String("type", "", "scope of accounts to share files with. Possible values: "+drive.DescAccountTypes)
-	cmd.notify = fs.Bool("notify", true, "toggle whether to notify receipients about share")
+	cmd.role = fs.String(drive.RoleKey, "", "role to set to receipients of share. Possible values: "+drive.DescRoles)
+	cmd.accountType = fs.String(drive.TypeKey, "", "scope of accounts to share files with. Possible values: "+drive.DescAccountTypes)
+	cmd.notify = fs.Bool(drive.CLIOptionNotify, true, "toggle whether to notify receipients about share")
 	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
@@ -954,10 +957,10 @@ func (cmd *shareCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
 	meta := map[string][]string{
-		"emailMessage": []string{*cmd.message},
-		"emails":       uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.emails, ",")...)),
-		"role":         uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.role, ",")...)),
-		"accountType":  uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.accountType, ",")...)),
+		drive.EmailMessageKey: []string{*cmd.message},
+		drive.EmailsKey:       uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.emails, ",")...)),
+		drive.RoleKey:         uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.role, ",")...)),
+		"accountType":         uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.accountType, ",")...)),
 	}
 
 	mask := drive.NoopOnShare

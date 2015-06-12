@@ -175,6 +175,12 @@ By default, the `pull` command will export Google Docs documents as PDF files. T
 $ drive pull -export pdf,rtf,docx,txt
 ```
 
+To explicitly export instead of using `--force`
+
+```shell
+$ drive pull --export pdf,rtf,docx,txt --explicitly-export
+```
+
 By default, the exported files will be placed in a new directory suffixed by `_exports` in the same path. To export the files to a different directory, use the `-export-dir` option:
 
 ```shell
