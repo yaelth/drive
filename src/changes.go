@@ -192,7 +192,7 @@ func (g *Commands) resolveChangeListRecv(
 	isPush bool, d, p string, r *File, l *File) (cl []*Change, err error) {
 	var change *Change
 
-	explicitlyRequested := hasExportLinks(r) && len(g.opts.Exports) >= 1
+	explicitlyRequested := g.opts.ExplicitlyExport && hasExportLinks(r) && len(g.opts.Exports) >= 1
 
 	if isPush {
 		// Handle the case of doc files for which we don't have a direct download
