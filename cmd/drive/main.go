@@ -342,6 +342,7 @@ type pullCmd struct {
 	piped             *bool
 	quiet             *bool
 	ignoreNameClashes *bool
+	skipMimeKey       *string
 	explicitlyExport  *bool
 }
 
@@ -376,6 +377,10 @@ func (cmd *pullCmd) Run(args []string) {
 		exitWithError(fmt.Errorf("all CRUD operations forbidden"))
 	}
 
+	meta := map[string][]string{
+		drive.SkipMimeKeyKey: drive.NonEmptyTrimmedStrings(strings.Split(*cmd.skipMimeKey, ",")...),
+	}
+
 	// Filter out empty strings.
 	exports := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.export, ",")...)
 
@@ -396,6 +401,7 @@ func (cmd *pullCmd) Run(args []string) {
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
 		ExcludeCrudMask:   excludeCrudMask,
 		ExplicitlyExport:  *cmd.explicitlyExport,
+		Meta:              &meta,
 	}
 
 	if *cmd.matches {
@@ -427,6 +433,7 @@ type pushCmd struct {
 	quiet             *bool
 	coercedMimeKey    *string
 	excludeOps        *string
+	skipMimeKey       *string
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -512,6 +519,7 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 
 	meta := map[string][]string{
 		drive.CoercedMimeKeyKey: drive.NonEmptyTrimmedStrings(*cmd.coercedMimeKey),
+		drive.SkipMimeKeyKey:    drive.NonEmptyTrimmedStrings(strings.Split(*cmd.skipMimeKey, ",")...),
 	}
 
 	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.excludeOps, ",")...)

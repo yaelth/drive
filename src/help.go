@@ -68,6 +68,7 @@ const (
 	RoleKey               = "role"
 	TypeKey               = "type"
 	TrashedKey            = "trashed"
+	SkipMimeKeyKey        = "skip-mime"
 	SortKey               = "sort"
 	DriveRepoRelPath      = "github.com/odeke-em/drive"
 )
@@ -119,6 +120,7 @@ const (
 	CLIOptionId                = "id"
 	CLIOptionNoClobber         = "no-clobber"
 	CLIOptionNotify            = "notify"
+	CLIOptionSkipMime          = "skip-mime"
 )
 
 const (
