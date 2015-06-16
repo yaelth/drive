@@ -616,6 +616,7 @@ func (cmd *aboutCmd) Run(args []string) {
 
 type diffCmd struct {
 	hidden         *bool
+	ignoreConflict *bool
 	ignoreChecksum *bool
 	quiet          *bool
 }
@@ -623,6 +624,7 @@ type diffCmd struct {
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "allows pulling of hidden paths")
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
+	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
@@ -635,6 +637,7 @@ func (cmd *diffCmd) Run(args []string) {
 		Hidden:         *cmd.hidden,
 		Sources:        sources,
 		IgnoreChecksum: *cmd.ignoreChecksum,
+		IgnoreConflict: *cmd.ignoreConflict,
 		Quiet:          *cmd.quiet,
 	}).Diff())
 }
