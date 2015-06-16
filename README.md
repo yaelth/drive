@@ -258,6 +258,14 @@ $ drive push -no-clobber
 $ drive push -force sure_of_content
 ```
 
+To pull without user input (i.e. without prompt)
+```shell
+$ drive push -quiet
+```
+or
+```shell
+$ drive push -no-prompt
+```
 
 To get Google Drive to convert a file to its native Google Docs format
 
