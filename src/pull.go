@@ -81,7 +81,14 @@ func (g *Commands) Pull(byId bool) (err error) {
 
 func (g *Commands) PullMatches() (err error) {
 	var cl []*Change
-	matches, err := g.rem.FindMatches(g.opts.Path, g.opts.Sources, false)
+	mq := matchQuery{
+		dirPath: g.opts.Path,
+		inTrash: false,
+		titleSearches: []fuzzyStringsValuePair{
+			{fuzzyLevel: Like, values: g.opts.Sources},
+		},
+	}
+	matches, err := g.rem.FindMatches(&mq) // g.opts.Path, g.opts.Sources, false)
 
 	if err != nil {
 		return err

@@ -192,6 +192,9 @@ func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
 
 func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) chan *File {
 	fileChan := make(chan *File)
+
+	throttle := time.Tick(1e7)
+
 	go func() {
 		pageToken := ""
 		for {
@@ -203,10 +206,13 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 				fmt.Println(err)
 				break
 			}
+
+			iterCount := uint64(0)
 			for _, f := range results.Items {
 				if isHidden(f.Title, hidden) { // ignore hidden files
 					continue
 				}
+				iterCount += 1
 				fileChan <- NewRemoteFile(f)
 			}
 			pageToken = results.NextPageToken
@@ -214,11 +220,17 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 				break
 			}
 
+			if iterCount < 1 {
+				<-throttle
+				continue
+			}
+
 			if promptOnPagination && !nextPage() {
 				fileChan <- nil
 				break
 			}
 		}
+
 		close(fileChan)
 	}()
 	return fileChan
@@ -595,8 +607,8 @@ func (r *Remote) FindByPathShared(p string) (chan *File, error) {
 	return r.findShared(nonEmpty)
 }
 
-func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (chan *File, error) {
-	parent, err := r.FindByPath(dirPath)
+func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
+	parent, err := r.FindByPath(mq.dirPath)
 	filesChan := make(chan *File)
 	if err != nil || parent == nil {
 		close(filesChan)
@@ -604,16 +616,10 @@ func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (c
 	}
 
 	req := r.service.Files.List()
-	keySearches := make([]string, len(keywords))
 
-	for i, key := range keywords {
-		quoted := strconv.Quote(key)
-		keySearches[i] = fmt.Sprintf("(title contains %s and trashed=%v)", quoted, inTrash)
-	}
+	parQuery := fmt.Sprintf("(%s in parents)", strconv.Quote(parent.Id))
+	expr := sepJoinNonEmpty(" and ", parQuery, mq.Stringer())
 
-	expr := strings.Join(keySearches, " or ")
-	// And always make sure that we are searching from this parent
-	expr = fmt.Sprintf("%s in parents and (%s)", strconv.Quote(parent.Id), expr)
 	req.Q(expr)
 	return reqDoPage(req, true, false), nil
 }

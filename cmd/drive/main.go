@@ -158,6 +158,7 @@ type listCmd struct {
 	matches     *bool
 	owners      *bool
 	quiet       *bool
+	skipMimeKey *string
 	sort        *string
 }
 
@@ -177,6 +178,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.sort = fs.String(drive.SortKey, "", drive.DescSort)
 	cmd.matches = fs.Bool(drive.MatchesKey, false, "list by prefix")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "list by id instead of path")
 
 	return fs
@@ -214,7 +216,8 @@ func (cmd *listCmd) Run(args []string) {
 	}
 
 	meta := map[string][]string{
-		drive.SortKey: drive.NonEmptyTrimmedStrings(*cmd.sort),
+		drive.SortKey:        drive.NonEmptyTrimmedStrings(*cmd.sort),
+		drive.SkipMimeKeyKey: drive.NonEmptyTrimmedStrings(strings.Split(*cmd.skipMimeKey, ",")...),
 	}
 
 	options := drive.Options{
@@ -452,6 +455,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.coercedMimeKey = fs.String(drive.CoercedMimeKeyKey, "", "the mimeType you are trying to coerce this file to be")
 	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
 	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
+	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	return fs
 }
 

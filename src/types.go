@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/odeke-em/drive/config"
@@ -28,7 +30,7 @@ import (
 type Operation int
 
 const (
-	OpNone = iota
+	OpNone Operation = iota
 	OpAdd
 	OpDelete
 	OpMod
@@ -39,7 +41,7 @@ type CrudValue int
 
 const (
 	None   CrudValue = 0
-	Create           = 1 << iota
+	Create CrudValue = 1 << iota
 	Read
 	Update
 	Delete
@@ -392,4 +394,137 @@ func (f *File) ToIndex() *config.Index {
 		ModTime:     f.ModTime.Unix(),
 		Version:     f.Version,
 	}
+}
+
+type fuzzyStringsValuePair struct {
+	fuzzyLevel fuzziness
+	inTrash    bool
+	joiner     joiner
+	values     []string
+}
+
+type matchQuery struct {
+	dirPath           string
+	inTrash           bool
+	keywordSearches   []fuzzyStringsValuePair
+	mimeQuerySearches []fuzzyStringsValuePair
+	titleSearches     []fuzzyStringsValuePair
+}
+
+type fuzziness int
+
+const (
+	Not fuzziness = 1 << iota
+	Like
+	Is
+)
+
+func (fz *fuzziness) Stringer() string {
+	switch *fz {
+	case Not:
+		return "!="
+	case Like:
+		return "contains"
+	case Is:
+		return "="
+	}
+
+	return "="
+}
+
+type joiner int
+
+const (
+	Or joiner = 1 << iota
+	And
+)
+
+func (jn *joiner) Stringer() string {
+	switch *jn {
+	case Or:
+		return "or"
+	case And:
+		return "and"
+	}
+	return "or"
+}
+
+func mimeQueryStringify(fz *fuzzyStringsValuePair) string {
+	fuzzyDesc := fz.fuzzyLevel.Stringer()
+
+	keySearches := []string{}
+	quote := strconv.Quote
+
+	for _, query := range fz.values {
+		resolvedMimeType := mimeTypeFromQuery(query)
+		if resolvedMimeType != "" {
+			keySearches = append(keySearches, fmt.Sprintf("(mimeType %s %s)", fuzzyDesc, quote(resolvedMimeType)))
+		}
+	}
+
+	return strings.Join(keySearches, fmt.Sprintf(" %s ", fz.joiner.Stringer()))
+}
+
+func titleQueryStringify(fz *fuzzyStringsValuePair) string {
+	fuzzyDesc := fz.fuzzyLevel.Stringer()
+
+	keySearches := []string{}
+	quote := strconv.Quote
+
+	for _, title := range fz.values {
+		keySearches = append(keySearches, fmt.Sprintf("(title %s %s and trashed=%v)", fuzzyDesc, quote(title), fz.inTrash))
+	}
+
+	return strings.Join(keySearches, " or ")
+}
+
+func joinLists(exprJoiner string, expressions []string) string {
+	reduced := strings.TrimSpace(strings.Join(expressions, exprJoiner))
+	if reduced != "" {
+		reduced = fmt.Sprintf("(%s)", reduced)
+	}
+
+	return reduced
+}
+
+func (mq *matchQuery) Stringer() string {
+	overallSearchList := []string{}
+
+	mimeTranslations := []string{}
+	for _, fzPair := range mq.mimeQuerySearches {
+		query := mimeQueryStringify(&fzPair)
+		if query == "" {
+			continue
+		}
+
+		mimeTranslations = append(mimeTranslations, query)
+	}
+
+	titleTranslations := []string{}
+	for _, titleFzPair := range mq.titleSearches {
+		titleTranslations = append(titleTranslations, titleQueryStringify(&titleFzPair))
+	}
+
+	reducedMimes := joinLists(" and ", mimeTranslations)
+	if reducedMimes != "" {
+		overallSearchList = append(overallSearchList, reducedMimes)
+	}
+
+	exprPairs := []struct {
+		joiner   string
+		elements []string
+	}{
+		{" and ", mimeTranslations},
+		{" and ", titleTranslations},
+	}
+
+	for _, exprPair := range exprPairs {
+		expr := joinLists(exprPair.joiner, exprPair.elements)
+		if expr == "" {
+			continue
+		}
+		overallSearchList = append(overallSearchList, expr)
+	}
+
+	return strings.Join(overallSearchList, " and ")
 }

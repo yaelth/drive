@@ -109,6 +109,7 @@ const (
 	DescIgnoreConflict    = "turns off the conflict resolution safety"
 	DescIgnoreNameClashes = "ignore name clashes"
 	DescSort              = "sort items in the order\n\t* md5.\n\t* name.\n\t* size.\n\t* type.\n\t* version"
+	DescSkipMime          = "skip elements with mimeTypes derived from these extensison"
 )
 
 const (

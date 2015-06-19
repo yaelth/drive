@@ -127,7 +127,15 @@ func (g *Commands) trasher(relToRoot string, opt *trashOpt) (*Change, error) {
 }
 
 func (g *Commands) trashByMatch(inTrash, permanent bool) error {
-	matches, err := g.rem.FindMatches(g.opts.Path, g.opts.Sources, inTrash)
+	mq := matchQuery{
+		dirPath: g.opts.Path,
+		inTrash: false,
+		titleSearches: []fuzzyStringsValuePair{
+			{fuzzyLevel: Like, values: g.opts.Sources, inTrash: inTrash},
+		},
+	}
+
+	matches, err := g.rem.FindMatches(&mq)
 	if err != nil {
 		return err
 	}
