@@ -627,16 +627,18 @@ func (cmd *aboutCmd) Run(args []string) {
 }
 
 type diffCmd struct {
-	hidden         *bool
-	ignoreConflict *bool
-	ignoreChecksum *bool
-	quiet          *bool
+	hidden            *bool
+	ignoreConflict    *bool
+	ignoreChecksum    *bool
+	ignoreNameClashes *bool
+	quiet             *bool
 }
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "allows pulling of hidden paths")
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
+	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
@@ -644,13 +646,14 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *diffCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
-		Recursive:      true,
-		Path:           path,
-		Hidden:         *cmd.hidden,
-		Sources:        sources,
-		IgnoreChecksum: *cmd.ignoreChecksum,
-		IgnoreConflict: *cmd.ignoreConflict,
-		Quiet:          *cmd.quiet,
+		Recursive:         true,
+		Path:              path,
+		Hidden:            *cmd.hidden,
+		Sources:           sources,
+		IgnoreChecksum:    *cmd.ignoreChecksum,
+		IgnoreNameClashes: *cmd.ignoreNameClashes,
+		IgnoreConflict:    *cmd.ignoreConflict,
+		Quiet:             *cmd.quiet,
 	}).Diff())
 }
 
