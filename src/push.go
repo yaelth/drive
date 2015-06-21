@@ -53,9 +53,11 @@ func (g *Commands) Push() (err error) {
 		os.Exit(1)
 	}()
 
+	// TODO: Look at clashes?
+
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
-		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, true)
+		ccl, _, cErr := g.changeListResolve(relToRootPath, fsPath, true)
 		if cErr != nil {
 			spin.stop()
 			return cErr
@@ -68,7 +70,7 @@ func (g *Commands) Push() (err error) {
 	mount := g.opts.Mount
 	if mount != nil {
 		for _, mt := range mount.Points {
-			ccl, cerr := lonePush(g, root, mt.Name, mt.MountPath)
+			ccl, _, cerr := lonePush(g, root, mt.Name, mt.MountPath)
 			if cerr == nil {
 				cl = append(cl, ccl...)
 			}
@@ -260,7 +262,7 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 	return err
 }
 
-func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err error) {
+func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change, err error) {
 	r, err := g.rem.FindByPath(absPath)
 	if err != nil && err != ErrPathNotExists {
 		return
