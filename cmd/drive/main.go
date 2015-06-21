@@ -142,24 +142,29 @@ func (cmd *quotaCmd) Run(args []string) {
 }
 
 type listCmd struct {
-	byId        *bool
-	hidden      *bool
-	pageCount   *int
-	recursive   *bool
-	files       *bool
-	directories *bool
-	depth       *int
-	pageSize    *int64
-	longFmt     *bool
-	noPrompt    *bool
-	shared      *bool
-	inTrash     *bool
-	version     *bool
-	matches     *bool
-	owners      *bool
-	quiet       *bool
-	skipMimeKey *string
-	sort        *string
+	byId         *bool
+	hidden       *bool
+	pageCount    *int
+	recursive    *bool
+	files        *bool
+	directories  *bool
+	depth        *int
+	pageSize     *int64
+	longFmt      *bool
+	noPrompt     *bool
+	shared       *bool
+	inTrash      *bool
+	version      *bool
+	matches      *bool
+	owners       *bool
+	quiet        *bool
+	skipMimeKey  *string
+	matchMimeKey *string
+	exactTitle   *string
+	matchOwner   *string
+	exactOwner   *string
+	notOwner     *string
+	sort         *string
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -179,6 +184,11 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.matches = fs.Bool(drive.MatchesKey, false, "list by prefix")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
+	cmd.matchMimeKey = fs.String(drive.CLIOptionMatchMime, "", drive.DescMatchMime)
+	cmd.exactTitle = fs.String(drive.CLIOptionExactTitle, "", drive.DescExactTitle)
+	cmd.matchOwner = fs.String(drive.CLIOptionMatchOwner, "", drive.DescMatchOwner)
+	cmd.exactOwner = fs.String(drive.CLIOptionExactOwner, "", drive.DescExactOwner)
+	cmd.notOwner = fs.String(drive.CLIOptionNotOwner, "", drive.DescNotOwner)
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "list by id instead of path")
 
 	return fs
@@ -216,8 +226,13 @@ func (cmd *listCmd) Run(args []string) {
 	}
 
 	meta := map[string][]string{
-		drive.SortKey:        drive.NonEmptyTrimmedStrings(*cmd.sort),
-		drive.SkipMimeKeyKey: drive.NonEmptyTrimmedStrings(strings.Split(*cmd.skipMimeKey, ",")...),
+		drive.SortKey:         drive.NonEmptyTrimmedStrings(*cmd.sort),
+		drive.SkipMimeKeyKey:  drive.NonEmptyTrimmedStrings(strings.Split(*cmd.skipMimeKey, ",")...),
+		drive.MatchMimeKeyKey: drive.NonEmptyTrimmedStrings(strings.Split(*cmd.matchMimeKey, ",")...),
+		drive.ExactTitleKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.exactTitle, ",")...),
+		drive.MatchOwnerKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.matchOwner, ",")...),
+		drive.ExactOwnerKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.exactOwner, ",")...),
+		drive.NotOwnerKey:     drive.NonEmptyTrimmedStrings(strings.Split(*cmd.notOwner, ",")...),
 	}
 
 	options := drive.Options{
@@ -366,6 +381,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "pull by id instead of path")
+	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	cmd.explicitlyExport = fs.Bool(drive.CLIOptionExplicitlyExport, false, drive.DescExplicitylPullExports)
 
 	return fs

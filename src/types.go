@@ -409,6 +409,7 @@ type matchQuery struct {
 	keywordSearches   []fuzzyStringsValuePair
 	mimeQuerySearches []fuzzyStringsValuePair
 	titleSearches     []fuzzyStringsValuePair
+	ownerSearches     []fuzzyStringsValuePair
 }
 
 type fuzziness int
@@ -416,6 +417,7 @@ type fuzziness int
 const (
 	Not fuzziness = 1 << iota
 	Like
+	NotIn
 	Is
 )
 
@@ -423,6 +425,8 @@ func (fz *fuzziness) Stringer() string {
 	switch *fz {
 	case Not:
 		return "!="
+	case NotIn:
+		return "not in"
 	case Like:
 		return "contains"
 	case Is:
@@ -457,9 +461,33 @@ func mimeQueryStringify(fz *fuzzyStringsValuePair) string {
 
 	for _, query := range fz.values {
 		resolvedMimeType := mimeTypeFromQuery(query)
-		if resolvedMimeType != "" {
-			keySearches = append(keySearches, fmt.Sprintf("(mimeType %s %s)", fuzzyDesc, quote(resolvedMimeType)))
+
+		// If it cannot be resolved, use the value passed in
+		if resolvedMimeType == "" {
+			resolvedMimeType = query
 		}
+
+		keySearches = append(keySearches, fmt.Sprintf("(mimeType %s %s)", fuzzyDesc, quote(resolvedMimeType)))
+	}
+
+	return strings.Join(keySearches, fmt.Sprintf(" %s ", fz.joiner.Stringer()))
+}
+
+func ownerQueryStringify(fz *fuzzyStringsValuePair) string {
+	keySearches := []string{}
+	quote := strconv.Quote
+
+	for _, owner := range fz.values {
+		query := ""
+		switch fz.fuzzyLevel {
+		case NotIn:
+			query = fmt.Sprintf("(not %s in owners)", quote(owner))
+		default:
+			fuzzyDesc := fz.fuzzyLevel.Stringer()
+			query = fmt.Sprintf("(%s %s owners)", quote(owner), fuzzyDesc)
+		}
+
+		keySearches = append(keySearches, query)
 	}
 
 	return strings.Join(keySearches, fmt.Sprintf(" %s ", fz.joiner.Stringer()))
@@ -475,7 +503,7 @@ func titleQueryStringify(fz *fuzzyStringsValuePair) string {
 		keySearches = append(keySearches, fmt.Sprintf("(title %s %s and trashed=%v)", fuzzyDesc, quote(title), fz.inTrash))
 	}
 
-	return strings.Join(keySearches, " or ")
+	return strings.Join(keySearches, fmt.Sprintf(" %s ", fz.joiner.Stringer()))
 }
 
 func joinLists(exprJoiner string, expressions []string) string {
@@ -502,12 +530,22 @@ func (mq *matchQuery) Stringer() string {
 
 	titleTranslations := []string{}
 	for _, titleFzPair := range mq.titleSearches {
-		titleTranslations = append(titleTranslations, titleQueryStringify(&titleFzPair))
+		titleQuery := titleQueryStringify(&titleFzPair)
+		if titleQuery == "" {
+			continue
+		}
+
+		titleTranslations = append(titleTranslations, titleQuery)
 	}
 
-	reducedMimes := joinLists(" and ", mimeTranslations)
-	if reducedMimes != "" {
-		overallSearchList = append(overallSearchList, reducedMimes)
+	ownerTranslations := []string{}
+	for _, ownerFzPair := range mq.ownerSearches {
+		ownerQuery := ownerQueryStringify(&ownerFzPair)
+		if ownerQuery == "" {
+			continue
+		}
+
+		ownerTranslations = append(ownerTranslations, ownerQuery)
 	}
 
 	exprPairs := []struct {
@@ -516,6 +554,7 @@ func (mq *matchQuery) Stringer() string {
 	}{
 		{" and ", mimeTranslations},
 		{" and ", titleTranslations},
+		{" and ", ownerTranslations},
 	}
 
 	for _, exprPair := range exprPairs {

@@ -66,26 +66,13 @@ func (g *Commands) ListMatches() error {
 
 	inTrash := trashed(g.opts.TypeMask)
 
-	mimeQuerySearches := []fuzzyStringsValuePair{}
+	mq := g.createMatchQuery(false)
 
-	if g.opts.Meta != nil {
-		meta := *(g.opts.Meta)
-		skipMimes, ok := meta[SkipMimeKeyKey]
-		if ok {
-			mimeQuerySearches = append(mimeQuerySearches, fuzzyStringsValuePair{fuzzyLevel: Not, values: skipMimes, inTrash: inTrash})
-		}
-	}
+	mq.titleSearches = append(mq.titleSearches, fuzzyStringsValuePair{
+		fuzzyLevel: Like, values: g.opts.Sources, inTrash: inTrash, joiner: Or,
+	})
 
-	mq := matchQuery{
-		dirPath:           g.opts.Path,
-		inTrash:           g.opts.InTrash,
-		mimeQuerySearches: mimeQuerySearches,
-		titleSearches: []fuzzyStringsValuePair{
-			{fuzzyLevel: Like, values: g.opts.Sources, inTrash: inTrash},
-		},
-	}
-
-	matches, err := g.rem.FindMatches(&mq)
+	matches, err := g.rem.FindMatches(mq)
 	if err != nil {
 		return err
 	}
@@ -125,6 +112,68 @@ func (g *Commands) ListMatches() error {
 	return nil
 }
 
+func (g *Commands) createMatchQuery(exactMatch bool) *matchQuery {
+
+	mimeQuerySearches := []fuzzyStringsValuePair{}
+	titleSearches := []fuzzyStringsValuePair{}
+	ownerSearches := []fuzzyStringsValuePair{}
+
+	if g.opts.Meta != nil {
+		meta := *(g.opts.Meta)
+		skipMimes, sOk := meta[SkipMimeKeyKey]
+		if sOk {
+			mimeQuerySearches = append(mimeQuerySearches, fuzzyStringsValuePair{
+				fuzzyLevel: Not, values: skipMimes, inTrash: g.opts.InTrash, joiner: And,
+			})
+		}
+
+		matchMimes, mOk := meta[MatchMimeKeyKey]
+		if mOk {
+			mimeQuerySearches = append(mimeQuerySearches, fuzzyStringsValuePair{
+				fuzzyLevel: Is, values: matchMimes, inTrash: g.opts.InTrash, joiner: Or,
+			})
+		}
+
+		exactTitles, etOk := meta[ExactTitleKey]
+		if etOk {
+			titleSearches = append(titleSearches, fuzzyStringsValuePair{
+				fuzzyLevel: Is, values: exactTitles, inTrash: g.opts.InTrash, joiner: Or,
+			})
+		}
+
+		exactOwners, eoOk := meta[ExactOwnerKey]
+		if eoOk {
+			ownerSearches = append(ownerSearches, fuzzyStringsValuePair{
+				fuzzyLevel: Is, values: exactOwners, joiner: Or,
+			})
+		}
+
+		matchOwners, moOk := meta[MatchOwnerKey]
+		if moOk {
+			ownerSearches = append(ownerSearches, fuzzyStringsValuePair{
+				fuzzyLevel: Like, values: matchOwners, joiner: Or,
+			})
+		}
+
+		notOwner, soOk := meta[NotOwnerKey]
+		if soOk {
+			ownerSearches = append(ownerSearches, fuzzyStringsValuePair{
+				fuzzyLevel: NotIn, values: notOwner, joiner: And,
+			})
+		}
+	}
+
+	mq := matchQuery{
+		dirPath:           g.opts.Path,
+		inTrash:           g.opts.InTrash,
+		mimeQuerySearches: mimeQuerySearches,
+		titleSearches:     titleSearches,
+		ownerSearches:     ownerSearches,
+	}
+
+	return &mq
+}
+
 func (g *Commands) List(byId bool) error {
 	var kvList []*keyValue
 
@@ -135,23 +184,7 @@ func (g *Commands) List(byId bool) error {
 		resolver = g.rem.FindByPathTrashed
 	}
 
-	mimeQuerySearches := []fuzzyStringsValuePair{}
-
-	if g.opts.Meta != nil {
-		meta := *(g.opts.Meta)
-		skipMimes, ok := meta[SkipMimeKeyKey]
-		if ok {
-			mimeQuerySearches = append(mimeQuerySearches, fuzzyStringsValuePair{
-				fuzzyLevel: Not, values: skipMimes, inTrash: g.opts.InTrash,
-			})
-		}
-	}
-
-	mq := matchQuery{
-		dirPath:           g.opts.Path,
-		inTrash:           g.opts.InTrash,
-		mimeQuerySearches: mimeQuerySearches,
-	}
+	mq := g.createMatchQuery(true)
 
 	for _, relPath := range g.opts.Sources {
 		r, rErr := resolver(relPath)
@@ -198,7 +231,7 @@ func (g *Commands) List(byId bool) error {
 			inTrash:    g.opts.InTrash,
 			mask:       g.opts.TypeMask,
 			sorters:    sorters(g.opts),
-			matchQuery: &mq,
+			matchQuery: mq,
 		}
 
 		if !g.breadthFirst(travSt, spin) {
@@ -339,7 +372,6 @@ func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 	if travSt.matchQuery != nil {
 		exprExtra := travSt.matchQuery.Stringer()
 		expr = sepJoinNonEmpty(" and ", fmt.Sprintf("(%s)", expr), exprExtra)
-		fmt.Println("expr", expr)
 	}
 
 	req := g.rem.service.Files.List()
@@ -406,6 +438,7 @@ func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 				mask:             g.opts.TypeMask,
 				explicitNoPrompt: travSt.explicitNoPrompt,
 				sorters:          travSt.sorters,
+				matchQuery:       travSt.matchQuery,
 			}
 
 			if !g.breadthFirst(childSt, spin) {

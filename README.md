@@ -495,6 +495,14 @@ e.g to first sort by modTime, then largest-to-smallest and finally most number o
 $ drive list --sort modtime,size_r,version_r Photos
 ```
 
+* For advanced listing
+
+```shell
+$ drive list --skip-mime mp4,doc,txt
+$ drive list --match-mime xls,docx
+$ drive list --exact-title url_test,Photos
+```
+
 ### Stating Files
 
 The `stat` commands show detailed file information for example people with whom it is shared, their roles and accountTypes, and

@@ -69,6 +69,11 @@ const (
 	TypeKey               = "type"
 	TrashedKey            = "trashed"
 	SkipMimeKeyKey        = "skip-mime"
+	MatchMimeKeyKey       = "exact-mime"
+	ExactTitleKey         = "exact-title"
+	MatchOwnerKey         = "match-owner"
+	ExactOwnerKey         = "exact-owner"
+	NotOwnerKey           = "skip-owner"
 	SortKey               = "sort"
 	DriveRepoRelPath      = "github.com/odeke-em/drive"
 )
@@ -110,6 +115,12 @@ const (
 	DescIgnoreNameClashes = "ignore name clashes"
 	DescSort              = "sort items in the order\n\t* md5.\n\t* name.\n\t* size.\n\t* type.\n\t* version"
 	DescSkipMime          = "skip elements with mimeTypes derived from these extensison"
+	DescMatchMime         = "get elements with the exact mimeTypes derived from extensisons"
+	DescMatchTitle        = "elements with matching titles"
+	DescExactTitle        = "get elements with the exact titles"
+	DescMatchOwner        = "elements with matching owners"
+	DescExactOwner        = "elements with the exact owner"
+	DescNotOwner          = "ignore elements owned by these users"
 )
 
 const (
@@ -122,6 +133,12 @@ const (
 	CLIOptionNoClobber         = "no-clobber"
 	CLIOptionNotify            = "notify"
 	CLIOptionSkipMime          = "skip-mime"
+	CLIOptionMatchMime         = "exact-mime"
+	CLIOptionExactTitle        = "exact-title"
+	CLIOptionMatchTitle        = "match-mime"
+	CLIOptionExactOwner        = "exact-owner"
+	CLIOptionMatchOwner        = "match-owner"
+	CLIOptionNotOwner          = "skip-owner"
 )
 
 const (

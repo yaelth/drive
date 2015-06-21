@@ -360,6 +360,7 @@ var regExtStrMap = map[string]string{
 	"csv":   "text/csv",
 	"html?": "text/html",
 	"te?xt": "text/plain",
+	"xml":   "text/xml",
 
 	"gif":   "image/gif",
 	"png":   "image/png",
@@ -385,6 +386,8 @@ var regExtStrMap = map[string]string{
 
 	"apk": "application/vnd.android.package-archive",
 	"bin": "application/octet-stream",
+
+	"mp3": "audio/mpeg",
 
 	"docx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 	"pptx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.presentation",
@@ -430,7 +433,11 @@ func cacher(regMap map[*regexp.Regexp]string) func(string) string {
 	}
 }
 
-var mimeTypeFromQuery = cacher(regMapper(regExtStrMap, map[string]string{"folder": DriveFolderMimeType}))
+var mimeTypeFromQuery = cacher(regMapper(regExtStrMap, map[string]string{
+	"folder": DriveFolderMimeType,
+	"mp4":    "video/mp4",
+}))
+
 var mimeTypeFromExt = cacher(regMapper(regExtStrMap))
 
 func guessMimeType(p string) string {
