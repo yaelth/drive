@@ -384,8 +384,14 @@ var regExtStrMap = map[string]string{
 	"rtf": "application/rtf",
 	"pdf": "application/pdf",
 
-	"apk": "application/vnd.android.package-archive",
-	"bin": "application/octet-stream",
+	"json": "application/json",
+	"js":   "application/x-javascript",
+
+	"apk":   "application/vnd.android.package-archive",
+	"bin":   "application/octet-stream",
+	"tiff?": "image/tiff",
+	"tgz":   "application/x-compressed",
+	"zip":   "application/zip",
 
 	"mp3": "audio/mpeg",
 
