@@ -48,7 +48,7 @@ type downloadArg struct {
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
 func (g *Commands) Pull(byId bool) (err error) {
-	var cl []*Change
+	var cl, clashes []*Change
 
 	g.log.Logln("Resolving...")
 
@@ -60,8 +60,18 @@ func (g *Commands) Pull(byId bool) (err error) {
 		resolver = g.pullById
 	}
 
-	cl, err = resolver()
+	cl, clashes, err = resolver()
 	spin.stop()
+
+	if len(clashes) >= 1 {
+		for _, clash := range clashes {
+			g.log.LogErrf("\033[91mX\033[00m %v \"%v\"\n", clash.Path, clash.Src.Id)
+		}
+	}
+
+	if err != nil {
+		return err
+	}
 
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl, false)
 	if conflictsPtr != nil {
@@ -106,7 +116,7 @@ func (g *Commands) PullMatches() (err error) {
 		relToRoot := "/" + match.Name
 		fsPath := g.context.AbsPathOf(relToRoot)
 
-		ccl, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
+		ccl, _, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
 		if cErr != nil {
 			return cErr
 		}
@@ -157,11 +167,11 @@ func (g *Commands) PullPiped(byId bool) (err error) {
 	return nil
 }
 
-func (g *Commands) pullById() (cl []*Change, err error) {
+func (g *Commands) pullById() (cl, clashes []*Change, err error) {
 	for _, srcId := range g.opts.Sources {
 		rem, remErr := g.rem.FindById(srcId)
 		if remErr != nil {
-			return cl, fmt.Errorf("pullById: %s: %v", srcId, remErr)
+			return cl, clashes, fmt.Errorf("pullById: %s: %v", srcId, remErr)
 		}
 
 		if rem == nil {
@@ -173,32 +183,32 @@ func (g *Commands) pullById() (cl []*Change, err error) {
 		curAbsPath := g.context.AbsPathOf(relToRootPath)
 		local, resErr := g.resolveToLocalFile(rem.Name, curAbsPath)
 		if resErr != nil {
-			return cl, resErr
+			return cl, clashes, resErr
 		}
 
-		ccl, clErr := g.doChangeListRecv(relToRootPath, curAbsPath, local, rem, false)
+		ccl, cclashes, clErr := g.doChangeListRecv(relToRootPath, curAbsPath, local, rem, false)
 		if clErr != nil {
-			return cl, clErr
+			return cl, cclashes, clErr
 		}
 		cl = append(cl, ccl...)
 	}
 
-	return cl, nil
+	return cl, clashes, nil
 }
 
-func (g *Commands) pullByPath() (cl []*Change, err error) {
+func (g *Commands) pullByPath() (cl, clashes []*Change, err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
-		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, false)
+		ccl, clashes, cErr := g.changeListResolve(relToRootPath, fsPath, false)
 		if cErr != nil {
-			return cl, cErr
+			return cl, clashes, cErr
 		}
 		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
 	}
 
-	return cl, nil
+	return cl, clashes, nil
 }
 
 func (g *Commands) pullAndDownload(relToRootPath string, fh io.Writer, rem *File, piped bool) (err error) {
