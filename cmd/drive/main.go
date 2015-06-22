@@ -781,6 +781,29 @@ func (cmd *trashCmd) Run(args []string) {
 	}
 }
 
+type newCmd struct {
+	folder *bool
+}
+
+func (cmd *newCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.folder = fs.Bool("folder", false, "create a folder if set otherwise create a regular file")
+	return fs
+}
+
+func (cmd *newCmd) Run(args []string) {
+	sources, context, path := preprocessArgs(args)
+	opts := drive.Options{
+		Path:    path,
+		Sources: sources,
+	}
+
+	if *cmd.folder {
+		exitWithError(drive.New(context, &opts).NewFolder())
+	} else {
+		exitWithError(drive.New(context, &opts).NewFolder())
+	}
+}
+
 type copyCmd struct {
 	quiet     *bool
 	recursive *bool
