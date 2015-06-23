@@ -29,6 +29,7 @@
   - [Listing Files](#listing-files)
   - [Stating Files](#stating-files)
   - [Retrieving md5 checksums](#retrieving-md5-checksums)
+  - [New File](#new-file)
   - [Quota](#quota)
   - [Features](#features)
   - [About](#about)
@@ -559,6 +560,19 @@ Compare across two different Drive accounts, including subfolders
 ```
 
 _Note: Running the 'drive md5sum' command retrieves pre-computed md5 sums from Drive; its speed is proportional to the number of files on Drive. Running the shell 'md5sum' command on local files requires reading through the files; its speed is proportional to the size of the files._
+
+
+### New File
+
+drive allows you to create an empty file or folder remotely
+Sample usage:
+
+```shell
+$ drive new --folder flux
+$ drive new --mime-key doc bofx
+$ drive new --mime-key folder content
+$ drive new flux.txt oxen.pdf # Allow auto type resolution from the extension
+```
 
 ### Quota
 

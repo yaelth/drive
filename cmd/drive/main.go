@@ -76,6 +76,7 @@ func main() {
 	bindCommandWithAliases(drive.DeleteKey, drive.DescDelete, &deleteCmd{}, []string{})
 	bindCommandWithAliases(drive.UnpubKey, drive.DescUnpublish, &unpublishCmd{}, []string{})
 	bindCommandWithAliases(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
+	bindCommandWithAliases(drive.NewKey, drive.DescNew, &newCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -782,11 +783,13 @@ func (cmd *trashCmd) Run(args []string) {
 }
 
 type newCmd struct {
-	folder *bool
+	folder  *bool
+	mimeKey *string
 }
 
 func (cmd *newCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.folder = fs.Bool("folder", false, "create a folder if set otherwise create a regular file")
+	cmd.mimeKey = fs.String(drive.MimeKey, "", "coerce the file to this mimeType")
 	return fs
 }
 
@@ -797,10 +800,16 @@ func (cmd *newCmd) Run(args []string) {
 		Sources: sources,
 	}
 
+	meta := map[string][]string{
+		drive.MimeKey: drive.NonEmptyTrimmedStrings(strings.Split(*cmd.mimeKey, ",")...),
+	}
+
+	opts.Meta = &meta
+
 	if *cmd.folder {
 		exitWithError(drive.New(context, &opts).NewFolder())
 	} else {
-		exitWithError(drive.New(context, &opts).NewFolder())
+		exitWithError(drive.New(context, &opts).NewFile())
 	}
 }
 

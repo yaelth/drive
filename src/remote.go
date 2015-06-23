@@ -445,6 +445,10 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 		uploaded.MimeType = DriveFolderMimeType
 	}
 
+	if args.src.MimeType != "" {
+		uploaded.MimeType = args.src.MimeType
+	}
+
 	if args.mimeKey != "" {
 		uploaded.MimeType = guessMimeType(args.mimeKey)
 	}

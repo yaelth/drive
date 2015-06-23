@@ -442,6 +442,9 @@ func cacher(regMap map[*regexp.Regexp]string) func(string) string {
 var mimeTypeFromQuery = cacher(regMapper(regExtStrMap, map[string]string{
 	"folder": DriveFolderMimeType,
 	"mp4":    "video/mp4",
+	"docs":   "application/vnd.google-apps.document",
+	"sheet":  "application/vnd.google-apps.sheet",
+	"form":   "application/vnd.google-apps.form",
 }))
 
 var mimeTypeFromExt = cacher(regMapper(regExtStrMap))

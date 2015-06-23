@@ -46,6 +46,7 @@ const (
 	UnpubKey      = "unpub"
 	VersionKey    = "version"
 	Md5sumKey     = "md5sum"
+	NewKey        = "new"
 
 	CoercedMimeKeyKey     = "coerced-mime"
 	DepthKey              = "depth"
@@ -75,6 +76,8 @@ const (
 	ExactOwnerKey         = "exact-owner"
 	NotOwnerKey           = "skip-owner"
 	SortKey               = "sort"
+	FolderKey             = "folder"
+	MimeKey               = "mime-key"
 	DriveRepoRelPath      = "github.com/odeke-em/drive"
 )
 
@@ -121,6 +124,7 @@ const (
 	DescMatchOwner        = "elements with matching owners"
 	DescExactOwner        = "elements with the exact owner"
 	DescNotOwner          = "ignore elements owned by these users"
+	DescNew               = "create a new file/folder"
 )
 
 const (
