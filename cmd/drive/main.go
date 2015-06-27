@@ -77,6 +77,7 @@ func main() {
 	bindCommandWithAliases(drive.UnpubKey, drive.DescUnpublish, &unpublishCmd{}, []string{})
 	bindCommandWithAliases(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
 	bindCommandWithAliases(drive.NewKey, drive.DescNew, &newCmd{}, []string{})
+	bindCommandWithAliases(drive.FetchKey, drive.DescFetch, &fetchCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -343,6 +344,65 @@ func (cmd *statCmd) Run(args []string) {
 	} else {
 		exitWithError(drive.New(context, &opts).Stat())
 	}
+}
+
+type fetchCmd struct {
+	byId              *bool
+	ignoreConflict    *bool
+	recursive         *bool
+	noPrompt          *bool
+	hidden            *bool
+	force             *bool
+	ignoreNameClashes *bool
+	quiet             *bool
+	excludeOps        *string
+	skipMimeKey       *string
+	ignoreChecksum    *bool
+	noClobber         *bool
+}
+
+func (cmd *fetchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "fetch by id instead of path")
+	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, true, drive.DescIgnoreConflict)
+	cmd.recursive = fs.Bool("r", true, "fetch recursively for children")
+	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the fetch action")
+	cmd.hidden = fs.Bool(drive.HiddenKey, true, "allows fetching of hidden paths")
+	cmd.force = fs.Bool(drive.ForceKey, false, "forces a fetch even if no changes present")
+	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, true, drive.DescIgnoreNameClashes)
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
+	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
+	cmd.noClobber = fs.Bool(drive.CLIOptionNoClobber, false, "prevents overwriting of old content")
+
+	return fs
+}
+
+func (cmd *fetchCmd) Run(args []string) {
+	byId := *cmd.byId
+	sources, context, path := preprocessArgsByToggle(args, byId)
+
+	options := &drive.Options{
+		Sources:           sources,
+		Hidden:            *cmd.hidden,
+		IgnoreChecksum:    *cmd.ignoreChecksum,
+		IgnoreConflict:    *cmd.ignoreConflict,
+		NoPrompt:          *cmd.noPrompt,
+		NoClobber:         *cmd.noClobber,
+		Path:              path,
+		Recursive:         *cmd.recursive,
+		Quiet:             *cmd.quiet,
+		Force:             *cmd.force,
+		IgnoreNameClashes: *cmd.ignoreNameClashes,
+	}
+
+	dr := drive.New(context, options)
+	fn := dr.Fetch
+	if byId {
+		fn = dr.FetchById
+	}
+
+	exitWithError(fn())
 }
 
 type pullCmd struct {

@@ -47,6 +47,7 @@ const (
 	VersionKey    = "version"
 	Md5sumKey     = "md5sum"
 	NewKey        = "new"
+	FetchKey      = "fetch"
 
 	CoercedMimeKeyKey     = "coerced-mime"
 	DepthKey              = "depth"
@@ -90,6 +91,7 @@ const (
 	DescEmptyTrash            = "permanently cleans out your trash"
 	DescExcludeOps            = "exclude operations"
 	DescFeatures              = "returns information about the features of your drive"
+	DescFetch                 = "fetch index content from remote"
 	DescHelp                  = "Get help for a topic"
 	DescInit                  = "initializes a directory and authenticates user"
 	DescList                  = "lists the contents of remote path"

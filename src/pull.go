@@ -47,21 +47,8 @@ type downloadArg struct {
 // Pull from remote if remote path exists and in a god context. If path is a
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
-func (g *Commands) Pull(byId bool) (err error) {
-	var cl, clashes []*Change
-
-	g.log.Logln("Resolving...")
-
-	spin := g.playabler()
-	spin.play()
-
-	resolver := g.pullByPath
-	if byId {
-		resolver = g.pullById
-	}
-
-	cl, clashes, err = resolver()
-	spin.stop()
+func (g *Commands) Pull(byId bool) error {
+	cl, clashes, err := pullLikeResolve(g, byId)
 
 	if len(clashes) >= 1 {
 		for _, clash := range clashes {
@@ -83,10 +70,25 @@ func (g *Commands) Pull(byId bool) (err error) {
 
 	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
 	if !ok {
-		return
+		return nil
 	}
 
 	return g.playPullChanges(nonConflicts, g.opts.Exports, opMap)
+}
+
+func pullLikeResolve(g *Commands, byId bool) (cl, clashes []*Change, err error) {
+	g.log.Logln("Resolving...")
+
+	spin := g.playabler()
+	spin.play()
+	defer spin.stop()
+
+	resolver := g.pullByPath
+	if byId {
+		resolver = g.pullById
+	}
+
+	return resolver()
 }
 
 func (g *Commands) PullMatches() (err error) {
@@ -383,10 +385,22 @@ func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 			for n := range chunks {
 				g.rem.progressChan <- n
 			}
+
+			dest := change.Dest
+			index := dest.ToIndex()
+			rmErr := g.context.RemoveIndex(index, g.context.AbsPathOf(""))
+			if rmErr != nil {
+				g.log.LogErrf("localDelete removing index for: \"%s\" at \"%s\" %v\n", dest.Name, dest.BlobAt, rmErr)
+			}
 		}
 		wg.Done()
 	}()
+
 	err = os.RemoveAll(change.Dest.BlobAt)
+	if err != nil {
+		g.log.LogErrf("localDelete: \"%s\" %v\n", change.Dest.BlobAt, err)
+	}
+
 	return
 }
 
