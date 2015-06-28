@@ -77,7 +77,7 @@ func main() {
 	bindCommandWithAliases(drive.UnpubKey, drive.DescUnpublish, &unpublishCmd{}, []string{})
 	bindCommandWithAliases(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
 	bindCommandWithAliases(drive.NewKey, drive.DescNew, &newCmd{}, []string{})
-	bindCommandWithAliases(drive.FetchKey, drive.DescFetch, &fetchCmd{}, []string{})
+	bindCommandWithAliases(drive.IndexKey, drive.DescIndex, &indexCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -346,7 +346,7 @@ func (cmd *statCmd) Run(args []string) {
 	}
 }
 
-type fetchCmd struct {
+type indexCmd struct {
 	byId              *bool
 	ignoreConflict    *bool
 	recursive         *bool
@@ -359,9 +359,12 @@ type fetchCmd struct {
 	skipMimeKey       *string
 	ignoreChecksum    *bool
 	noClobber         *bool
+	prune             *bool
+	allOps            *bool
+	matches           *bool
 }
 
-func (cmd *fetchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (cmd *indexCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "fetch by id instead of path")
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, true, drive.DescIgnoreConflict)
 	cmd.recursive = fs.Bool("r", true, "fetch recursively for children")
@@ -374,13 +377,19 @@ func (cmd *fetchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
 	cmd.noClobber = fs.Bool(drive.CLIOptionNoClobber, false, "prevents overwriting of old content")
+	cmd.prune = fs.Bool(drive.CLIOptionPruneIndices, false, drive.DescPruneIndices)
+	cmd.allOps = fs.Bool(drive.CLIOptionAllIndexOperations, false, drive.DescAllIndexOperations)
+	cmd.matches = fs.Bool(drive.MatchesKey, false, "search by prefix")
 
 	return fs
 }
 
-func (cmd *fetchCmd) Run(args []string) {
+type errorer func() error
+
+func (cmd *indexCmd) Run(args []string) {
 	byId := *cmd.byId
-	sources, context, path := preprocessArgsByToggle(args, byId)
+	byMatches := *cmd.matches
+	sources, context, path := preprocessArgsByToggle(args, byMatches || byId)
 
 	options := &drive.Options{
 		Sources:           sources,
@@ -397,12 +406,26 @@ func (cmd *fetchCmd) Run(args []string) {
 	}
 
 	dr := drive.New(context, options)
-	fn := dr.Fetch
+
+	fetchFn := dr.Fetch
 	if byId {
-		fn = dr.FetchById
+		fetchFn = dr.FetchById
+	} else if *cmd.matches {
+		fetchFn = dr.FetchMatches
 	}
 
-	exitWithError(fn())
+	scheduling := []errorer{}
+	if *cmd.allOps {
+		scheduling = append(scheduling, dr.Prune, fetchFn)
+	} else if *cmd.prune {
+		scheduling = append(scheduling, dr.Prune)
+	} else {
+		scheduling = append(scheduling, fetchFn)
+	}
+
+	for _, fn := range scheduling {
+		exitWithError(fn())
+	}
 }
 
 type pullCmd struct {

@@ -29,9 +29,9 @@ var (
 	GDDirSuffix   = ".gd"
 	PathSeparator = fmt.Sprintf("%c", os.PathSeparator)
 
-	ErrNoDriveContext = errors.New("no drive context found; run `drive init` or go into one of the directories (sub directories) that you performed `drive init`")
-    ErrDerefNilIndex = errors.New("cannot dereference a nil index")
-    ErrEmptyFileIdForIndex = errors.New("fileId for index must be non-empty")
+	ErrNoDriveContext      = errors.New("no drive context found; run `drive init` or go into one of the directories (sub directories) that you performed `drive init`")
+	ErrDerefNilIndex       = errors.New("cannot dereference a nil index")
+	ErrEmptyFileIdForIndex = errors.New("fileId for index must be non-empty")
 )
 
 type Context struct {
@@ -100,14 +100,14 @@ func (c *Context) DeserializeIndex(dir, path string) (*Index, error) {
 	return &index, err
 }
 
-func (c *Context) RemoveIndex(index *Index, p string) (error) {
-    if index == nil {
-        return ErrDerefNilIndex
-    }
-    if empty(index.FileId) {
-        return ErrEmptyFileIdForIndex
-    }
-    return os.Remove(IndicesAbsPath(p, index.FileId))
+func (c *Context) RemoveIndex(index *Index, p string) error {
+	if index == nil {
+		return ErrDerefNilIndex
+	}
+	if empty(index.FileId) {
+		return ErrEmptyFileIdForIndex
+	}
+	return os.Remove(IndicesAbsPath(p, index.FileId))
 }
 
 func (c *Context) SerializeIndex(index *Index, p string) (err error) {
@@ -205,7 +205,7 @@ func LeastNonExistantRoot(contextAbsPath string) string {
 }
 
 func empty(p string) bool {
-    return p == ""
+	return p == ""
 }
 
 func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool) (

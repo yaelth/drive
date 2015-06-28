@@ -68,7 +68,14 @@ func (g *Commands) Pull(byId bool) error {
 
 	nonConflicts := *nonConflictsPtr
 
-	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
+	clArg := changeListArg{
+		logy:      g.log,
+		changes:   nonConflicts,
+		noPrompt:  !g.opts.canPrompt(),
+		noClobber: g.opts.NoClobber,
+	}
+
+	ok, opMap := printChangeList(&clArg)
 	if !ok {
 		return nil
 	}
@@ -91,8 +98,7 @@ func pullLikeResolve(g *Commands, byId bool) (cl, clashes []*Change, err error) 
 	return resolver()
 }
 
-func (g *Commands) PullMatches() (err error) {
-	var cl []*Change
+func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 	mq := matchQuery{
 		dirPath: g.opts.Path,
 		inTrash: false,
@@ -103,12 +109,17 @@ func (g *Commands) PullMatches() (err error) {
 	matches, err := g.rem.FindMatches(&mq) // g.opts.Path, g.opts.Sources, false)
 
 	if err != nil {
-		return err
+		return
 	}
 
 	p := g.opts.Path
 	if p == "/" {
 		p = ""
+	}
+
+	combiner := func(from []*Change, to *[]*Change, done chan bool) {
+		*to = append(*to, from...)
+		done <- true
 	}
 
 	for match := range matches {
@@ -118,12 +129,28 @@ func (g *Commands) PullMatches() (err error) {
 		relToRoot := "/" + match.Name
 		fsPath := g.context.AbsPathOf(relToRoot)
 
-		ccl, _, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
+		ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
 		if cErr != nil {
-			return cErr
+			err = cErr
+			return
 		}
 
-		cl = append(cl, ccl...)
+		done := make(chan bool, 2)
+		go combiner(ccl, &cl, done)
+		go combiner(cclashes, &clashes, done)
+
+		<-done
+		<-done
+	}
+
+	return
+}
+
+func (g *Commands) PullMatches() (err error) {
+	cl, _, err := pullLikeMatchesResolver(g)
+
+	if err != nil {
+		return err
 	}
 
 	if len(cl) < 1 {
@@ -138,7 +165,14 @@ func (g *Commands) PullMatches() (err error) {
 
 	nonConflicts := *nonConflictsPtr
 
-	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
+	clArg := changeListArg{
+		logy:      g.log,
+		changes:   nonConflicts,
+		noPrompt:  !g.opts.canPrompt(),
+		noClobber: g.opts.NoClobber,
+	}
+
+	ok, opMap := printChangeList(&clArg)
 	if !ok {
 		return nil
 	}
@@ -284,6 +318,8 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 				go g.localAdd(&wg, c, exports)
 			case OpDelete:
 				go g.localDelete(&wg, c)
+			case OpIndexAddition:
+				go g.localAddIndex(&wg, c)
 			}
 		}
 
@@ -295,16 +331,29 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 	return err
 }
 
+func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change) (err error) {
+	f := change.Src
+	defer func() {
+		if f != nil {
+			chunks := chunkInt64(change.Src.Size)
+			for n := range chunks {
+				g.rem.progressChan <- n
+			}
+		}
+		wg.Done()
+	}()
+
+	return g.createIndexLocally(f)
+}
+
 func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
 	defer func() {
 		if err == nil {
 			src := change.Src
-			index := src.ToIndex()
-			wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
-
+			indexErr := g.createIndexLocally(src)
 			// TODO: Should indexing errors be reported?
-			if wErr != nil {
-				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, wErr)
+			if indexErr != nil {
+				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, indexErr)
 			}
 		}
 		wg.Done()
@@ -342,9 +391,8 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	defer func() {
 		if err == nil && change.Src != nil {
 			fileToSerialize := change.Src
-			index := fileToSerialize.ToIndex()
-			indexErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
 
+			indexErr := g.createIndexLocally(fileToSerialize)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
 				g.log.LogErrf("serializeIndex %s: %v\n", fileToSerialize.Name, indexErr)

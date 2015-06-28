@@ -24,8 +24,20 @@ import (
 	"github.com/odeke-em/drive/config"
 )
 
-func (g *Commands) Fetch() (err error) {
-	deletions, delErr := g.pruneMissingIndices()
+const (
+	FetchById = iota
+	FetchMatches
+	Fetch
+)
+
+func setIndexingOnlyOption(g *Commands) {
+	g.opts.indexingOnly = true
+}
+
+func (g *Commands) Prune() (err error) {
+	setIndexingOnlyOption(g)
+
+	deletions, delErr := g.pruneStaleIndices()
 	if delErr != nil {
 		return delErr
 	}
@@ -44,18 +56,42 @@ func (g *Commands) Fetch() (err error) {
 	return nil
 }
 
-func (g *Commands) FetchById() (err error) {
-	return g.fetch(true)
+func (g *Commands) Fetch() (err error) {
+	return g.fetch(Fetch)
 }
 
-func (g *Commands) fetch(byId bool) (err error) {
-	cl, _, err := pullLikeResolve(g, byId)
+func (g *Commands) FetchById() (err error) {
+	return g.fetch(FetchById)
+}
+
+func (g *Commands) FetchMatches() (err error) {
+	return g.fetch(FetchMatches)
+}
+
+func (g *Commands) fetch(fetchOp int) (err error) {
+	setIndexingOnlyOption(g)
+	var cl []*Change
+	switch fetchOp {
+	case FetchById:
+		cl, _, err = pullLikeResolve(g, true)
+	case FetchMatches:
+		cl, _, err = pullLikeMatchesResolver(g)
+	default:
+		cl, _, err = pullLikeResolve(g, false)
+	}
 
 	if err != nil {
 		return err
 	}
 
-	ok, opMap := printChangeList(g.log, cl, !g.opts.canPrompt(), g.opts.NoClobber)
+	clArg := changeListArg{
+		logy:      g.log,
+		changes:   cl,
+		noPrompt:  !g.opts.canPrompt(),
+		noClobber: g.opts.NoClobber,
+	}
+
+	ok, opMap := printFetchChangeList(&clArg)
 	if !ok {
 		return nil
 	}
@@ -74,18 +110,17 @@ func (g *Commands) playFetchChanges(cl []*Change, opMap *map[Operation]sizeCount
 
 	g.taskStart(int64(changeCount))
 
-	defer close(g.rem.progressChan)
+	progressDone := make(chan bool, 1)
 
-	// sort.Sort(ByPrecedence(cl))
+	var wg sync.WaitGroup
+	wg.Add(changeCount)
 
 	go func() {
 		for n := range g.rem.progressChan {
 			g.taskAdd(int64(n))
 		}
+		progressDone <- true
 	}()
-
-	var wg sync.WaitGroup
-	wg.Add(changeCount)
 
 	ticker := time.Tick(1e9 / 10)
 
@@ -103,6 +138,10 @@ func (g *Commands) playFetchChanges(cl []*Change, opMap *map[Operation]sizeCount
 	}
 
 	wg.Wait()
+	close(g.rem.progressChan)
+
+	<-progressDone
+	g.taskFinish()
 
 	return nil
 }
@@ -110,15 +149,13 @@ func (g *Commands) playFetchChanges(cl []*Change, opMap *map[Operation]sizeCount
 func (g *Commands) addIndex(wg *sync.WaitGroup, f *File) (err error) {
 	defer loneCountRegister(wg, g.rem.progressChan)
 
-	index := f.ToIndex()
-	wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
-
+	indexErr := g.createIndexLocally(f)
 	// TODO: Should indexing errors be reported?
-	if wErr != nil {
-		g.log.LogErrf("addIndex %s: %v\n", f.Name, wErr)
+	if indexErr != nil {
+		g.log.LogErrf("addIndex %s: %v\n", f.Name, indexErr)
 	}
 
-	return wErr
+	return indexErr
 }
 
 func (g *Commands) removeIndex(wg *sync.WaitGroup, f *File) (err error) {
@@ -175,7 +212,7 @@ func mapifyFiles(g *Commands, ids map[string]*File) (map[string]*File, error) {
 	return mapping, nil
 }
 
-func (g *Commands) pruneMissingIndices() (deletions chan *File, err error) {
+func (g *Commands) pruneStaleIndices() (deletions chan *File, err error) {
 	var listing chan *File
 	indicesDir := config.IndicesAbsPath("", "")
 	listing, err = list(g.context, indicesDir, true, nil)
@@ -202,6 +239,7 @@ func (g *Commands) pruneMissingIndices() (deletions chan *File, err error) {
 		iterating := true
 
 		doneCount := uint64(0)
+		totalDeletions := uint64(0)
 
 		for iterating {
 			spin.play()
@@ -239,6 +277,7 @@ func (g *Commands) pruneMissingIndices() (deletions chan *File, err error) {
 			}
 
 			doneCount += uint64(i)
+			totalDeletions += uint64(delCount)
 
 			spin.pause()
 			deletionsReport := ""
@@ -246,10 +285,48 @@ func (g *Commands) pruneMissingIndices() (deletions chan *File, err error) {
 				deletionsReport = fmt.Sprintf("%v/%v to be deleted", delCount, i)
 			}
 
-			g.log.LogErrf("\rfetch: %s %v processed so far\r", deletionsReport, doneCount)
+			if totalDeletions >= 1 {
+				deletionsReport = fmt.Sprintf("%s(%v deletions so far)", deletionsReport, totalDeletions)
+			}
+
+			g.log.LogErrf("\rprune: %s %v index items processed so far\r", deletionsReport, doneCount)
 			<-tick
 		}
 	}()
 
 	return
+}
+
+func (g *Commands) createIndexLocally(f *File) (err error) {
+	if f == nil {
+		return config.ErrDerefNilIndex
+	}
+	index := f.ToIndex()
+	return g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+}
+
+func printFetchChangeList(clArg *changeListArg) (bool, *map[Operation]sizeCounter) {
+	if len(clArg.changes) == 0 {
+		clArg.logy.Logln("Everything is up-to-date.")
+		return false, nil
+	}
+	if clArg.noPrompt {
+		return true, nil
+	}
+
+	logy := clArg.logy
+	changes := clArg.changes
+	op := OpIndexAddition
+	_, description := op.description()
+
+	for _, c := range changes {
+		op := c.Op()
+		if op != OpNone {
+			logy.Logln(c.Symbol(), c.Path)
+		}
+	}
+
+	logy.Logf("%s %d\n", description, len(changes))
+
+	return promptForChanges(), nil
 }

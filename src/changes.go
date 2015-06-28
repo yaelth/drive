@@ -200,7 +200,7 @@ func (g *Commands) resolveChangeListRecv(
 		if hasExportLinks(r) {
 			return cl, clashes, nil
 		}
-		change = &Change{Path: p, Src: l, Dest: r, Parent: d}
+		change = &Change{Path: p, Src: l, Dest: r, Parent: d, g: g}
 	} else {
 		exportable := !g.opts.Force && hasExportLinks(r)
 		if exportable && !explicitlyRequested {
@@ -211,7 +211,7 @@ func (g *Commands) resolveChangeListRecv(
 				return cl, clashes, nil
 			}
 		}
-		change = &Change{Path: p, Src: r, Dest: l, Parent: d}
+		change = &Change{Path: p, Src: r, Dest: l, Parent: d, g: g}
 	}
 
 	change.NoClobber = g.opts.NoClobber
@@ -271,7 +271,7 @@ func (g *Commands) resolveChangeListRecv(
 		}
 
 		for _, dup := range clashingFiles {
-			clashes = append(clashes, &Change{Path: sepJoin("/", p, dup.Name), Src: dup})
+			clashes = append(clashes, &Change{Path: sepJoin("/", p, dup.Name), Src: dup, g: g})
 		}
 
 		// Ensure all clashes are retrieved and listed
@@ -498,7 +498,17 @@ func opChangeCount(changes []*Change) map[Operation]sizeCounter {
 	return opMap
 }
 
-func previewChanges(logy *log.Logger, cl []*Change, reduce bool, opMap map[Operation]sizeCounter) {
+type changeListArg struct {
+	logy      *log.Logger
+	changes   []*Change
+	noPrompt  bool
+	noClobber bool
+}
+
+func previewChanges(clArgs *changeListArg, reduce bool, opMap map[Operation]sizeCounter) {
+	logy := clArgs.logy
+	cl := clArgs.changes
+
 	for _, c := range cl {
 		op := c.Op()
 		if op != OpNone {
@@ -517,17 +527,17 @@ func previewChanges(logy *log.Logger, cl []*Change, reduce bool, opMap map[Opera
 	}
 }
 
-func printChangeList(logy *log.Logger, changes []*Change, noPrompt bool, noClobber bool) (bool, *map[Operation]sizeCounter) {
-	if len(changes) == 0 {
-		logy.Logln("Everything is up-to-date.")
+func printChangeList(clArg *changeListArg) (bool, *map[Operation]sizeCounter) {
+	if len(clArg.changes) == 0 {
+		clArg.logy.Logln("Everything is up-to-date.")
 		return false, nil
 	}
-	if noPrompt {
+	if clArg.noPrompt {
 		return true, nil
 	}
 
-	opMap := opChangeCount(changes)
-	previewChanges(logy, changes, true, opMap)
+	opMap := opChangeCount(clArg.changes)
+	previewChanges(clArg, true, opMap)
 
 	return promptForChanges(), &opMap
 }
