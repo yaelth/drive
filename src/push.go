@@ -115,7 +115,14 @@ func (g *Commands) Push() (err error) {
 		}
 	}
 
-	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
+	clArg := changeListArg{
+		logy:      g.log,
+		changes:   nonConflicts,
+		noPrompt:  !g.opts.canPrompt(),
+		noClobber: g.opts.NoClobber,
+	}
+
+	ok, opMap := printChangeList(&clArg)
 	if !ok {
 		return
 	}

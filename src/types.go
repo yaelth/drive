@@ -30,9 +30,10 @@ import (
 type Operation int
 
 const (
-	OpNone Operation = iota
+	OpNone Operation = 1 << iota
 	OpAdd
 	OpDelete
+	OpIndexAddition
 	OpMod
 	OpModConflict
 )
@@ -192,6 +193,7 @@ type Change struct {
 	NoClobber      bool
 	IgnoreConflict bool
 	IgnoreChecksum bool
+	g              *Commands
 }
 
 type ByPrecedence []*Change
@@ -228,6 +230,8 @@ func (op *Operation) description() (symbol, info string) {
 		return "\033[31m-\033[0m", "Deletion"
 	case OpMod:
 		return "\033[33mM\033[0m", "Modification"
+	case OpIndexAddition:
+		return "\033[34mI+\033[0m", "Index addition"
 	case OpModConflict:
 		return "\033[35mX\033[0m", "Clashing modification"
 	default:
@@ -340,17 +344,23 @@ func (c *Change) op() Operation {
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
 	}
+
+	indexingOnly := c.g.opts.indexingOnly
 	if c.Src != nil && c.Dest == nil {
-		return OpAdd
+		return indexExistanceOrDeferTo(c, OpAdd, indexingOnly)
 	}
 	if c.Src == nil && c.Dest != nil {
-		return OpDelete
+		return indexExistanceOrDeferTo(c, OpDelete, indexingOnly)
 	}
 	if c.Src.IsDir != c.Dest.IsDir {
-		return OpMod
+		return indexExistanceOrDeferTo(c, OpMod, indexingOnly)
 	}
 	if c.Src.IsDir {
-		return OpNone
+		return indexExistanceOrDeferTo(c, OpNone, indexingOnly)
+	}
+
+	if indexingOnly {
+		return indexExistanceOrDeferTo(c, OpNone, indexingOnly)
 	}
 
 	mask := fileDifferences(c.Src, c.Dest, c.IgnoreChecksum)
@@ -364,8 +374,50 @@ func (c *Change) op() Operation {
 	if modTimeDiffers(mask) {
 		return OpMod
 	}
-
 	return OpNone
+}
+
+func indexExistanceOrDeferTo(c *Change, deferTo Operation, indexingOnly bool) Operation {
+	if !indexingOnly {
+		return deferTo
+	} else if deferTo != OpNone {
+		return OpNone
+	}
+	ok, err := c.checkIndexExistance()
+	if err != nil {
+		c.g.log.LogErrf("checkIndexExists: \"%s\" %v\n", c.Path, err)
+	}
+
+	if !ok {
+		return OpIndexAddition
+	}
+
+	return deferTo
+}
+
+func (c *Change) checkIndexExistance() (bool, error) {
+	var f *File = nil
+	if c.Src != nil && c.Src.Id != "" {
+		f = c.Src
+	} else if c.Dest != nil && c.Dest.Id != "" {
+		f = c.Dest
+	}
+
+	if f == nil || f.Id == "" {
+		return false, nil
+	}
+
+	rootPath := c.g.context.AbsPathOf("")
+	statResult, statErr := os.Stat(config.IndicesAbsPath(rootPath, f.Id))
+
+	if statErr == nil {
+		return statResult != nil, nil
+	}
+
+	if !os.IsNotExist(statErr) {
+		return false, statErr
+	}
+	return false, nil
 }
 
 func (c *Change) Op() Operation {

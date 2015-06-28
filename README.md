@@ -39,6 +39,7 @@
   - [DriveIgnore](#driveignore)
   - [DesktopEntry](#desktopentry)
   - [Command Aliases](#command-aliases)
+  - [Index Prune](#index-prune)
 - [Revoking Account Access](#revoking-account-access)
 - [Uninstalling](#uninstalling)
 - [Applying patches](#applying-patches)
@@ -50,7 +51,7 @@
 
 ## Requirements
 
-go 1.4 or higher is required. See [here](https://golang.org/doc/install) for installation instructions and platform installers.
+go 1.3.X or higher is required. See [here](https://golang.org/doc/install) for installation instructions and platform installers.
 
 * Make sure to set your GOPATH in your env, .bashrc or .bash\_profile file. If you have not yet set it, you can do so like this:
 
@@ -703,6 +704,40 @@ desire the ability to have \*.desktop files that enable the file to be opened ap
 + cp : copy
 + ls : list 
 + mv : move
+
+
+## Index Prune
+
+* index 
+
+If you would like to fetch missing index files for files that would otherwise not need any modifications, run:
+
+```shell
+$ drive index path1 path2 path3/path3.1 # To fetch any missing indices in those paths
+$ drive index --id 0CLu4lbUI9RTRM80k8EMoe5JQY2z
+```
+
+You can also fetch specific files by prefix matches
+```shell
+$ drive index --matches mp3 jpg
+```
+
+* prune
+
+In case you might have deleted files remotely but never using drive, and feel like you have stale indices,
+running `drive index --prune` will search your entire indices dir for index files that do not exist remotely and remove those ones
+
+```shell
+$ drive index --prune
+```
+
+* prune-and-index
+To combine both operations (prune and then fetch) for indices:
+
+```shell
+$ drive index --all-ops
+```
+
 
 ### Revoking Account Access
 

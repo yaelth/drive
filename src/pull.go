@@ -47,21 +47,8 @@ type downloadArg struct {
 // Pull from remote if remote path exists and in a god context. If path is a
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
-func (g *Commands) Pull(byId bool) (err error) {
-	var cl, clashes []*Change
-
-	g.log.Logln("Resolving...")
-
-	spin := g.playabler()
-	spin.play()
-
-	resolver := g.pullByPath
-	if byId {
-		resolver = g.pullById
-	}
-
-	cl, clashes, err = resolver()
-	spin.stop()
+func (g *Commands) Pull(byId bool) error {
+	cl, clashes, err := pullLikeResolve(g, byId)
 
 	if len(clashes) >= 1 {
 		for _, clash := range clashes {
@@ -81,16 +68,37 @@ func (g *Commands) Pull(byId bool) (err error) {
 
 	nonConflicts := *nonConflictsPtr
 
-	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
+	clArg := changeListArg{
+		logy:      g.log,
+		changes:   nonConflicts,
+		noPrompt:  !g.opts.canPrompt(),
+		noClobber: g.opts.NoClobber,
+	}
+
+	ok, opMap := printChangeList(&clArg)
 	if !ok {
-		return
+		return nil
 	}
 
 	return g.playPullChanges(nonConflicts, g.opts.Exports, opMap)
 }
 
-func (g *Commands) PullMatches() (err error) {
-	var cl []*Change
+func pullLikeResolve(g *Commands, byId bool) (cl, clashes []*Change, err error) {
+	g.log.Logln("Resolving...")
+
+	spin := g.playabler()
+	spin.play()
+	defer spin.stop()
+
+	resolver := g.pullByPath
+	if byId {
+		resolver = g.pullById
+	}
+
+	return resolver()
+}
+
+func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 	mq := matchQuery{
 		dirPath: g.opts.Path,
 		inTrash: false,
@@ -101,12 +109,17 @@ func (g *Commands) PullMatches() (err error) {
 	matches, err := g.rem.FindMatches(&mq) // g.opts.Path, g.opts.Sources, false)
 
 	if err != nil {
-		return err
+		return
 	}
 
 	p := g.opts.Path
 	if p == "/" {
 		p = ""
+	}
+
+	combiner := func(from []*Change, to *[]*Change, done chan bool) {
+		*to = append(*to, from...)
+		done <- true
 	}
 
 	for match := range matches {
@@ -116,12 +129,28 @@ func (g *Commands) PullMatches() (err error) {
 		relToRoot := "/" + match.Name
 		fsPath := g.context.AbsPathOf(relToRoot)
 
-		ccl, _, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
+		ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
 		if cErr != nil {
-			return cErr
+			err = cErr
+			return
 		}
 
-		cl = append(cl, ccl...)
+		done := make(chan bool, 2)
+		go combiner(ccl, &cl, done)
+		go combiner(cclashes, &clashes, done)
+
+		<-done
+		<-done
+	}
+
+	return
+}
+
+func (g *Commands) PullMatches() (err error) {
+	cl, _, err := pullLikeMatchesResolver(g)
+
+	if err != nil {
+		return err
 	}
 
 	if len(cl) < 1 {
@@ -136,7 +165,14 @@ func (g *Commands) PullMatches() (err error) {
 
 	nonConflicts := *nonConflictsPtr
 
-	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
+	clArg := changeListArg{
+		logy:      g.log,
+		changes:   nonConflicts,
+		noPrompt:  !g.opts.canPrompt(),
+		noClobber: g.opts.NoClobber,
+	}
+
+	ok, opMap := printChangeList(&clArg)
 	if !ok {
 		return nil
 	}
@@ -282,6 +318,8 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 				go g.localAdd(&wg, c, exports)
 			case OpDelete:
 				go g.localDelete(&wg, c)
+			case OpIndexAddition:
+				go g.localAddIndex(&wg, c)
 			}
 		}
 
@@ -293,16 +331,29 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 	return err
 }
 
+func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change) (err error) {
+	f := change.Src
+	defer func() {
+		if f != nil {
+			chunks := chunkInt64(change.Src.Size)
+			for n := range chunks {
+				g.rem.progressChan <- n
+			}
+		}
+		wg.Done()
+	}()
+
+	return g.createIndexLocally(f)
+}
+
 func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
 	defer func() {
 		if err == nil {
 			src := change.Src
-			index := src.ToIndex()
-			wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
-
+			indexErr := g.createIndexLocally(src)
 			// TODO: Should indexing errors be reported?
-			if wErr != nil {
-				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, wErr)
+			if indexErr != nil {
+				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, indexErr)
 			}
 		}
 		wg.Done()
@@ -340,9 +391,8 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	defer func() {
 		if err == nil && change.Src != nil {
 			fileToSerialize := change.Src
-			index := fileToSerialize.ToIndex()
-			indexErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
 
+			indexErr := g.createIndexLocally(fileToSerialize)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
 				g.log.LogErrf("serializeIndex %s: %v\n", fileToSerialize.Name, indexErr)
@@ -383,10 +433,22 @@ func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 			for n := range chunks {
 				g.rem.progressChan <- n
 			}
+
+			dest := change.Dest
+			index := dest.ToIndex()
+			rmErr := g.context.RemoveIndex(index, g.context.AbsPathOf(""))
+			if rmErr != nil {
+				g.log.LogErrf("localDelete removing index for: \"%s\" at \"%s\" %v\n", dest.Name, dest.BlobAt, rmErr)
+			}
 		}
 		wg.Done()
 	}()
+
 	err = os.RemoveAll(change.Dest.BlobAt)
+	if err != nil {
+		g.log.LogErrf("localDelete: \"%s\" %v\n", change.Dest.BlobAt, err)
+	}
+
 	return
 }
 
