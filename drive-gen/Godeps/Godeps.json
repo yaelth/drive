@@ -4,11 +4,11 @@
 	"Deps": [
 		{
 			"ImportPath": "github.com/cheggaaa/pb",
-			"Rev": "d21a66c8dce57a0b60d888b68df19d9607d9fb17"
+			"Rev": "e648e12b78cedf14ebb2fc1855033f07b034cfbb"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-isatty",
-			"Rev": "6152ce208cfa13d58f065348a3312b4160fb98d1"
+			"Rev": "ae0b1f8f8004be68d791a576e3d8e7648ab41449"
 		},
 		{
 			"ImportPath": "github.com/odeke-em/cli-spinner",
@@ -16,11 +16,11 @@
 		},
 		{
 			"ImportPath": "github.com/odeke-em/dts/ascii-trie",
-			"Rev": "d31e3548bef3fe54b657333426fb4bc53f60e67b"
+			"Rev": "ec2daabf2f9078e887405f7bcddb3d79cb65502d"
 		},
 		{
 			"ImportPath": "github.com/odeke-em/dts/trie",
-			"Rev": "d31e3548bef3fe54b657333426fb4bc53f60e67b"
+			"Rev": "ec2daabf2f9078e887405f7bcddb3d79cb65502d"
 		},
 		{
 			"ImportPath": "github.com/odeke-em/google-api-go-client/drive/v2",
@@ -48,11 +48,11 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "59b0df9b1f7abda5aab0495ee54f408daf182ce7"
+			"Rev": "dfe268fd2bb5c793f4c083803609fce9806c6f80"
 		},
 		{
 			"ImportPath": "golang.org/x/oauth2",
-			"Rev": "ec6d5d770f531108a6464462b2201b74fcd09314"
+			"Rev": "b5adcc2dcdf009d0391547edc6ecbaff889f5bb9"
 		},
 		{
 			"ImportPath": "golang.org/x/text/collate",
@@ -76,15 +76,15 @@
 		},
 		{
 			"ImportPath": "google.golang.org/api/googleapi/internal/uritemplates",
-			"Rev": "caddaef3288600132bb9c9ea3f638e565d74cd54"
+			"Rev": "0610a35668fd6881bec389e74208f0df92010e96"
 		},
 		{
 			"ImportPath": "google.golang.org/cloud/compute/metadata",
-			"Rev": "df65e0af2d15158fecd80eed6333e2927bf2ed54"
+			"Rev": "bbf070fe87029f154db5412440e9dee45b723dbc"
 		},
 		{
 			"ImportPath": "google.golang.org/cloud/internal",
-			"Rev": "df65e0af2d15158fecd80eed6333e2927bf2ed54"
+			"Rev": "bbf070fe87029f154db5412440e9dee45b723dbc"
 		}
 	]
 }

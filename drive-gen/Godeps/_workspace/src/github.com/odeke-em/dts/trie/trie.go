@@ -369,6 +369,56 @@ func (t *Trie) MatchAndHarvest(pass func(*TrieNode) bool) (matches chan *TrieNod
 	return t.root.matchAndHarvest(pass)
 }
 
+func (tn *TrieNode) breadthFirstWalk(levelApply func([]interface{})) (bch chan interface{}) {
+	bch = make(chan interface{})
+	go func() {
+		defer close(bch)
+		if tn == nil || tn.Children == nil {
+			return
+		}
+
+		children := *(tn.Children)
+
+		levels := make([]interface{}, 0)
+		for _, child := range children {
+			if child == nil || !child.Eos {
+				continue
+			}
+
+			levels = append(levels, child.Data)
+		}
+
+		levelApply(levels)
+		for _, ch := range levels {
+			bch <- ch
+		}
+
+		chanOChan := make(chan chan interface{})
+		clogCount := uint64(0)
+
+		for _, child := range children {
+			if child == nil {
+				continue
+			}
+
+			clogCount += 1
+
+			go func(cc *TrieNode) {
+				chanOChan <- cc.breadthFirstWalk(levelApply)
+			}(child)
+		}
+
+		for i := uint64(0); i < clogCount; i += 1 {
+			cchan := <-chanOChan
+			for ch := range cchan {
+				bch <- ch
+			}
+		}
+	}()
+
+	return bch
+}
+
 func (tn *TrieNode) breadthFirstApply(apply func(interface{})) {
 	if tn == nil || tn.Children == nil {
 		return
@@ -409,6 +459,10 @@ func (tn *TrieNode) breadthFirstApply(apply func(interface{})) {
 
 func (t *Trie) BreadthFirstApply(apply func(interface{})) {
 	t.root.breadthFirstApply(apply)
+}
+
+func (t *Trie) BreadthFirstWalk(levelApply func([]interface{})) (bch chan interface{}) {
+	return t.root.breadthFirstWalk(levelApply)
 }
 
 func potentialDir(t *TrieNode, onTerminal bool) bool {
