@@ -16,6 +16,10 @@ package drive
 
 import (
 	"fmt"
+	"io"
+	"os"
+
+	"github.com/odeke-em/widther"
 )
 
 const (
@@ -260,7 +264,6 @@ var Aliases = map[string][]string{
 func ShowAllDescriptions() {
 	for key, _ := range docMap {
 		ShowDescription(key)
-		fmt.Println()
 	}
 }
 
@@ -271,7 +274,6 @@ func ShowDescriptions(topics ...string) {
 
 	for _, topic := range topics {
 		ShowDescription(topic)
-		fmt.Println()
 	}
 }
 
@@ -283,17 +285,34 @@ func ShowDescription(topic string) {
 
 	help, ok := docMap[topic]
 	if !ok {
-		fmt.Printf("Unkown command '%s' type `drive help all` for entire usage documentation\n", topic)
+		PrintfShadow("Unkown command '%s' type `drive help all` for entire usage documentation", topic)
 		ShowAllDescriptions()
 	} else {
 		description, documentation := help[0], help[1:]
-		fmt.Printf("Name\n\t%s - %s\n", topic, description)
+		PrintfShadow("Name\n\t%s - %s\n", topic, description)
 		if len(documentation) >= 1 {
-			fmt.Println("Description")
+			PrintfShadow("Description\n")
 			for _, line := range documentation {
-				fmt.Printf("\t%s\n", line)
+				segments := widther.WidthenByLimit(line, 80)
+				for _, segment := range segments {
+					PrintfShadow("\t%s", segment)
+				}
 			}
-			fmt.Printf("\n* For usage flags: \033[32m`drive %s -h`\033[00m\n\n", topic)
+			PrintfShadow("\n* For usage flags: \033[32m`drive %s -h`\033[00m\n\n", topic)
 		}
+	}
+}
+
+func PrintfShadow(fmt_ string, args ...interface{}) {
+	FprintfShadow(os.Stdout, fmt_, args...)
+}
+
+func FprintfShadow(f io.Writer, fmt_ string, args ...interface{}) {
+	sprinted := fmt.Sprintf(fmt_, args...)
+	splits := widther.WidthenByLimit(sprinted, 75)
+
+	for _, split := range splits {
+		fmt.Fprintf(f, split)
+		fmt.Fprintf(f, "\n")
 	}
 }

@@ -116,7 +116,7 @@ func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *versionCmd) Run(args []string) {
-	fmt.Printf("drive version: %s\n%s\n", drive.Version, generated.PkgInfo)
+	drive.PrintfShadow("drive version: %s\n%s\n", drive.Version, generated.PkgInfo)
 	exitWithError(nil)
 }
 
@@ -1195,7 +1195,7 @@ func uniqOrderedStr(sources []string) []string {
 
 func exitWithError(err error) {
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		drive.FprintfShadow(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 }
@@ -1212,7 +1212,7 @@ func relativePathsOpt(root string, args []string, leastNonExistant bool) ([]stri
 	for _, p := range args {
 		p, err = filepath.Abs(p)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s %v\n", p, err)
+			drive.FprintfShadow(os.Stderr, "%s %v\n", p, err)
 			continue
 		}
 
