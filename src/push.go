@@ -54,17 +54,28 @@ func (g *Commands) Push() (err error) {
 	}()
 
 	// TODO: Look at clashes?
+	clashes := []*Change{}
 
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
-		ccl, _, cErr := g.changeListResolve(relToRootPath, fsPath, true)
+		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, true)
 		if cErr != nil {
-			spin.stop()
-			return cErr
+			if cErr == ErrClashesDetected {
+				clashes = append(clashes, cclashes...)
+				continue
+			} else {
+				spin.stop()
+				return cErr
+			}
 		}
 		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
+	}
+
+	if len(clashes) >= 1 {
+		warnClashesPersist(g.log, clashes)
+		return ErrClashesDetected
 	}
 
 	mount := g.opts.Mount

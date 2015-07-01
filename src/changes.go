@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/odeke-em/drive/config"
-	"github.com/odeke-em/dts/ascii-trie"
 	"github.com/odeke-em/log"
 )
 
@@ -344,48 +343,54 @@ func (g *Commands) resolveChangeListRecv(
 	return cl, clashes, err
 }
 
-func merge(remotes, locals chan *File, ignoreClashes bool) (merged []*dirList, clashesChan []*File) {
-	localsTrie := asciitrie.New()
-	remotesTrie := asciitrie.New()
+func merge(remotes, locals chan *File, ignoreClashes bool) (merged []*dirList, clashes []*File) {
+	localsMap := map[string]*File{}
+	remotesMap := map[string]*File{}
+
+	uniqClashes := map[string]bool{}
+
+	registerClash := func(v *File) {
+		key := v.Id
+		if key == "" {
+			key = v.Name
+		}
+		_, ok := uniqClashes[key]
+		if !ok {
+			uniqClashes[key] = true
+			clashes = append(clashes, v)
+		}
+	}
 
 	// TODO: Add support for FileSystems that allow same names but different files.
 	for l := range locals {
-		localsTrie.Set(l.Name, l)
+		localsMap[l.Name] = l
 	}
 
 	for r := range remotes {
 		list := &dirList{remote: r}
 
 		if !ignoreClashes {
-			evicted := remotesTrie.Set(r.Name, r)
-			if evicted != nil {
-				evictedFile, ok := evicted.(*File)
-				if ok {
-					clashesChan = append(clashesChan, evictedFile)
-				}
+			prev, present := remotesMap[r.Name]
+			if present {
+				registerClash(r)
+				registerClash(prev)
 				continue
 			}
+
+			remotesMap[r.Name] = r
 		}
 
-		mem, ok := localsTrie.Get(r.Name)
+		l, ok := localsMap[r.Name]
 		// look for local
-		if ok {
-			l, lOk := mem.(*File)
-			if lOk && (l.IsDir == r.IsDir) {
-				list.local = l
-				localsTrie.Pop(r.Name)
-			}
+		if ok && l != nil && l.IsDir == r.IsDir {
+			list.local = l
+			delete(localsMap, r.Name)
 		}
 		merged = append(merged, list)
 	}
 
 	// if anything left in locals, add to the dir listing
-	walk := localsTrie.Walk()
-	for item := range walk {
-		l, ok := item.(*File)
-		if !ok {
-			continue
-		}
+	for _, l := range localsMap {
 		merged = append(merged, &dirList{local: l})
 	}
 	return
@@ -470,9 +475,26 @@ func conflictsPersist(conflicts []*Change) bool {
 }
 
 func warnConflictsPersist(logy *log.Logger, conflicts []*Change) {
-	logy.LogErrf("These %d file(s) would be overwritten. Use -%s to override this behaviour\n", len(conflicts), CLIOptionIgnoreConflict)
-	for _, conflict := range conflicts {
-		logy.LogErrln(conflict.Path)
+	_warnChangeStopper(logy, conflicts, "\033[31mX\033[00m", "These %d file(s) would be overwritten. Use -%s to override this behaviour\n", len(conflicts), CLIOptionIgnoreConflict)
+}
+
+func warnClashesPersist(logy *log.Logger, conflicts []*Change) {
+	_warnChangeStopper(logy, conflicts, "\033[31mX\033[00m", "These paths clash\n")
+}
+
+func _warnChangeStopper(logy *log.Logger, items []*Change, perItemPrefix, fmt_ string, args ...interface{}) {
+	logy.LogErrf(fmt_, args...)
+	for _, item := range items {
+		if item != nil {
+			fileId := ""
+			if item.Src != nil && item.Src.Id != "" {
+				fileId = item.Src.Id
+			} else if item.Dest != nil && item.Dest.Id != "" {
+				fileId = item.Dest.Id
+			}
+
+			logy.LogErrln(perItemPrefix, item.Path, fileId)
+		}
 	}
 }
 

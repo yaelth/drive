@@ -51,9 +51,8 @@ func (g *Commands) Pull(byId bool) error {
 	cl, clashes, err := pullLikeResolve(g, byId)
 
 	if len(clashes) >= 1 {
-		for _, clash := range clashes {
-			g.log.LogErrf("\033[91mX\033[00m %v \"%v\"\n", clash.Path, clash.Src.Id)
-		}
+		warnClashesPersist(g.log, clashes)
+		return ErrClashesDetected
 	}
 
 	if err != nil {
@@ -147,7 +146,12 @@ func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 }
 
 func (g *Commands) PullMatches() (err error) {
-	cl, _, err := pullLikeMatchesResolver(g)
+	cl, clashes, err := pullLikeMatchesResolver(g)
+
+	if len(clashes) >= 1 {
+		warnClashesPersist(g.log, clashes)
+		return ErrClashesDetected
+	}
 
 	if err != nil {
 		return err
@@ -224,27 +228,43 @@ func (g *Commands) pullById() (cl, clashes []*Change, err error) {
 
 		ccl, cclashes, clErr := g.doChangeListRecv(relToRootPath, curAbsPath, local, rem, false)
 		if clErr != nil {
-			return cl, cclashes, clErr
+			if clErr != ErrClashesDetected {
+				return cl, clashes, clErr
+			} else {
+				clashes = append(clashes, cclashes...)
+			}
 		}
 		cl = append(cl, ccl...)
 	}
 
-	return cl, clashes, nil
+	if len(clashes) >= 1 {
+		err = ErrClashesDetected
+	}
+
+	return cl, clashes, err
 }
 
 func (g *Commands) pullByPath() (cl, clashes []*Change, err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
-		ccl, clashes, cErr := g.changeListResolve(relToRootPath, fsPath, false)
+		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, false)
 		if cErr != nil {
-			return cl, clashes, cErr
+			if cErr != ErrClashesDetected {
+				return cl, clashes, cErr
+			} else {
+				clashes = append(clashes, cclashes...)
+			}
 		}
 		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
 	}
 
-	return cl, clashes, nil
+	if len(clashes) >= 1 {
+		err = ErrClashesDetected
+	}
+
+	return cl, clashes, err
 }
 
 func (g *Commands) pullAndDownload(relToRootPath string, fh io.Writer, rem *File, piped bool) (err error) {
