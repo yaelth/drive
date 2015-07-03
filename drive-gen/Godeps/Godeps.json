@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/odeke-em/drive/drive-gen",
-	"GoVersion": "devel +2d9a50b Fri May 8 19:10:10 2015 +0000",
+	"GoVersion": "go1.4.2",
 	"Deps": [
 		{
 			"ImportPath": "github.com/cheggaaa/pb",
@@ -15,20 +15,12 @@
 			"Rev": "610063bb4aeef25f7645b3e6080456655ec0fb33"
 		},
 		{
-			"ImportPath": "github.com/odeke-em/dts/ascii-trie",
-			"Rev": "ec2daabf2f9078e887405f7bcddb3d79cb65502d"
-		},
-		{
-			"ImportPath": "github.com/odeke-em/dts/trie",
-			"Rev": "ec2daabf2f9078e887405f7bcddb3d79cb65502d"
-		},
-		{
 			"ImportPath": "github.com/odeke-em/google-api-go-client/drive/v2",
-			"Rev": "b1cb1e5a90decb4e0de7fd93b16bf6bc6cc6ecf1"
+			"Rev": "0c2625c43fb3afba20032a374accacd47cfa1f0a"
 		},
 		{
 			"ImportPath": "github.com/odeke-em/google-api-go-client/googleapi",
-			"Rev": "b1cb1e5a90decb4e0de7fd93b16bf6bc6cc6ecf1"
+			"Rev": "0c2625c43fb3afba20032a374accacd47cfa1f0a"
 		},
 		{
 			"ImportPath": "github.com/odeke-em/log",
