@@ -306,6 +306,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 	}
 
 	absPath := g.context.AbsPathOf(change.Path)
+
 	var parent *File
 	if change.Dest != nil && change.Src != nil {
 		change.Src.Id = change.Dest.Id // TODO: bad hack
@@ -315,7 +316,14 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 	parent, err = g.remoteMkdirAll(parentPath)
 
 	if err != nil {
+		g.log.LogErrf("remoteMod/remoteMkdirAll: `%s` got %v\n", parentPath, err)
 		return err
+	}
+
+	if parent == nil {
+		err = errCannotMkdirAll(parentPath)
+		g.log.LogErrln(err)
+		return
 	}
 
 	args := upsertOpt{
@@ -411,7 +419,12 @@ func (g *Commands) remoteDelete(change *Change) error {
 func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	// Try the lookup one last time in case a coroutine raced us to it.
 	retrFile, retryErr := g.rem.FindByPath(d)
-	if retryErr == nil && retrFile != nil {
+
+	if retryErr != nil && retryErr != ErrPathNotExists {
+		return retrFile, retryErr
+	}
+
+	if retrFile != nil {
 		return retrFile, nil
 	}
 
@@ -440,16 +453,23 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 		src:      remoteFile,
 	}
 	parent, parentErr = g.rem.UpsertByComparison(&args)
-	if parentErr == nil && parent != nil {
-		index := parent.ToIndex()
-		wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
-
-		// TODO: Should indexing errors be reported?
-		if wErr != nil {
-			g.log.LogErrf("serializeIndex %s: %v\n", parent.Name, wErr)
-		}
+	if parentErr != nil {
+		return parent, parentErr
 	}
-	return parent, parentErr
+
+	if parent == nil {
+		return parent, ErrPathNotExists
+	}
+
+	index := parent.ToIndex()
+	wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+	// TODO: Should indexing errors be reported?
+	if wErr != nil {
+		g.log.LogErrf("serializeIndex %s: %v\n", parent.Name, wErr)
+	}
+
+	return parent, nil
 }
 
 func namedPipe(mode os.FileMode) bool {
