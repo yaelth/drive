@@ -410,10 +410,12 @@ func remoteRemover(g *Commands, change *Change, fn func(string) error) (err erro
 		return
 	}
 
-	indexPath := g.indexAbsPath(change.Dest.Id)
-	if rmErr := os.Remove(indexPath); rmErr != nil {
+	index := change.Dest.ToIndex()
+	err = g.context.RemoveIndex(index, g.context.AbsPathOf(""))
+
+	if err != nil {
 		if change.Src != nil {
-			g.log.LogErrf("%s \"%s\": remove indexfile %v\n", change.Path, change.Dest.Id, rmErr)
+			g.log.LogErrf("%s \"%s\": remove indexfile %v\n", change.Path, change.Dest.Id, err)
 		}
 	}
 	return

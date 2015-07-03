@@ -23,6 +23,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/boltdb/bolt"
 )
 
 var (
@@ -32,6 +34,11 @@ var (
 	ErrNoDriveContext      = errors.New("no drive context found; run `drive init` or go into one of the directories (sub directories) that you performed `drive init`")
 	ErrDerefNilIndex       = errors.New("cannot dereference a nil index")
 	ErrEmptyFileIdForIndex = errors.New("fileId for index must be non-empty")
+)
+
+const (
+	IndicesKey = "indices"
+	DriveDb    = ".drivedb"
 )
 
 type Context struct {
@@ -64,6 +71,10 @@ type Mount struct {
 	Points            []*MountPoint
 }
 
+func byteify(s string) []byte {
+	return []byte(s)
+}
+
 func (mpt *MountPoint) mounted() bool {
 	// TODO: Find proper scheme for resolving symlinks
 	return mpt.CanClean
@@ -88,12 +99,21 @@ func (c *Context) Read() (err error) {
 	return json.Unmarshal(data, c)
 }
 
-func (c *Context) DeserializeIndex(dir, path string) (*Index, error) {
+func (c *Context) DeserializeIndex(dir, key string) (*Index, error) {
 	var data []byte
-	var err error
-	if data, err = ioutil.ReadFile(IndicesAbsPath(dir, path)); err != nil {
+
+	dbPath := IndicesAbsPath(dir, DriveDb)
+	db, err := bolt.Open(dbPath, 0666, nil)
+	if err != nil {
 		return nil, err
 	}
+
+	defer db.Close()
+
+	db.Update(func(tx *bolt.Tx) error {
+		data = tx.Bucket(byteify(IndicesKey)).Get(byteify(key))
+		return nil
+	})
 
 	index := Index{}
 	err = json.Unmarshal(data, &index)
@@ -107,7 +127,21 @@ func (c *Context) RemoveIndex(index *Index, p string) error {
 	if empty(index.FileId) {
 		return ErrEmptyFileIdForIndex
 	}
-	return os.Remove(IndicesAbsPath(p, index.FileId))
+
+	dbPath := IndicesAbsPath(p, DriveDb)
+	db, err := bolt.Open(dbPath, 0666, nil)
+	if err != nil {
+		return err
+	}
+
+	defer db.Close()
+
+	db.Update(func(tx *bolt.Tx) error {
+		err = tx.Bucket(byteify(IndicesKey)).Delete(byteify(index.FileId))
+		return err
+	})
+
+	return err
 }
 
 func (c *Context) SerializeIndex(index *Index, p string) (err error) {
@@ -115,7 +149,21 @@ func (c *Context) SerializeIndex(index *Index, p string) (err error) {
 	if data, err = json.Marshal(index); err != nil {
 		return
 	}
-	return ioutil.WriteFile(IndicesAbsPath(p, index.FileId), data, 0600)
+
+	dbPath := IndicesAbsPath(p, DriveDb)
+	db, err := bolt.Open(dbPath, 0666, nil)
+	if err != nil {
+		return err
+	}
+
+	defer db.Close()
+	db.Update(func(tx *bolt.Tx) error {
+		tx.CreateBucket(byteify(IndicesKey))
+		err = tx.Bucket(byteify(IndicesKey)).Put(byteify(index.FileId), data)
+		return err
+	})
+
+	return err
 }
 
 func (c *Context) Write() (err error) {
@@ -187,7 +235,7 @@ func credentialsPath(absPath string) string {
 }
 
 func IndicesAbsPath(dir, child string) string {
-	return path.Join(gdPath(dir), "indices", child)
+	return path.Join(gdPath(dir), "", child)
 }
 
 func LeastNonExistantRoot(contextAbsPath string) string {
