@@ -60,15 +60,20 @@ const (
 )
 
 var (
-	ErrPathNotExists   = errors.New("remote path doesn't exist")
-	ErrNetLookup       = errors.New("net lookup failed")
-	ErrClashesDetected = fmt.Errorf("clashes detected. use `%s` to override this behavior", CLIOptionIgnoreNameClashes)
+	ErrPathNotExists                  = errors.New("remote path doesn't exist")
+	ErrNetLookup                      = errors.New("net lookup failed")
+	ErrClashesDetected                = fmt.Errorf("clashes detected. use `%s` to override this behavior", CLIOptionIgnoreNameClashes)
+	ErrGoogleApiInvalidQueryHardCoded = errors.New("googleapi: Error 400: Invalid query, invalid")
 )
 
 var (
 	UnescapedPathSep = fmt.Sprintf("%c", os.PathSeparator)
 	EscapedPathSep   = url.QueryEscape(UnescapedPathSep)
 )
+
+func errCannotMkdirAll(p string) error {
+	return fmt.Errorf("cannot mkdirAll: `%s`", p)
+}
 
 type Remote struct {
 	client       *http.Client
@@ -659,6 +664,9 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	files, err := req.Do()
 
 	if err != nil {
+		if err.Error() == ErrGoogleApiInvalidQueryHardCoded.Error() { // Send the user back the query information
+			err = fmt.Errorf("err: %v query: `%s`", err, expr)
+		}
 		return nil, err
 	}
 
