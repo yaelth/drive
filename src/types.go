@@ -384,7 +384,7 @@ func indexExistanceOrDeferTo(c *Change, deferTo Operation, indexingOnly bool) Op
 		return OpNone
 	}
 	ok, err := c.checkIndexExistance()
-	if err != nil {
+	if err != nil && err != config.ErrNoSuchIndex {
 		c.g.log.LogErrf("checkIndexExists: \"%s\" %v\n", c.Path, err)
 	}
 
@@ -407,17 +407,13 @@ func (c *Change) checkIndexExistance() (bool, error) {
 		return false, nil
 	}
 
-	rootPath := c.g.context.AbsPathOf("")
-	statResult, statErr := os.Stat(config.IndicesAbsPath(rootPath, f.Id))
-
-	if statErr == nil {
-		return statResult != nil, nil
+	index, err := c.g.context.DeserializeIndex(f.Id)
+	if err != nil {
+		return false, err
 	}
 
-	if !os.IsNotExist(statErr) {
-		return false, statErr
-	}
-	return false, nil
+	exists := index != nil
+	return exists, nil
 }
 
 func (c *Change) Op() Operation {

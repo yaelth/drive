@@ -34,11 +34,12 @@ var (
 	ErrNoDriveContext      = errors.New("no drive context found; run `drive init` or go into one of the directories (sub directories) that you performed `drive init`")
 	ErrDerefNilIndex       = errors.New("cannot dereference a nil index")
 	ErrEmptyFileIdForIndex = errors.New("fileId for index must be non-empty")
+	ErrNoSuchIndex         = errors.New("no such index exists")
 )
 
 const (
 	IndicesKey = "indices"
-	DriveDb    = ".drivedb"
+	DriveDb    = "drivedb"
 )
 
 type Context struct {
@@ -99,10 +100,10 @@ func (c *Context) Read() (err error) {
 	return json.Unmarshal(data, c)
 }
 
-func (c *Context) DeserializeIndex(dir, key string) (*Index, error) {
+func (c *Context) DeserializeIndex(key string) (*Index, error) {
 	var data []byte
 
-	dbPath := IndicesAbsPath(dir, DriveDb)
+	dbPath := DbSuffixedPath(c.AbsPathOf(""))
 	db, err := bolt.Open(dbPath, 0666, nil)
 	if err != nil {
 		return nil, err
@@ -110,14 +111,71 @@ func (c *Context) DeserializeIndex(dir, key string) (*Index, error) {
 
 	defer db.Close()
 
-	db.Update(func(tx *bolt.Tx) error {
-		data = tx.Bucket(byteify(IndicesKey)).Get(byteify(key))
+	err = db.View(func(tx *bolt.Tx) error {
+		retr := tx.Bucket(byteify(IndicesKey)).Get(byteify(key))
+		if len(retr) < 1 {
+			return ErrNoSuchIndex
+		}
+		data = retr
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	index := Index{}
 	err = json.Unmarshal(data, &index)
 	return &index, err
+}
+
+func (c *Context) ListKeys(dir, bucketName string) (chan string, error) {
+	dbPath := DbSuffixedPath(c.AbsPathOf(""))
+	db, err := bolt.Open(dbPath, 0666, nil)
+	keysChan := make(chan string)
+
+	if err != nil {
+		close(keysChan)
+		return keysChan, err
+	}
+
+	go func() {
+		defer func() {
+			close(keysChan)
+			db.Close()
+		}()
+
+		db.View(func(tx *bolt.Tx) error {
+			bucket := tx.Bucket(byteify(bucketName))
+			cur := bucket.Cursor()
+
+			for key, _ := cur.First(); key != nil; key, _ = cur.Next() {
+				keysChan <- string(key)
+			}
+
+			return nil
+		})
+	}()
+
+	return keysChan, nil
+}
+
+func (c *Context) PopIndicesKey(key string) error {
+	return c.popDbKey(IndicesKey, key)
+}
+
+func (c *Context) popDbKey(bucketName, key string) error {
+	dbPath := DbSuffixedPath(c.AbsPathOf(""))
+	db, err := bolt.Open(dbPath, 0666, nil)
+
+	if err != nil {
+		return err
+	}
+
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(byteify(bucketName))
+		return bucket.Delete(byteify(key))
+	})
 }
 
 func (c *Context) RemoveIndex(index *Index, p string) error {
@@ -128,7 +186,7 @@ func (c *Context) RemoveIndex(index *Index, p string) error {
 		return ErrEmptyFileIdForIndex
 	}
 
-	dbPath := IndicesAbsPath(p, DriveDb)
+	dbPath := DbSuffixedPath(c.AbsPathOf(""))
 	db, err := bolt.Open(dbPath, 0666, nil)
 	if err != nil {
 		return err
@@ -136,34 +194,29 @@ func (c *Context) RemoveIndex(index *Index, p string) error {
 
 	defer db.Close()
 
-	db.Update(func(tx *bolt.Tx) error {
-		err = tx.Bucket(byteify(IndicesKey)).Delete(byteify(index.FileId))
-		return err
+	return db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(byteify(IndicesKey)).Delete(byteify(index.FileId))
 	})
-
-	return err
 }
 
-func (c *Context) SerializeIndex(index *Index, p string) (err error) {
+func (c *Context) SerializeIndex(index *Index) (err error) {
 	var data []byte
 	if data, err = json.Marshal(index); err != nil {
 		return
 	}
 
-	dbPath := IndicesAbsPath(p, DriveDb)
+	dbPath := DbSuffixedPath(c.AbsPathOf(""))
 	db, err := bolt.Open(dbPath, 0666, nil)
 	if err != nil {
 		return err
 	}
 
 	defer db.Close()
-	db.Update(func(tx *bolt.Tx) error {
-		tx.CreateBucket(byteify(IndicesKey))
-		err = tx.Bucket(byteify(IndicesKey)).Put(byteify(index.FileId), data)
-		return err
-	})
 
-	return err
+	return db.Update(func(tx *bolt.Tx) error {
+		tx.CreateBucket(byteify(IndicesKey))
+		return tx.Bucket(byteify(IndicesKey)).Put(byteify(index.FileId), data)
+	})
 }
 
 func (c *Context) Write() (err error) {
@@ -199,8 +252,6 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 	if err = context.Read(); err != nil {
 		return nil, err
 	}
-	indicesPath := IndicesAbsPath(context.AbsPath, "")
-	err = os.MkdirAll(indicesPath, 0755)
 	return
 }
 
@@ -234,8 +285,8 @@ func credentialsPath(absPath string) string {
 	return path.Join(gdPath(absPath), "credentials.json")
 }
 
-func IndicesAbsPath(dir, child string) string {
-	return path.Join(gdPath(dir), "", child)
+func DbSuffixedPath(dir string) string {
+	return path.Join(gdPath(dir), DriveDb)
 }
 
 func LeastNonExistantRoot(contextAbsPath string) string {

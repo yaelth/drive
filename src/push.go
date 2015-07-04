@@ -217,7 +217,7 @@ func (g *Commands) PushPiped() (err error) {
 		}
 
 		index := rem.ToIndex()
-		wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+		wErr := g.context.SerializeIndex(index)
 
 		// TODO: Should indexing errors be reported?
 		if wErr != nil {
@@ -228,7 +228,7 @@ func (g *Commands) PushPiped() (err error) {
 }
 
 func (g *Commands) deserializeIndex(identifier string) *config.Index {
-	index, err := g.context.DeserializeIndex(g.context.AbsPathOf(""), identifier)
+	index, err := g.context.DeserializeIndex(identifier)
 	if err != nil {
 		return nil
 	}
@@ -362,7 +362,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		return
 	}
 	index := rem.ToIndex()
-	wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+	wErr := g.context.SerializeIndex(index)
 
 	// TODO: Should indexing errors be reported?
 	if wErr != nil {
@@ -373,10 +373,6 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 func (g *Commands) remoteAdd(change *Change) (err error) {
 	return g.remoteMod(change)
-}
-
-func (g *Commands) indexAbsPath(fileId string) string {
-	return config.IndicesAbsPath(g.context.AbsPathOf(""), fileId)
 }
 
 func (g *Commands) remoteUntrash(change *Change) (err error) {
@@ -391,7 +387,7 @@ func (g *Commands) remoteUntrash(change *Change) (err error) {
 	}
 
 	index := target.ToIndex()
-	wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+	wErr := g.context.SerializeIndex(index)
 
 	// TODO: Should indexing errors be reported?
 	if wErr != nil {
@@ -475,7 +471,7 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	}
 
 	index := parent.ToIndex()
-	wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+	wErr := g.context.SerializeIndex(index)
 
 	// TODO: Should indexing errors be reported?
 	if wErr != nil {

@@ -363,14 +363,14 @@ func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change) (err error)
 		wg.Done()
 	}()
 
-	return g.createIndexLocally(f)
+	return g.createIndex(f)
 }
 
 func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
 	defer func() {
 		if err == nil {
 			src := change.Src
-			indexErr := g.createIndexLocally(src)
+			indexErr := g.createIndex(src)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
 				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, indexErr)
@@ -412,7 +412,7 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 		if err == nil && change.Src != nil {
 			fileToSerialize := change.Src
 
-			indexErr := g.createIndexLocally(fileToSerialize)
+			indexErr := g.createIndex(fileToSerialize)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
 				g.log.LogErrf("serializeIndex %s: %v\n", fileToSerialize.Name, indexErr)
