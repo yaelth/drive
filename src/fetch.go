@@ -66,6 +66,12 @@ func (g *Commands) FetchMatches() (err error) {
 
 func (g *Commands) fetch(fetchOp int) (err error) {
 	setIndexingOnlyOption(g)
+
+	err = g.context.CreateIndicesBucket()
+	if err != nil {
+		return err
+	}
+
 	var cl []*Change
 	switch fetchOp {
 	case FetchById:
@@ -155,6 +161,11 @@ func (g *Commands) addIndex(wg *sync.WaitGroup, f *File) (err error) {
 }
 
 func (g *Commands) removeIndex(wg *sync.WaitGroup, f *File) (err error) {
+	err = g.context.CreateIndicesBucket()
+	if err != nil {
+		return err
+	}
+
 	defer loneCountRegister(wg, g.rem.progressChan)
 	if f.Id == "" {
 		return

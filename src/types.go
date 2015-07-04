@@ -384,7 +384,7 @@ func indexExistanceOrDeferTo(c *Change, deferTo Operation, indexingOnly bool) Op
 		return OpNone
 	}
 	ok, err := c.checkIndexExistance()
-	if err != nil && err != config.ErrNoSuchIndex {
+	if err != nil && err != config.ErrNoSuchDbKey {
 		c.g.log.LogErrf("checkIndexExists: \"%s\" %v\n", c.Path, err)
 	}
 

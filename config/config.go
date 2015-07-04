@@ -34,12 +34,17 @@ var (
 	ErrNoDriveContext      = errors.New("no drive context found; run `drive init` or go into one of the directories (sub directories) that you performed `drive init`")
 	ErrDerefNilIndex       = errors.New("cannot dereference a nil index")
 	ErrEmptyFileIdForIndex = errors.New("fileId for index must be non-empty")
-	ErrNoSuchIndex         = errors.New("no such index exists")
+	ErrNoSuchDbKey         = errors.New("no such db key exists")
+	ErrNoSuchDbBucket      = errors.New("no such bucket exists")
 )
 
 const (
 	IndicesKey = "indices"
 	DriveDb    = "drivedb"
+)
+
+const (
+	O_RWForAll = 0666
 )
 
 type Context struct {
@@ -101,20 +106,28 @@ func (c *Context) Read() (err error) {
 }
 
 func (c *Context) DeserializeIndex(key string) (*Index, error) {
+	if creationErr := c.CreateIndicesBucket(); creationErr != nil {
+		return nil, creationErr
+	}
+
 	var data []byte
 
 	dbPath := DbSuffixedPath(c.AbsPathOf(""))
-	db, err := bolt.Open(dbPath, 0666, nil)
+	db, err := bolt.Open(dbPath, O_RWForAll, nil)
 	if err != nil {
 		return nil, err
 	}
-
 	defer db.Close()
 
 	err = db.View(func(tx *bolt.Tx) error {
-		retr := tx.Bucket(byteify(IndicesKey)).Get(byteify(key))
+		bucket := tx.Bucket(byteify(IndicesKey))
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+
+		retr := bucket.Get(byteify(key))
 		if len(retr) < 1 {
-			return ErrNoSuchIndex
+			return ErrNoSuchDbKey
 		}
 		data = retr
 		return nil
@@ -130,10 +143,14 @@ func (c *Context) DeserializeIndex(key string) (*Index, error) {
 }
 
 func (c *Context) ListKeys(dir, bucketName string) (chan string, error) {
-	dbPath := DbSuffixedPath(c.AbsPathOf(""))
-	db, err := bolt.Open(dbPath, 0666, nil)
 	keysChan := make(chan string)
+	if creationErr := c.CreateIndicesBucket(); creationErr != nil {
+		close(keysChan)
+		return keysChan, creationErr
+	}
 
+	dbPath := DbSuffixedPath(c.AbsPathOf(""))
+	db, err := bolt.Open(dbPath, O_RWForAll, nil)
 	if err != nil {
 		close(keysChan)
 		return keysChan, err
@@ -147,6 +164,10 @@ func (c *Context) ListKeys(dir, bucketName string) (chan string, error) {
 
 		db.View(func(tx *bolt.Tx) error {
 			bucket := tx.Bucket(byteify(bucketName))
+			if bucket == nil {
+				return ErrNoSuchDbBucket
+			}
+
 			cur := bucket.Cursor()
 
 			for key, _ := cur.First(); key != nil; key, _ = cur.Next() {
@@ -166,14 +187,22 @@ func (c *Context) PopIndicesKey(key string) error {
 
 func (c *Context) popDbKey(bucketName, key string) error {
 	dbPath := DbSuffixedPath(c.AbsPathOf(""))
-	db, err := bolt.Open(dbPath, 0666, nil)
-
+	db, err := bolt.Open(dbPath, O_RWForAll, nil)
 	if err != nil {
 		return err
 	}
 
+	defer db.Close()
+
 	return db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(byteify(bucketName))
+		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
+		if err != nil {
+			return err
+		}
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+
 		return bucket.Delete(byteify(key))
 	})
 }
@@ -187,15 +216,41 @@ func (c *Context) RemoveIndex(index *Index, p string) error {
 	}
 
 	dbPath := DbSuffixedPath(c.AbsPathOf(""))
-	db, err := bolt.Open(dbPath, 0666, nil)
+	db, err := bolt.Open(dbPath, O_RWForAll, nil)
 	if err != nil {
 		return err
 	}
-
 	defer db.Close()
 
 	return db.Update(func(tx *bolt.Tx) error {
-		return tx.Bucket(byteify(IndicesKey)).Delete(byteify(index.FileId))
+		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
+		if err != nil {
+			return err
+		}
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+		return bucket.Delete(byteify(index.FileId))
+	})
+}
+
+func (c *Context) CreateIndicesBucket() error {
+	dbPath := DbSuffixedPath(c.AbsPathOf(""))
+	db, err := bolt.Open(dbPath, O_RWForAll, nil)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
+		if err != nil {
+			return err
+		}
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+		return nil
 	})
 }
 
@@ -206,16 +261,21 @@ func (c *Context) SerializeIndex(index *Index) (err error) {
 	}
 
 	dbPath := DbSuffixedPath(c.AbsPathOf(""))
-	db, err := bolt.Open(dbPath, 0666, nil)
+	db, err := bolt.Open(dbPath, O_RWForAll, nil)
 	if err != nil {
 		return err
 	}
-
 	defer db.Close()
 
 	return db.Update(func(tx *bolt.Tx) error {
-		tx.CreateBucket(byteify(IndicesKey))
-		return tx.Bucket(byteify(IndicesKey)).Put(byteify(index.FileId), data)
+		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
+		if err != nil {
+			return err
+		}
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+		return bucket.Put(byteify(index.FileId), data)
 	})
 }
 
