@@ -439,6 +439,19 @@ func cacher(regMap map[*regexp.Regexp]string) func(string) string {
 	}
 }
 
+func anyMatch(pat *regexp.Regexp, args ...string) bool {
+	if pat == nil {
+		return false
+	}
+
+	for _, arg := range args {
+		if pat.Match([]byte(arg)) {
+			return true
+		}
+	}
+	return false
+}
+
 var mimeTypeFromQuery = cacher(regMapper(regExtStrMap, map[string]string{
 	"folder": DriveFolderMimeType,
 	"mp4":    "video/mp4",

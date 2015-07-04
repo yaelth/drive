@@ -505,14 +505,14 @@ func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp)
 			if fileName == config.GDDirSuffix {
 				continue
 			}
-			if ignore != nil && ignore.Match([]byte(fileName)) {
-				continue
-			}
 			if isHidden(fileName, hidden) {
 				continue
 			}
 
 			resPath := gopath.Join(absPath, fileName)
+			if anyMatch(ignore, fileName, resPath) {
+				continue
+			}
 
 			// TODO: (@odeke-em) decide on how to deal with isFifo
 			if namedPipe(file.Mode()) {
@@ -526,6 +526,10 @@ func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp)
 				var symResolvPath string
 				symResolvPath, err = filepath.EvalSymlinks(resPath)
 				if err != nil {
+					continue
+				}
+
+				if anyMatch(ignore, symResolvPath) {
 					continue
 				}
 
