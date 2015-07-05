@@ -82,6 +82,9 @@ type Options struct {
 	StdoutIsTty       bool
 	IgnoreNameClashes bool
 	ExcludeCrudMask   CrudValue
+	ExplicitlyExport  bool
+	Md5sum            bool
+	indexingOnly      bool
 }
 
 type Commands struct {

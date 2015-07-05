@@ -11,6 +11,7 @@
 - [Requirements](#requirements)
 - [Installation](#installation)
   - [Platform Packages](#platform-packages)
+  - [Godep](#godep)
 - [Configuration](#configuration)
 - [Usage](#usage)
   - [Initializing](#initializing)
@@ -21,12 +22,14 @@
   - [Unpublishing](#unpublishing)
   - [Sharing and Emailing](#sharing-and-emailing)
   - [Unsharing](#unsharing)
-  - [Touching](#touch)
+  - [Touching](#touching)
   - [Trashing and Untrashing](#trashing-and-untrashing)
   - [Emptying the Trash](#emptying-the-trash)
   - [Deleting](#deleting)
   - [Listing Files](#listing-files)
   - [Stating Files](#stating-files)
+  - [Retrieving md5 checksums](#retrieving-md5-checksums)
+  - [New File](#new-file)
   - [Quota](#quota)
   - [Features](#features)
   - [About](#about)
@@ -37,6 +40,7 @@
   - [DriveRC](#driverc)
   - [DesktopEntry](#desktopentry)
   - [Command Aliases](#command-aliases)
+  - [Index Prune](#index-prune)
 - [Revoking Account Access](#revoking-account-access)
 - [Uninstalling](#uninstalling)
 - [Applying patches](#applying-patches)
@@ -48,7 +52,7 @@
 
 ## Requirements
 
-go 1.2 or higher is required. See [here](https://golang.org/doc/install) for installation instructions and platform installers.
+go 1.3.X or higher is required. See [here](https://golang.org/doc/install) for installation instructions and platform installers.
 
 * Make sure to set your GOPATH in your env, .bashrc or .bash\_profile file. If you have not yet set it, you can do so like this:
 
@@ -77,12 +81,26 @@ Otherwise:
 $ go get github.com/odeke-em/drive/drive-gen && drive-gen
 ```
 
+### Godep
+
++ Using godep
+```
+$ cd $GOPATH/src/github.com/odeke-em/drive/drive-gen && godep save
+```
+
++ Unravelling/Restoring dependencies
+```
+$ cd $GOPATH/src/github.com/odeke-em/drive/drive-gen && godep restore
+```
+
+Please see file `drive-gen/README.md` for more information.
+
+
 ### Platform Packages
 
 For curated packages on your favorite platform, please see file [Platform Packages.md](https://github.com/odeke-em/drive/blob/master/platform_packages.md).
 
 Is your platform missing a package? Feel free to prepare / contribute an installation package and then submit a PR to add it in.
-
 
 ## Configuration
 
@@ -158,6 +176,12 @@ By default, the `pull` command will export Google Docs documents as PDF files. T
 
 ```shell
 $ drive pull -export pdf,rtf,docx,txt
+```
+
+To explicitly export instead of using `--force`
+
+```shell
+$ drive pull --export pdf,rtf,docx,txt --explicitly-export
 ```
 
 By default, the exported files will be placed in a new directory suffixed by `_exports` in the same path. To export the files to a different directory, use the `-export-dir` option:
@@ -237,6 +261,14 @@ $ drive push -no-clobber
 $ drive push -force sure_of_content
 ```
 
+To pull without user input (i.e. without prompt)
+```shell
+$ drive push -quiet
+```
+or
+```shell
+$ drive push -no-prompt
+```
 
 To get Google Drive to convert a file to its native Google Docs format
 
@@ -455,7 +487,23 @@ $ drive list -owners -l -version
 + Also supports listing by fileIds
 
 ```shell
-$ drive list -m 3 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+$ drive list -depth 3 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+```
+
++ Listing allows for sorting by fields e.g `name`, `version`, `size, `modtime`, lastModifiedByMeTime `lvt`, `md5`. To do this in reverse order, suffix `_r` or `-` to the selected key
+
+e.g to first sort by modTime, then largest-to-smallest and finally most number of saves:
+
+```
+$ drive list --sort modtime,size_r,version_r Photos
+```
+
+* For advanced listing
+
+```shell
+$ drive list --skip-mime mp4,doc,txt
+$ drive list --match-mime xls,docx
+$ drive list --exact-title url_test,Photos
 ```
 
 ### Stating Files
@@ -477,6 +525,55 @@ $ drive stat -r mnt
 
 ```shell
 $ drive stat -r --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+```
+
+OR
+
+```shell
+$ drive stat -depth 4 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+```
+
+### Retrieving md5 Checksums
+
+The `md5sum` command quickly retrieves the md5 checksums of the files on your drive. The result can be fed into the "md5sum -c" shell command to validate the integrity of the files on Drive versus the local copies.
+
+Check that files on Drive are present and match local files:
+
+```shell
+~/MyDrive/folder$ drive md5sum | md5sum -c
+```
+
+Do a two-way diff (will also locate files missing on either side)
+
+```shell
+~/MyDrive/folder$ diff <(drive md5sum) <(md5sum *)
+```
+
+Same as above, but include subfolders 
+
+```shell
+~/MyDrive/folder$ diff <(drive md5sum -r) <(find * -type f | sort | xargs md5sum)
+```
+
+Compare across two different Drive accounts, including subfolders
+
+```shell
+~$ diff <(drive md5sum -r MyDrive/folder) <(drive md5sum -r OtherDrive/otherfolder)
+```
+
+_Note: Running the 'drive md5sum' command retrieves pre-computed md5 sums from Drive; its speed is proportional to the number of files on Drive. Running the shell 'md5sum' command on local files requires reading through the files; its speed is proportional to the size of the files._
+
+
+### New File
+
+drive allows you to create an empty file or folder remotely
+Sample usage:
+
+```shell
+$ drive new --folder flux
+$ drive new --mime-key doc bofx
+$ drive new --mime-key folder content
+$ drive new flux.txt oxen.pdf # Allow auto type resolution from the extension
 ```
 
 ### Quota
@@ -632,6 +729,40 @@ desire the ability to have \*.desktop files that enable the file to be opened ap
 + cp : copy
 + ls : list 
 + mv : move
+
+
+## Index Prune
+
+* index 
+
+If you would like to fetch missing index files for files that would otherwise not need any modifications, run:
+
+```shell
+$ drive index path1 path2 path3/path3.1 # To fetch any missing indices in those paths
+$ drive index --id 0CLu4lbUI9RTRM80k8EMoe5JQY2z
+```
+
+You can also fetch specific files by prefix matches
+```shell
+$ drive index --matches mp3 jpg
+```
+
+* prune
+
+In case you might have deleted files remotely but never using drive, and feel like you have stale indices,
+running `drive index --prune` will search your entire indices dir for index files that do not exist remotely and remove those ones
+
+```shell
+$ drive index --prune
+```
+
+* prune-and-index
+To combine both operations (prune and then fetch) for indices:
+
+```shell
+$ drive index --all-ops
+```
+
 
 ### Revoking Account Access
 

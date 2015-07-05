@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,17 +26,16 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+
 	"github.com/odeke-em/drive/config"
-	"github.com/odeke-em/goauth2/oauth"
 	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"github.com/odeke-em/statos"
 )
 
 const (
-	// Google OAuth 2.0 service URLs
-	GoogleOAuth2AuthURL  = "https://accounts.google.com/o/oauth2/auth"
-	GoogleOAuth2TokenURL = "https://accounts.google.com/o/oauth2/token"
-
 	// OAuth 2.0 OOB redirect URL for authorization.
 	RedirectURL = "urn:ietf:wg:oauth:2.0:oob"
 
@@ -60,9 +60,10 @@ const (
 )
 
 var (
-	ErrPathNotExists   = errors.New("remote path doesn't exist")
-	ErrNetLookup       = errors.New("net lookup failed")
-	ErrClashesDetected = fmt.Errorf("clashes detected. use `%s` to override this behavior", CLIOptionIgnoreNameClashes)
+	ErrPathNotExists                  = errors.New("remote path doesn't exist")
+	ErrNetLookup                      = errors.New("net lookup failed")
+	ErrClashesDetected                = fmt.Errorf("clashes detected. use `%s` to override this behavior", CLIOptionIgnoreNameClashes)
+	ErrGoogleApiInvalidQueryHardCoded = errors.New("googleapi: Error 400: Invalid query, invalid")
 )
 
 var (
@@ -70,20 +71,24 @@ var (
 	EscapedPathSep   = url.QueryEscape(UnescapedPathSep)
 )
 
+func errCannotMkdirAll(p string) error {
+	return fmt.Errorf("cannot mkdirAll: `%s`", p)
+}
+
 type Remote struct {
-	transport    *oauth.Transport
+	client       *http.Client
 	service      *drive.Service
 	progressChan chan int
 }
 
 func NewRemoteContext(context *config.Context) *Remote {
-	transport := newTransport(context)
-	service, _ := drive.New(transport.Client())
+	client := newOAuthClient(context)
+	service, _ := drive.New(client)
 	progressChan := make(chan int)
 	return &Remote{
 		progressChan: progressChan,
 		service:      service,
-		transport:    transport,
+		client:       client,
 	}
 }
 
@@ -145,14 +150,16 @@ func (r *Remote) change(changeId string) (*drive.Change, error) {
 	return r.service.Changes.Get(changeId).Do()
 }
 
-func RetrieveRefreshToken(context *config.Context) (string, error) {
-	transport := newTransport(context)
-	url := transport.Config.AuthCodeURL("")
-	fmt.Printf("Visit this URL to get an authorization code\n%s\n", url)
+func RetrieveRefreshToken(ctx context.Context, context *config.Context) (string, error) {
+	config := newAuthConfig(context)
 
+	randState := fmt.Sprintf("%s%v", time.Now(), rand.Uint32())
+	url := config.AuthCodeURL(randState, oauth2.AccessTypeOffline)
+
+	fmt.Printf("Visit this URL to get an authorization code\n%s\n", url)
 	code := prompt(os.Stdin, os.Stdout, "Paste the authorization code: ")
 
-	token, err := transport.Exchange(code)
+	token, err := config.Exchange(ctx, code)
 	if err != nil {
 		return "", err
 	}
@@ -190,6 +197,9 @@ func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
 
 func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) chan *File {
 	fileChan := make(chan *File)
+
+	throttle := time.Tick(1e7)
+
 	go func() {
 		pageToken := ""
 		for {
@@ -201,10 +211,13 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 				fmt.Println(err)
 				break
 			}
+
+			iterCount := uint64(0)
 			for _, f := range results.Items {
 				if isHidden(f.Title, hidden) { // ignore hidden files
 					continue
 				}
+				iterCount += 1
 				fileChan <- NewRemoteFile(f)
 			}
 			pageToken = results.NextPageToken
@@ -212,11 +225,17 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 				break
 			}
 
+			if iterCount < 1 {
+				<-throttle
+				continue
+			}
+
 			if promptOnPagination && !nextPage() {
 				fileChan <- nil
 				break
 			}
 		}
+
 		close(fileChan)
 	}()
 	return fileChan
@@ -326,7 +345,7 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 		url = exportURL
 	}
 
-	resp, err := r.transport.Client().Get(url)
+	resp, err := r.client.Get(url)
 	if err == nil {
 		if resp == nil {
 			err = fmt.Errorf("bug on: download for url \"%s\". resp and err are both nil", url)
@@ -431,6 +450,10 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 		uploaded.MimeType = DriveFolderMimeType
 	}
 
+	if args.src.MimeType != "" {
+		uploaded.MimeType = args.src.MimeType
+	}
+
 	if args.mimeKey != "" {
 		uploaded.MimeType = guessMimeType(args.mimeKey)
 	}
@@ -523,8 +546,6 @@ func (r *Remote) copy(newName, parentId string, srcFile *File) (*File, error) {
 }
 
 func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
-	var body io.Reader
-	body, err = os.Open(args.fsAbsPath)
 	/*
 	   // TODO: (@odeke-em) decide:
 	   //   + if to reject FIFO
@@ -534,9 +555,15 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 		err = fmt.Errorf("bug on: src cannot be nil")
 		return
 	}
-	if err != nil && !args.src.IsDir {
-		return
+
+	var body io.Reader
+	if !args.src.IsDir {
+		body, err = os.Open(args.fsAbsPath)
+		if err != nil {
+			return
+		}
 	}
+
 	bd := statos.NewReader(body)
 
 	go func() {
@@ -589,8 +616,8 @@ func (r *Remote) FindByPathShared(p string) (chan *File, error) {
 	return r.findShared(nonEmpty)
 }
 
-func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (chan *File, error) {
-	parent, err := r.FindByPath(dirPath)
+func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
+	parent, err := r.FindByPath(mq.dirPath)
 	filesChan := make(chan *File)
 	if err != nil || parent == nil {
 		close(filesChan)
@@ -598,16 +625,10 @@ func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (c
 	}
 
 	req := r.service.Files.List()
-	keySearches := make([]string, len(keywords))
 
-	for i, key := range keywords {
-		quoted := strconv.Quote(key)
-		keySearches[i] = fmt.Sprintf("(title contains %s and trashed=%v)", quoted, inTrash)
-	}
+	parQuery := fmt.Sprintf("(%s in parents)", strconv.Quote(parent.Id))
+	expr := sepJoinNonEmpty(" and ", parQuery, mq.Stringer())
 
-	expr := strings.Join(keySearches, " or ")
-	// And always make sure that we are searching from this parent
-	expr = fmt.Sprintf("%s in parents and (%s)", strconv.Quote(parent.Id), expr)
 	req.Q(expr)
 	return reqDoPage(req, true, false), nil
 }
@@ -643,6 +664,9 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	files, err := req.Do()
 
 	if err != nil {
+		if err.Error() == ErrGoogleApiInvalidQueryHardCoded.Error() { // Send the user back the query information
+			err = fmt.Errorf("err: %v query: `%s`", err, expr)
+		}
 		return nil, err
 	}
 
@@ -665,26 +689,23 @@ func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err
 	return r.findByPathRecvRaw(parentId, p, true)
 }
 
-func newAuthConfig(context *config.Context) *oauth.Config {
-	return &oauth.Config{
-		ClientId:     context.ClientId,
+func newAuthConfig(context *config.Context) *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     context.ClientId,
 		ClientSecret: context.ClientSecret,
-		AuthURL:      GoogleOAuth2AuthURL,
-		TokenURL:     GoogleOAuth2TokenURL,
 		RedirectURL:  RedirectURL,
-		AccessType:   AccessType,
-		Scope:        DriveScope,
+		Endpoint:     google.Endpoint,
+		Scopes:       []string{DriveScope},
 	}
 }
 
-func newTransport(context *config.Context) *oauth.Transport {
-	return &oauth.Transport{
-		Config:    newAuthConfig(context),
-		Transport: http.DefaultTransport,
-		Token: &oauth.Token{
-			RefreshToken: context.RefreshToken,
-			// TODO: Fix this temporary bad hack with periodic refresh
-			Expiry: time.Now().Add(time.Hour * 10),
-		},
+func newOAuthClient(configContext *config.Context) *http.Client {
+	config := newAuthConfig(configContext)
+
+	token := oauth2.Token{
+		RefreshToken: configContext.RefreshToken,
+		Expiry:       time.Now().Add(1 * time.Hour),
 	}
+
+	return config.Client(context.Background(), &token)
 }
