@@ -510,3 +510,7 @@ func _hasAnyAtExtreme(value string, fn func(string, string) bool, queries []stri
 	}
 	return false
 }
+
+func customQuote(s string) string {
+	return "\"" + strings.Replace(strings.Replace(s, "\\", "\\\\", -1), "\"", "\\\"", -1) + "\""
+}
