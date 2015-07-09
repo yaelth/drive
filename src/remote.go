@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -243,7 +242,7 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 
 func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileChan chan *File) {
 	req := r.service.Files.List()
-	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
+	req.Q(fmt.Sprintf("%s in parents and trashed=%v", customQuote(parentId), trashed))
 	return reqDoPage(req, hidden, false)
 }
 
@@ -626,7 +625,7 @@ func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
 
 	req := r.service.Files.List()
 
-	parQuery := fmt.Sprintf("(%s in parents)", strconv.Quote(parent.Id))
+	parQuery := fmt.Sprintf("(%s in parents)", customQuote(parent.Id))
 	expr := sepJoinNonEmpty(" and ", parQuery, mq.Stringer())
 
 	req.Q(expr)
@@ -635,7 +634,7 @@ func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
 
 func (r *Remote) findChildren(parentId string, trashed bool) chan *File {
 	req := r.service.Files.List()
-	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
+	req.Q(fmt.Sprintf("%s in parents and trashed=%v", customQuote(parentId), trashed))
 	return reqDoPage(req, true, false)
 }
 
@@ -649,12 +648,11 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	// TODO: use field selectors
 	var expr string
 	head := urlToPath(p[0], false)
-	quote := strconv.Quote
 	if trashed {
-		expr = fmt.Sprintf("title = %s and trashed=true", quote(head))
+		expr = fmt.Sprintf("title = %s and trashed=true", customQuote(head))
 	} else {
 		expr = fmt.Sprintf("%s in parents and title = %s and trashed=false",
-			quote(parentId), quote(head))
+			customQuote(parentId), customQuote(head))
 	}
 	req.Q(expr)
 
