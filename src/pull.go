@@ -24,6 +24,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/statos"
 )
 
@@ -248,6 +249,7 @@ func (g *Commands) pullByPath() (cl, clashes []*Change, err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, false)
+		fmt.Println(ccl, cclashes, cErr, relToRootPath, fsPath)
 		if cErr != nil {
 			if cErr != ErrClashesDetected {
 				return cl, clashes, cErr
@@ -373,7 +375,7 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 			indexErr := g.createIndex(src)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
-				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, indexErr)
+				g.log.LogErrf("localMod:createIndex %s: %v\n", src.Name, indexErr)
 			}
 		}
 		wg.Done()
@@ -415,7 +417,7 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 			indexErr := g.createIndex(fileToSerialize)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
-				g.log.LogErrf("serializeIndex %s: %v\n", fileToSerialize.Name, indexErr)
+				g.log.LogErrf("localAdd:createIndex %s: %v\n", fileToSerialize.Name, indexErr)
 			}
 		}
 		wg.Done()
@@ -457,7 +459,8 @@ func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 			dest := change.Dest
 			index := dest.ToIndex()
 			rmErr := g.context.RemoveIndex(index, g.context.AbsPathOf(""))
-			if rmErr != nil {
+			// For the sake of files missing remotely yet present locally and might not have a FileId
+			if rmErr != nil && rmErr != config.ErrEmptyFileIdForIndex {
 				g.log.LogErrf("localDelete removing index for: \"%s\" at \"%s\" %v\n", dest.Name, dest.BlobAt, rmErr)
 			}
 		}
