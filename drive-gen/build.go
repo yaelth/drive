@@ -26,7 +26,7 @@ import (
 	"github.com/odeke-em/xon/pkger/src"
 )
 
-var AliasBinaryDir = "google-drive"
+var AliasBinaryDir = "drive-google"
 
 func logErr(err error) {
 	fmt.Fprintf(os.Stderr, "%v\n", err)
