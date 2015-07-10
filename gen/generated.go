@@ -13,7 +13,7 @@
 // limitations under the License.
 
 
-// This file was auto-generated at 2015-04-15 01:38:47.768 -0600 MDT
+// This file was auto-generated at 2015-07-10 02:15:09.751 -0600 MDT
 // Edits will be overwritten!
 
 
@@ -22,7 +22,7 @@ package generated
 import "github.com/odeke-em/xon/pkger/src"
 
 var PkgInfo = &pkger.PkgInfo {
-	CommitHash: "<CURRENT_COMMIT>",
-	GoVersion: "<GO_VERSION>",
-	OsInfo: "<OS_INFO>",
+	CommitHash: "'e4941e8c8347eb7c71d858a31a0a6d09d6ccdcda'",
+	GoVersion: "go1.4.2",
+	OsInfo: "darwin/amd64",
 }
