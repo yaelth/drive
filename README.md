@@ -80,6 +80,23 @@ Otherwise:
 $ go get github.com/odeke-em/drive/drive-gen && drive-gen
 ```
 
+In case you need a specific binary e.g for Debian folks [issue #271](https://github.com/odeke-em/drive/issues/271) and [issue 277](https://github.com/odeke-em/drive/issues/277)
+
+```shell
+$ go get -u github.com/odeke-em/drive/google-drive
+```
+
+That should produce a binary `google-drive`
+
+OR
+
+To bundle debug information with the binary, you can run:
+
+```shell
+$ go get -u github.com/odeke-em/drive/drive/drive-gen && drive-gen google-drive
+```
+
+
 ### Godep
 
 + Using godep
