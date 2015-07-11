@@ -249,7 +249,6 @@ func (g *Commands) pullByPath() (cl, clashes []*Change, err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, false)
-		fmt.Println(ccl, cclashes, cErr, relToRootPath, fsPath)
 		if cErr != nil {
 			if cErr != ErrClashesDetected {
 				return cl, clashes, cErr
