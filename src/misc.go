@@ -453,11 +453,13 @@ func anyMatch(pat *regexp.Regexp, args ...string) bool {
 }
 
 var mimeTypeFromQuery = cacher(regMapper(regExtStrMap, map[string]string{
-	"folder": DriveFolderMimeType,
-	"mp4":    "video/mp4",
-	"docs":   "application/vnd.google-apps.document",
-	"sheet":  "application/vnd.google-apps.sheet",
-	"form":   "application/vnd.google-apps.form",
+	"docs":         "application/vnd.google-apps.document",
+	"folder":       DriveFolderMimeType,
+	"form":         "application/vnd.google-apps.form",
+	"mp4":          "video/mp4",
+	"presentation": "application/vnd.google-apps.presentation",
+	"sheet":        "application/vnd.google-apps.spreadsheet",
+	"script":       "application/vnd.google-apps.script",
 }))
 
 var mimeTypeFromExt = cacher(regMapper(regExtStrMap))
