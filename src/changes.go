@@ -90,25 +90,26 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 	return
 }
 
-func (g *Commands) resolveToLocalFile(relToRoot, fsPath string) (local *File, err error) {
+func (g *Commands) resolveToLocalFile(relToRoot string, fsPaths ...string) (local *File, err error) {
 	if g.opts.IgnoreRegexp != nil && g.opts.IgnoreRegexp.Match([]byte(relToRoot)) {
 		err = fmt.Errorf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
 		return
 	}
 
-	localinfo, statErr := os.Stat(fsPath)
-	if statErr != nil && !os.IsNotExist(statErr) {
-		err = statErr
-		return
-	}
+	for _, fsPath := range fsPaths {
+		localInfo, statErr := os.Stat(fsPath)
+		if statErr != nil && !os.IsNotExist(statErr) {
+			err = statErr
+			return
+		} else if localInfo != nil {
+			if namedPipe(localInfo.Mode()) {
+				err = fmt.Errorf("%s (%s) is a named pipe, yet not reading from it", relToRoot, fsPath)
+				return
+			}
 
-	if localinfo != nil {
-		if namedPipe(localinfo.Mode()) {
-			err = fmt.Errorf("%s (%s) is a named pipe, yet not reading from it", relToRoot, fsPath)
+			local = NewLocalFile(fsPath, localInfo)
 			return
 		}
-
-		local = NewLocalFile(fsPath, localinfo)
 	}
 
 	return
@@ -116,7 +117,7 @@ func (g *Commands) resolveToLocalFile(relToRoot, fsPath string) (local *File, er
 
 func (g *Commands) byRemoteResolve(relToRoot, fsPath string, r *File, isPush bool) (cl, clashes []*Change, err error) {
 	var l *File
-	l, err = g.resolveToLocalFile(relToRoot, fsPath)
+	l, err = g.resolveToLocalFile(relToRoot, r.localAliases(fsPath)...)
 	if err != nil {
 		return cl, clashes, err
 	}
