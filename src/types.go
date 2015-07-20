@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -182,6 +183,27 @@ func fauxLocalFile(relToRootPath string) *File {
 		Name:    relToRootPath,
 		Size:    0,
 	}
+}
+
+func (f *File) localAliases(prefix string) (aliases []string) {
+	aliases = append(aliases, prefix)
+
+	if f == nil {
+		return
+	}
+
+	suffixes := []string{}
+
+	if runtime.GOOS == OSLinuxKey && hasExportLinks(f) {
+		suffixes = append(suffixes, DesktopExtension)
+	}
+
+	for _, suffix := range suffixes {
+		join := sepJoin(".", prefix, suffix)
+		aliases = append(aliases, join)
+	}
+
+	return
 }
 
 type Change struct {
