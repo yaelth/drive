@@ -741,6 +741,11 @@ func (cmd *aboutCmd) Run(args []string) {
 	if *cmd.filesize {
 		mask |= drive.AboutFileSizes
 	}
+
+	if mask == drive.AboutNone { // No option set
+		mask = drive.AboutQuota | drive.AboutFeatures | drive.AboutFileSizes
+	}
+
 	exitWithError(drive.New(context, &drive.Options{
 		Quiet: *cmd.quiet,
 	}).About(mask))
