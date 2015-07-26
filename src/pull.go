@@ -329,30 +329,49 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 		// play the changes
 		// TODO: add timeouts
 
-		for _, c := range next {
-			switch c.Op() {
-			case OpMod:
-				go g.localMod(&wg, c, exports)
-			case OpModConflict:
-				go g.localMod(&wg, c, exports)
-			case OpAdd:
-				go g.localAdd(&wg, c, exports)
-			case OpDelete:
-				go g.localDelete(&wg, c)
-			case OpIndexAddition:
-				go g.localAddIndex(&wg, c)
+		for i, c := range next {
+			if c == nil {
+				g.log.LogErrf("BUGON:: pull: nil change found for change index %d\n", i)
+				continue
 			}
+
+			var fn func(*sync.WaitGroup, *Change, []string) error = nil
+
+			op := c.Op()
+
+			switch op {
+			case OpMod:
+				fn = g.localMod
+			case OpModConflict:
+				fn = g.localMod
+			case OpAdd:
+				fn = g.localAdd
+			case OpDelete:
+				fn = g.localDelete
+			case OpIndexAddition:
+				fn = g.localAddIndex
+			}
+
+			if fn == nil {
+				g.log.LogErrf("pull: cannot find operator for %v", op)
+				continue
+			}
+
+			go func(wgg *sync.WaitGroup, ch *Change, exportArgs []string) {
+				if err := fn(wgg, ch, exportArgs); err != nil {
+					g.log.LogErrf("pull: %s err: %v\n", ch.Path, err)
+				}
+			}(&wg, c, exports)
 		}
 
 		wg.Wait()
-
 	}
 
 	g.taskFinish()
 	return err
 }
 
-func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change) (err error) {
+func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change, conform []string) (err error) {
 	f := change.Src
 	defer func() {
 		if f != nil {
@@ -447,7 +466,7 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	return
 }
 
-func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
+func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change, conform []string) (err error) {
 	defer func() {
 		if err == nil {
 			chunks := chunkInt64(change.Dest.Size)
