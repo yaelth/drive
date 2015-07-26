@@ -309,7 +309,15 @@ func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change,
 		l = NewLocalFile(path, localinfo)
 	}
 
-	return g.resolveChangeListRecv(true, parent, absPath, r, l)
+	clr := &changeListResolve{
+		push:   true,
+		dir:    parent,
+		base:   absPath,
+		remote: r,
+		local:  l,
+	}
+
+	return g.resolveChangeListRecv(clr)
 }
 
 func (g *Commands) pathSplitter(absPath string) (dir, base string) {
