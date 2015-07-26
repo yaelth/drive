@@ -598,33 +598,35 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 	// We need to touch the empty file to
 	// ensure consistency during a push.
+
+	err = touchFile(destAbsPath)
+	if err != nil {
+		return err
+	}
+
 	if runtime.GOOS != OSLinuxKey {
-		err = touchFile(destAbsPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		// For those our Linux kin that need .desktop files
-		dirPath := g.opts.ExportsDir
-		if dirPath == "" {
-			dirPath = filepath.Dir(destAbsPath)
-		}
+		return nil
+	}
+	// For those our Linux kin that need .desktop files
+	dirPath := g.opts.ExportsDir
+	if dirPath == "" {
+		dirPath = filepath.Dir(destAbsPath)
+	}
 
-		f := change.Src
+	f := change.Src
 
-		urlMExt := urlMimeTypeExt{
-			url:      f.AlternateLink,
-			ext:      "",
-			mimeType: f.MimeType,
-		}
+	urlMExt := urlMimeTypeExt{
+		url:      f.AlternateLink,
+		ext:      "",
+		mimeType: f.MimeType,
+	}
 
-		dirPath = filepath.Join(dirPath, f.Name)
-		desktopEntryPath := sepJoin(".", dirPath, DesktopExtension)
+	dirPath = filepath.Join(dirPath, f.Name)
+	desktopEntryPath := sepJoin(".", dirPath, DesktopExtension)
 
-		_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
-		if dentErr != nil {
-			g.log.LogErrf("desktopEntry: %s %v\n", desktopEntryPath, dentErr)
-		}
+	_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
+	if dentErr != nil {
+		g.log.LogErrf("desktopEntry: %s %v\n", desktopEntryPath, dentErr)
 	}
 
 	if len(exports) >= 1 && hasExportLinks(change.Src) {
