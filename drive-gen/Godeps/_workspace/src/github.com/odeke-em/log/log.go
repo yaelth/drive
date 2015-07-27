@@ -33,6 +33,14 @@ type Logger struct {
 	Scanln   Loggerln
 }
 
+func noopFmter(format string, args ...interface{}) (int, error) {
+	return 0, nil
+}
+
+func nooper(args ...interface{}) (int, error) {
+	return 0, nil
+}
+
 func newLoggerIn(fIn io.Reader) *logyIn {
 	if fIn == nil {
 		fIn = os.Stdin
@@ -56,19 +64,22 @@ func newLoggerIn(fIn io.Reader) *logyIn {
 }
 
 func newLoggerOut(f io.Writer) *logy {
-	if f == nil {
-		f = os.Stdout
-	}
-	fl := func(format string, args ...interface{}) (int, error) {
-		return fmt.Fprintf(f, format, args...)
-	}
+	ff := nooper
+	fl := noopFmter
+	fln := nooper
 
-	fln := func(args ...interface{}) (int, error) {
-		return fmt.Fprintln(f, args...)
-	}
+	if f != nil {
+		fl = func(format string, args ...interface{}) (int, error) {
+			return fmt.Fprintf(f, format, args...)
+		}
 
-	ff := func(args ...interface{}) (int, error) {
-		return fmt.Fprint(f, args...)
+		fln = func(args ...interface{}) (int, error) {
+			return fmt.Fprintln(f, args...)
+		}
+
+		ff = func(args ...interface{}) (int, error) {
+			return fmt.Fprint(f, args...)
+		}
 	}
 
 	return &logy{
