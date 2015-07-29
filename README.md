@@ -15,6 +15,7 @@
 - [Configuration](#configuration)
 - [Usage](#usage)
   - [Initializing](#initializing)
+  - [De Initializing](#de-initializing)
   - [Pulling](#pulling)
     - [Exporting Docs](#exporting-docs)
   - [Pushing](#pushing)
@@ -81,6 +82,23 @@ Otherwise:
 $ go get github.com/odeke-em/drive/drive-gen && drive-gen
 ```
 
+In case you need a specific binary e.g for Debian folks [issue #271](https://github.com/odeke-em/drive/issues/271) and [issue 277](https://github.com/odeke-em/drive/issues/277)
+
+```shell
+$ go get -u github.com/odeke-em/drive/drive-google
+```
+
+That should produce a binary `drive-google`
+
+OR
+
+To bundle debug information with the binary, you can run:
+
+```shell
+$ go get -u github.com/odeke-em/drive/drive/drive-gen && drive-gen drive-google
+```
+
+
 ### Godep
 
 + Using godep
@@ -116,6 +134,17 @@ Before you can use `drive`, you need to mount your Google Drive directory on you
 $ drive init ~/gdrive
 $ cd ~/gdrive
 ```
+
+### De Initializing
+
+The opposite of `drive init`, it will remove your credentials locally as well as configuration associated files.
+
+```shell
+$ drive deinit [--no-prompt]
+```
+
+For a complete de-initializing don't forget to revoke account access, [please see revoking account access](#revoking-account-access)
+
 
 ### Pulling
 
@@ -290,7 +319,7 @@ $ drive features
 
 + MimeType inference is from the file's extension.
 
-  If you would like to coerce a certain mimeType that you'd prefer to assert with Google Drive pushes, use flag `-coerce-mime <short-key>`
+  If you would like to coerce a certain mimeType that you'd prefer to assert with Google Drive pushes, use flag `-coerce-mime <short-key>` See [List of MIME type short keys](https://github.com/odeke-em/drive/wiki/List-of-MIME-type-short-keys) for the full list of short keys.
 
 ```shell
 $ drive push -coerce-mime docx my_test_doc
