@@ -24,6 +24,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/statos"
 )
 
@@ -328,30 +329,49 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 		// play the changes
 		// TODO: add timeouts
 
-		for _, c := range next {
-			switch c.Op() {
-			case OpMod:
-				go g.localMod(&wg, c, exports)
-			case OpModConflict:
-				go g.localMod(&wg, c, exports)
-			case OpAdd:
-				go g.localAdd(&wg, c, exports)
-			case OpDelete:
-				go g.localDelete(&wg, c)
-			case OpIndexAddition:
-				go g.localAddIndex(&wg, c)
+		for i, c := range next {
+			if c == nil {
+				g.log.LogErrf("BUGON:: pull: nil change found for change index %d\n", i)
+				continue
 			}
+
+			var fn func(*sync.WaitGroup, *Change, []string) error = nil
+
+			op := c.Op()
+
+			switch op {
+			case OpMod:
+				fn = g.localMod
+			case OpModConflict:
+				fn = g.localMod
+			case OpAdd:
+				fn = g.localAdd
+			case OpDelete:
+				fn = g.localDelete
+			case OpIndexAddition:
+				fn = g.localAddIndex
+			}
+
+			if fn == nil {
+				g.log.LogErrf("pull: cannot find operator for %v", op)
+				continue
+			}
+
+			go func(wgg *sync.WaitGroup, ch *Change, exportArgs []string) {
+				if err := fn(wgg, ch, exportArgs); err != nil {
+					g.log.LogErrf("pull: %s err: %v\n", ch.Path, err)
+				}
+			}(&wg, c, exports)
 		}
 
 		wg.Wait()
-
 	}
 
 	g.taskFinish()
 	return err
 }
 
-func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change) (err error) {
+func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change, conform []string) (err error) {
 	f := change.Src
 	defer func() {
 		if f != nil {
@@ -373,7 +393,7 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 			indexErr := g.createIndex(src)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
-				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, indexErr)
+				g.log.LogErrf("localMod:createIndex %s: %v\n", src.Name, indexErr)
 			}
 		}
 		wg.Done()
@@ -415,7 +435,7 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 			indexErr := g.createIndex(fileToSerialize)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
-				g.log.LogErrf("serializeIndex %s: %v\n", fileToSerialize.Name, indexErr)
+				g.log.LogErrf("localAdd:createIndex %s: %v\n", fileToSerialize.Name, indexErr)
 			}
 		}
 		wg.Done()
@@ -446,7 +466,7 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	return
 }
 
-func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
+func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change, conform []string) (err error) {
 	defer func() {
 		if err == nil {
 			chunks := chunkInt64(change.Dest.Size)
@@ -457,7 +477,8 @@ func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 			dest := change.Dest
 			index := dest.ToIndex()
 			rmErr := g.context.RemoveIndex(index, g.context.AbsPathOf(""))
-			if rmErr != nil {
+			// For the sake of files missing remotely yet present locally and might not have a FileId
+			if rmErr != nil && rmErr != config.ErrEmptyFileIdForIndex {
 				g.log.LogErrf("localDelete removing index for: \"%s\" at \"%s\" %v\n", dest.Name, dest.BlobAt, rmErr)
 			}
 		}
@@ -577,33 +598,35 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 	// We need to touch the empty file to
 	// ensure consistency during a push.
+	err = touchFile(destAbsPath)
+	if err != nil {
+		return err
+	}
+
 	if runtime.GOOS != OSLinuxKey {
-		err = touchFile(destAbsPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		// For those our Linux kin that need .desktop files
-		dirPath := g.opts.ExportsDir
-		if dirPath == "" {
-			dirPath = filepath.Dir(destAbsPath)
-		}
+		return nil
+	}
 
-		f := change.Src
+	// For those our Linux kin that need .desktop files
+	dirPath := g.opts.ExportsDir
+	if dirPath == "" {
+		dirPath = filepath.Dir(destAbsPath)
+	}
 
-		urlMExt := urlMimeTypeExt{
-			url:      f.AlternateLink,
-			ext:      "",
-			mimeType: f.MimeType,
-		}
+	f := change.Src
 
-		dirPath = filepath.Join(dirPath, f.Name)
-		desktopEntryPath := sepJoin(".", dirPath, DesktopExtension)
+	urlMExt := urlMimeTypeExt{
+		url:      f.AlternateLink,
+		ext:      "",
+		mimeType: f.MimeType,
+	}
 
-		_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
-		if dentErr != nil {
-			g.log.LogErrf("desktopEntry: %s %v\n", desktopEntryPath, dentErr)
-		}
+	dirPath = filepath.Join(dirPath, f.Name)
+	desktopEntryPath := sepJoin(".", dirPath, DesktopExtension)
+
+	_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
+	if dentErr != nil {
+		g.log.LogErrf("desktopEntry: %s %v\n", desktopEntryPath, dentErr)
 	}
 
 	if len(exports) >= 1 && hasExportLinks(change.Src) {

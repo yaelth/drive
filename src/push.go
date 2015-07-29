@@ -262,16 +262,33 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 		}
 	}()
 
-	for _, c := range cl {
-		switch c.Op() {
+	for i, c := range cl {
+		if c == nil {
+			g.log.LogErrf("BUGON:: push: nil change found for change index %d\n", i)
+			continue
+		}
+
+		var fn func(*Change) error = nil
+
+		op := c.Op()
+		switch op {
 		case OpMod:
-			g.remoteMod(c)
+			fn = g.remoteMod
 		case OpModConflict:
-			g.remoteMod(c)
+			fn = g.remoteMod
 		case OpAdd:
-			g.remoteAdd(c)
+			fn = g.remoteAdd
 		case OpDelete:
-			g.remoteTrash(c)
+			fn = g.remoteTrash
+		}
+
+		if fn == nil {
+			g.log.LogErrf("push: cannot find operator for %v", op)
+			continue
+		}
+
+		if err := fn(c); err != nil {
+			g.log.LogErrf("push: %s err: %v\n", c.Path, err)
 		}
 	}
 
@@ -292,7 +309,15 @@ func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change,
 		l = NewLocalFile(path, localinfo)
 	}
 
-	return g.resolveChangeListRecv(true, parent, absPath, r, l)
+	clr := &changeListResolve{
+		push:   true,
+		dir:    parent,
+		base:   absPath,
+		remote: r,
+		local:  l,
+	}
+
+	return g.resolveChangeListRecv(clr)
 }
 
 func (g *Commands) pathSplitter(absPath string) (dir, base string) {

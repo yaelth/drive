@@ -57,6 +57,7 @@ func main() {
 	bindCommandWithAliases(drive.EmptyTrashKey, drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
 	bindCommandWithAliases(drive.FeaturesKey, drive.DescFeatures, &featuresCmd{}, []string{})
 	bindCommandWithAliases(drive.InitKey, drive.DescInit, &initCmd{}, []string{})
+	bindCommandWithAliases(drive.DeInitKey, drive.DescDeInit, &deInitCmd{}, []string{})
 	bindCommandWithAliases(drive.HelpKey, drive.DescHelp, &helpCmd{}, []string{})
 
 	bindCommandWithAliases(drive.ListKey, drive.DescList, &listCmd{}, []string{})
@@ -137,6 +138,25 @@ func (cmd *initCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	exitWithError(drive.New(initContext(args), nil).Init())
 }
 
+type deInitCmd struct {
+	noPrompt *bool
+}
+
+func (cmd *deInitCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
+	return fs
+}
+
+func (cmd *deInitCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	_, context, path := preprocessArgsByToggle(args, true)
+	opts := &drive.Options{
+		NoPrompt: *cmd.noPrompt,
+		Path:     path,
+	}
+
+	exitWithError(drive.New(context, opts).DeInit())
+}
+
 type quotaCmd struct{}
 
 func (cmd *quotaCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -164,30 +184,30 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	lp := fs.Lookup(drive.DepthKey)
 	depthPtr := flag.Int(drive.DepthKey, 1, "maximum recursion depth")
 	fmt.Println("lp", lp, lp.Value, lp.Name, depthPtr)
-	byId         *bool
-	hidden       *bool
-	pageCount    *int
-	recursive    *bool
-	files        *bool
-	directories  *bool
-	depth        *int
-	pageSize     *int64
-	pageSize    *int64
-	longFmt      *bool
-	noPrompt     *bool
-	shared       *bool
-	inTrash      *bool
-	version      *bool
-	matches      *bool
-	owners       *bool
-	quiet        *bool
-	skipMimeKey  *string
-	matchMimeKey *string
-	exactTitle   *string
-	matchOwner   *string
-	exactOwner   *string
-	notOwner     *string
-	sort         *string
+	byId * bool
+	hidden * bool
+	pageCount * int
+	recursive * bool
+	files * bool
+	directories * bool
+	depth * int
+	pageSize * int64
+	pageSize * int64
+	longFmt * bool
+	noPrompt * bool
+	shared * bool
+	inTrash * bool
+	version * bool
+	matches * bool
+	owners * bool
+	quiet * bool
+	skipMimeKey * string
+	matchMimeKey * string
+	exactTitle * string
+	matchOwner * string
+	exactOwner * string
+	notOwner * string
+	sort * string
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -247,28 +267,28 @@ func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	// TODO: Log resource config errors if being verbose
 	if opts == nil {
 		opts = &drive.Options{}
-    }
+	}
 
 	depth := *cmd.depth
 	if *cmd.recursive {
 		depth = drive.InfiniteDepth
 	}
 
-    /*
-	options := drive.Options{
-		Depth:     depth,
-		Hidden:    *cmd.hidden,
-		InTrash:   *cmd.inTrash,
-		PageSize:  *cmd.pageSize,
-		Path:      path,
-		NoPrompt:  *cmd.noPrompt,
-		Recursive: *cmd.recursive,
-		Sources:   sources,
-		TypeMask:  typeMask,
-		Quiet:     *cmd.quiet,
-		Meta:      &meta,
-	}
-    */
+	/*
+		options := drive.Options{
+			Depth:     depth,
+			Hidden:    *cmd.hidden,
+			InTrash:   *cmd.inTrash,
+			PageSize:  *cmd.pageSize,
+			Path:      path,
+			NoPrompt:  *cmd.noPrompt,
+			Recursive: *cmd.recursive,
+			Sources:   sources,
+			TypeMask:  typeMask,
+			Quiet:     *cmd.quiet,
+			Meta:      &meta,
+		}
+	*/
 
 	meta := map[string][]string{
 		drive.SortKey:         drive.NonEmptyTrimmedStrings(*cmd.sort),
@@ -337,7 +357,7 @@ func (cmd *md5SumCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *md5SumCmd) Run(args []string) {
+func (cmd *md5SumCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
 	depth := *cmd.depth
@@ -446,7 +466,7 @@ func (cmd *indexCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 type errorer func() error
 
-func (cmd *indexCmd) Run(args []string) {
+func (cmd *indexCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	byId := *cmd.byId
 	byMatches := *cmd.matches
 	sources, context, path := preprocessArgsByToggle(args, byMatches || byId)
@@ -781,6 +801,11 @@ func (cmd *aboutCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	if *cmd.filesize {
 		mask |= drive.AboutFileSizes
 	}
+
+	if mask == drive.AboutNone { // No option set
+		mask = drive.AboutQuota | drive.AboutFeatures | drive.AboutFileSizes
+	}
+
 	exitWithError(drive.New(context, &drive.Options{
 		Quiet: *cmd.quiet,
 	}).About(mask))
@@ -936,7 +961,7 @@ func (cmd *newCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *newCmd) Run(args []string) {
+func (cmd *newCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgs(args)
 	opts := drive.Options{
 		Path:    path,
