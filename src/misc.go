@@ -288,7 +288,11 @@ func commonPrefix(values ...string) string {
 	return string(prefix)
 }
 
-func readCommentedFile(p, comment string) (clauses []string, err error) {
+func ReadFullFile(p string) (clauses []string, err error) {
+	return readFile_(p, nil)
+}
+
+func readFile_(p string, ignorer func(string) bool) (clauses []string, err error) {
 	f, fErr := os.Open(p)
 	if fErr != nil || f == nil {
 		err = fErr
@@ -305,12 +309,20 @@ func readCommentedFile(p, comment string) (clauses []string, err error) {
 		line := scanner.Text()
 		line = strings.Trim(line, " ")
 		line = strings.Trim(line, "\n")
-		if strings.HasPrefix(line, comment) || len(line) < 1 {
+		if ignorer != nil && ignorer(line) {
 			continue
 		}
 		clauses = append(clauses, line)
 	}
 	return
+}
+
+func readCommentedFile(p, comment string) (clauses []string, err error) {
+	ignorer := func(line string) bool {
+		return strings.HasPrefix(line, comment) || len(line) < 1
+	}
+
+	return readFile_(p, ignorer)
 }
 
 func chunkInt64(v int64) chan int {
