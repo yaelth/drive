@@ -30,7 +30,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"github.com/odeke-em/drive/config"
-	drive "github.com/odeke-em/google-api-go-client/drive/v2"
+	drive "github.com/google/google-api-go-client/drive/v2"
 	"github.com/odeke-em/statos"
 )
 

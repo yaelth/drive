@@ -25,7 +25,6 @@ import (
 	"github.com/odeke-em/ripper/src"
 	"github.com/odeke-em/xon/pkger/src"
 
-	_ "github.com/odeke-em/drive/cmd/drive"
 	_ "github.com/odeke-em/drive/config"
 )
 
