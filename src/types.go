@@ -363,6 +363,10 @@ func (c *Change) crudValue() CrudValue {
 }
 
 func (c *Change) op() Operation {
+	if c == nil {
+		return OpNone
+	}
+
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
 	}
