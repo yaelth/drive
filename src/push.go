@@ -262,6 +262,24 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 		}
 	}()
 
+    type workPair struct {
+        fn func(*Change) error
+        arg *Change
+    }
+
+    n := maxProcs()
+    bench := make(chan *workPair, n)
+    ackChan := make(chan bool, n)
+
+    // Fill up ackChan initially with pass tokens
+    for i := 0; i < n; i++ {
+        ackChan <- true
+    }
+
+    done := make(chan bool, len(cl))
+
+    go func() {
+        defer close(bench)
 	for i, c := range cl {
 		if c == nil {
 			g.log.LogErrf("BUGON:: push: nil change found for change index %d\n", i)
@@ -284,13 +302,36 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 
 		if fn == nil {
 			g.log.LogErrf("push: cannot find operator for %v", op)
+            done <- true
 			continue
 		}
 
-		if err := fn(c); err != nil {
-			g.log.LogErrf("push: %s err: %v\n", c.Path, err)
-		}
+        bench <- &workPair{ fn: fn, arg: c }
+        <- ackChan
 	}
+    }()
+
+    throttle := time.Tick(time.Duration(1e9))
+
+    go func() {
+        for wp := range bench {
+            fn, c := wp.fn, wp.arg
+
+            <-throttle
+
+            go func() {
+		        if err := fn(c); err != nil {
+			        g.log.LogErrf("push: %s err: %v\n", c.Path, err)
+		        }
+                done <- true
+                ackChan <- true
+            }()
+        }
+    }()
+
+    for i, max := 0, len(cl); i < max; i++ {
+        <- done
+    }
 
 	// Time to organize them according branching
 	g.taskFinish()

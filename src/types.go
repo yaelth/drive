@@ -228,8 +228,35 @@ func (cl ByPrecedence) Less(i, j int) bool {
 		return true
 	}
 
-	rank1, rank2 := opPrecedence[cl[i].Op()], opPrecedence[cl[j].Op()]
-	return rank1 < rank2
+	c1, c2 := cl[i], cl[j]
+	c1Op, c2Op := c1.Op(), c2.Op()
+
+	rank1, rank2 := opPrecedence[c1Op], opPrecedence[c2Op]
+
+	if true {
+		return rank1 < rank2
+	}
+
+	if c1Op != c2Op {
+		rank1, rank2 := opPrecedence[c1Op], opPrecedence[c2Op]
+		return rank1 < rank2
+	}
+
+	if c1.Dest != nil {
+		return changeComparisonLess_(c1, c2)
+	}
+
+	return changeComparisonLess_(c2, c1)
+}
+
+func changeComparisonLess_(c1, c2 *Change) bool {
+	if c1.Dest != nil {
+		if c2.Dest == nil {
+			return false
+		}
+		return c1.Dest.Size < c2.Dest.Size
+	}
+	return true
 }
 
 func (cl ByPrecedence) Len() int {
@@ -363,6 +390,9 @@ func (c *Change) crudValue() CrudValue {
 }
 
 func (c *Change) op() Operation {
+	if c == nil {
+		return OpNone
+	}
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
 	}

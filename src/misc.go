@@ -20,6 +20,7 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +33,10 @@ const (
 	RemoteDriveRootPath = "My Drive"
 
 	FmtTimeString = "2006-01-02T15:04:05.000Z"
+)
+
+const (
+	DefaultMaxProcs = 5
 )
 
 var BytesPerKB = float64(1024)
@@ -523,6 +528,20 @@ func _hasAnyAtExtreme(value string, fn func(string, string) bool, queries []stri
 		}
 	}
 	return false
+}
+
+func maxProcs() int {
+	maxProcs, err := strconv.ParseInt(os.Getenv(GoMaxProcsKey), 10, 0)
+	if err != nil {
+		return DefaultMaxProcs
+	}
+
+	maxProcsInt := int(maxProcs)
+	if maxProcs < 1 {
+		return DefaultMaxProcs
+	}
+
+	return maxProcsInt
 }
 
 func customQuote(s string) string {
