@@ -454,7 +454,11 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	}
 
 	if change.Src.IsDir {
-		return os.Mkdir(destAbsPath, os.ModeDir|0755)
+		err = os.Mkdir(destAbsPath, os.ModeDir|0755)
+		if os.IsExist(err) {
+			err = nil
+		}
+		return err
 	}
 
 	// download and create
@@ -598,52 +602,47 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 	// We need to touch the empty file to
 	// ensure consistency during a push.
-	err = touchFile(destAbsPath)
-	if err != nil {
+	if err = touchFile(destAbsPath); err != nil {
 		return err
 	}
 
-	if runtime.GOOS != OSLinuxKey {
+	// For our Linux kin that need .desktop files
+	if runtime.GOOS == OSLinuxKey {
+		f := change.Src
+
+		urlMExt := urlMimeTypeExt{
+			url:      f.AlternateLink,
+			ext:      "",
+			mimeType: f.MimeType,
+		}
+
+		desktopEntryPath := sepJoin(".", destAbsPath, DesktopExtension)
+
+		_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
+		if dentErr != nil {
+			g.log.LogErrf("desktopEntry: %s %v\n", desktopEntryPath, dentErr)
+		}
+	}
+
+	canExport := len(exports) >= 1 && hasExportLinks(change.Src)
+	if !canExport {
 		return nil
 	}
 
-	// For those our Linux kin that need .desktop files
-	dirPath := g.opts.ExportsDir
-	if dirPath == "" {
-		dirPath = filepath.Dir(destAbsPath)
+	exportDirPath := destAbsPath
+	if g.opts.ExportsDir != "" {
+		exportDirPath = path.Join(g.opts.ExportsDir, change.Src.Name)
 	}
 
-	f := change.Src
+	manifest, exportErr := g.export(change.Src, exportDirPath, exports)
 
-	urlMExt := urlMimeTypeExt{
-		url:      f.AlternateLink,
-		ext:      "",
-		mimeType: f.MimeType,
-	}
-
-	dirPath = filepath.Join(dirPath, f.Name)
-	desktopEntryPath := sepJoin(".", dirPath, DesktopExtension)
-
-	_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
-	if dentErr != nil {
-		g.log.LogErrf("desktopEntry: %s %v\n", desktopEntryPath, dentErr)
-	}
-
-	if len(exports) >= 1 && hasExportLinks(change.Src) {
-		exportDirPath := destAbsPath
-		if g.opts.ExportsDir != "" {
-			exportDirPath = path.Join(g.opts.ExportsDir, change.Src.Name)
+	if exportErr == nil {
+		for _, exportPath := range manifest {
+			g.log.Logf("Exported '%s' to '%s'\n", destAbsPath, exportPath)
 		}
-
-		manifest, exportErr := g.export(change.Src, exportDirPath, exports)
-		if exportErr == nil {
-			for _, exportPath := range manifest {
-				g.log.Logf("Exported '%s' to '%s'\n", destAbsPath, exportPath)
-			}
-		}
-		return exportErr
 	}
-	return
+
+	return exportErr
 }
 
 func (g *Commands) singleDownload(dlArg *downloadArg) (err error) {
