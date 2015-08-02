@@ -480,6 +480,10 @@ func (c *Change) checkIndexExistance() (bool, error) {
 }
 
 func (c *Change) Op() Operation {
+	if c == nil {
+		return OpNone
+	}
+
 	op := c.op()
 	if c.Force {
 		if op == OpModConflict {

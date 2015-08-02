@@ -36,7 +36,7 @@ const (
 )
 
 const (
-	DefaultMaxProcs = 5
+	DefaultMaxProcs = 4
 )
 
 var BytesPerKB = float64(1024)
@@ -546,4 +546,36 @@ func maxProcs() int {
 
 func customQuote(s string) string {
 	return "\"" + strings.Replace(strings.Replace(s, "\\", "\\\\", -1), "\"", "\\\"", -1) + "\""
+}
+
+type expirableCacheValue struct {
+	value     interface{}
+	entryTime time.Time
+}
+
+func (e *expirableCacheValue) Expired(q time.Time) bool {
+	if e == nil {
+		return true
+	}
+
+	return e.entryTime.Before(q)
+}
+
+func (e *expirableCacheValue) Value() interface{} {
+	if e == nil {
+		return nil
+	}
+
+	return e.value
+}
+
+func newExpirableCacheValueWithOffset(v interface{}, offset time.Duration) *expirableCacheValue {
+	return &expirableCacheValue{
+		value:     v,
+		entryTime: time.Now().Add(offset),
+	}
+}
+
+var newExpirableCacheValue = func(v interface{}) *expirableCacheValue {
+	return newExpirableCacheValueWithOffset(v, 10*time.Minute)
 }

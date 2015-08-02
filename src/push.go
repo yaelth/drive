@@ -24,10 +24,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/odeke-em/drive/config"
 )
+
+var mkdirAllMu = sync.Mutex{}
 
 // Pushes to remote if local path exists and in a gd context. If path is a
 // directory, it recursively pushes to the remote if there are local changes.
@@ -292,42 +295,52 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 		return dirLikeChange(c, false)
 	}
 
+	throttle := time.Tick(time.Duration(1e9 / n))
 	canPrintSteps := g.opts.Verbose && g.opts.canPrompt()
 
-	dirCl, nonDirCl := filter(cl, pushDirFilter)
-	sort.Sort(ByPrecedence(dirCl))
-	sort.Sort(ByPrecedence(nonDirCl))
+	nonDirCl := cl
 
-	dirClCount := len(dirCl)
-	if dirClCount >= 1 {
-		spin := g.playabler()
-		spin.play()
+	if true {
+		var dirCl []*Change
+		dirCl, nonDirCl = filter(cl, pushDirFilter)
+		sort.Sort(ByPrecedence(dirCl))
 
-		if canPrintSteps {
-			g.log.Logln("Firstly sequentially operating on directories")
+		dirClCount := len(dirCl)
+		if dirClCount >= 1 {
+			spin := g.playabler()
+			spin.play()
+			dirDone := make(chan bool)
+
+			if canPrintSteps {
+				g.log.Logln("Firstly sequentially operating on directories")
+			}
+
+			for i, dirCh := range dirCl {
+				if dirCh == nil {
+					dirDone <- true
+					continue
+				}
+
+				fn := translateOpToChanger(g, dirCh)
+				if fn == nil {
+					continue
+				}
+
+				<-throttle
+
+				if err := fn(dirCh); err != nil {
+					g.log.LogErrf("push::onDir: %v for dir %q\n", err, dirCh.Path)
+				} else if canPrintSteps {
+					g.log.Logf("\033[01mDirOp done %s (%d/%d)\033[00m\n", dirCh.Path, i+1, dirClCount)
+				}
+			}
+
+			spin.stop()
+			g.log.Logf("\r\n")
 		}
-
-		for i, dirCh := range dirCl {
-			if dirCh == nil {
-				continue
-			}
-
-			fn := translateOpToChanger(g, dirCh)
-			if fn == nil {
-				continue
-			}
-
-			if err := fn(dirCh); err != nil {
-				g.log.LogErrf("push::onDir: %v for dir %q\n", err, dirCh.Path)
-			} else if canPrintSteps {
-				g.log.Logf("\033[01mDirOp done %s (%d/%d)\033[00m\n", dirCh.Path, i+1, dirClCount)
-			}
-		}
-
-		spin.stop()
-		g.log.Logf("\r\n")
 	}
 
+	sort.Sort(ByPrecedence(nonDirCl))
 	doneCount := len(nonDirCl)
 	done := make(chan bool, doneCount)
 
@@ -352,8 +365,6 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 		}
 	}()
 
-	throttle := time.Tick(time.Duration(1e9 / n))
-
 	go func() {
 		for wp := range bench {
 			fn, c := wp.fn, wp.arg
@@ -370,7 +381,7 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 				}
 
 				if canPrintSteps {
-					g.log.Logln("\033[05mDone", c.Path, "\033[00m")
+					g.log.Logln("\033[04mDone", c.Path, "\033[00m")
 				}
 
 				done <- true
@@ -521,6 +532,12 @@ func remoteRemover(g *Commands, change *Change, fn func(string) error) (err erro
 		return
 	}
 
+	if change.Dest.IsDir {
+		mkdirAllMu.Lock()
+		g.mkdirAllCache.Remove(change.Path)
+		mkdirAllMu.Unlock()
+	}
+
 	index := change.Dest.ToIndex()
 	err = g.context.RemoveIndex(index, g.context.AbsPathOf(""))
 
@@ -541,6 +558,18 @@ func (g *Commands) remoteDelete(change *Change) error {
 }
 
 func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
+	mkdirAllMu.Lock()
+	cachedValue, ok := g.mkdirAllCache.Get(d)
+	mkdirAllMu.Unlock()
+
+	if ok && cachedValue != nil {
+		castF, castOk := cachedValue.Value().(*File)
+		// g.log.Logln("CacheHit", d, castF, castOk)
+		if castOk && castF != nil {
+			return castF, nil
+		}
+	}
+
 	// Try the lookup one last time in case a coroutine raced us to it.
 	retrFile, retryErr := g.rem.FindByPath(d)
 
@@ -552,15 +581,15 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 		return retrFile, nil
 	}
 
-	rest, last := remotePathSplit(d)
+	parDirPath, last := remotePathSplit(d)
 
-	parent, parentErr := g.rem.FindByPath(rest)
+	parent, parentErr := g.rem.FindByPath(parDirPath)
 	if parentErr != nil && parentErr != ErrPathNotExists {
 		return parent, parentErr
 	}
 
 	if parent == nil {
-		parent, parentErr = g.remoteMkdirAll(rest)
+		parent, parentErr = g.remoteMkdirAll(parDirPath)
 		if parentErr != nil || parent == nil {
 			return parent, parentErr
 		}
@@ -593,6 +622,7 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 		g.log.LogErrf("serializeIndex %s: %v\n", parent.Name, wErr)
 	}
 
+	g.mkdirAllCache.Put(parDirPath, newExpirableCacheValue(parent))
 	return parent, nil
 }
 

@@ -1051,7 +1051,7 @@ type moveCmd struct {
 
 func (cmd *moveCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
-	cmd.byId = fs.Bool(drive.CLIOptionId, false, "unshare by id instead of path")
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "move by id instead of path")
 	return fs
 }
 
