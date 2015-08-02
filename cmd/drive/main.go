@@ -557,6 +557,7 @@ type pushCmd struct {
 	coercedMimeKey    *string
 	excludeOps        *string
 	skipMimeKey       *string
+	verbose           *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -576,6 +577,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
 	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
+	cmd.verbose = fs.Bool(drive.CLIOptionVerboseShortKey, false, drive.DescVerbose)
 	return fs
 }
 
@@ -666,6 +668,7 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		TypeMask:          mask,
 		ExcludeCrudMask:   excludeCrudMask,
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
+		Verbose:           *cmd.verbose,
 	}
 }
 

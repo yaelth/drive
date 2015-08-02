@@ -132,6 +132,7 @@ const (
 	DescNotOwner           = "ignore elements owned by these users"
 	DescNew                = "create a new file/folder"
 	DescAllIndexOperations = "perform all the index related operations"
+	DescVerbose            = "show step by step information verbosely"
 )
 
 const (
@@ -152,6 +153,8 @@ const (
 	CLIOptionNotOwner           = "skip-owner"
 	CLIOptionPruneIndices       = "prune"
 	CLIOptionAllIndexOperations = "all-ops"
+	CLIOptionVerboseKey         = "verbose"
+	CLIOptionVerboseShortKey    = "v"
 )
 
 const (

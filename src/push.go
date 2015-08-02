@@ -235,8 +235,24 @@ func (g *Commands) deserializeIndex(identifier string) *config.Index {
 	return index
 }
 
-func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounter) (err error) {
+func translateOpToChanger(g *Commands, c *Change) func(*Change) error {
+	var fn func(*Change) error = nil
 
+	op := c.Op()
+	switch op {
+	case OpMod:
+		fn = g.remoteMod
+	case OpModConflict:
+		fn = g.remoteMod
+	case OpAdd:
+		fn = g.remoteAdd
+	case OpDelete:
+		fn = g.remoteTrash
+	}
+	return fn
+}
+
+func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounter) (err error) {
 	if opMap == nil {
 		result := opChangeCount(cl)
 		opMap = &result
@@ -252,88 +268,121 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 
 	defer close(g.rem.progressChan)
 
-	// TODO: Only provide precedence ordering if all the other options are allowed
-	// Currently noop on sorting by precedence
-	sort.Sort(ByPrecedence(cl))
-
 	go func() {
 		for n := range g.rem.progressChan {
 			g.taskAdd(int64(n))
 		}
 	}()
 
-    type workPair struct {
-        fn func(*Change) error
-        arg *Change
-    }
-
-    n := maxProcs()
-    bench := make(chan *workPair, n)
-    ackChan := make(chan bool, n)
-
-    // Fill up ackChan initially with pass tokens
-    for i := 0; i < n; i++ {
-        ackChan <- true
-    }
-
-    done := make(chan bool, len(cl))
-
-    go func() {
-        defer close(bench)
-	for i, c := range cl {
-		if c == nil {
-			g.log.LogErrf("BUGON:: push: nil change found for change index %d\n", i)
-			continue
-		}
-
-		var fn func(*Change) error = nil
-
-		op := c.Op()
-		switch op {
-		case OpMod:
-			fn = g.remoteMod
-		case OpModConflict:
-			fn = g.remoteMod
-		case OpAdd:
-			fn = g.remoteAdd
-		case OpDelete:
-			fn = g.remoteTrash
-		}
-
-		if fn == nil {
-			g.log.LogErrf("push: cannot find operator for %v", op)
-            done <- true
-			continue
-		}
-
-        bench <- &workPair{ fn: fn, arg: c }
-        <- ackChan
+	type workPair struct {
+		fn  func(*Change) error
+		arg *Change
 	}
-    }()
 
-    throttle := time.Tick(time.Duration(1e9))
+	n := maxProcs()
+	bench := make(chan *workPair, n)
+	ackChan := make(chan bool, n)
 
-    go func() {
-        for wp := range bench {
-            fn, c := wp.fn, wp.arg
+	// Fill up ackChan initially with pass tokens
+	for i := 0; i < n; i++ {
+		ackChan <- true
+	}
 
-            <-throttle
+	pushDirFilter := func(c *Change) bool {
+		return dirLikeChange(c, false)
+	}
 
-            go func() {
-		        if err := fn(c); err != nil {
-			        g.log.LogErrf("push: %s err: %v\n", c.Path, err)
-		        }
-                done <- true
-                ackChan <- true
-            }()
-        }
-    }()
+	canPrintSteps := g.opts.Verbose && g.opts.canPrompt()
 
-    for i, max := 0, len(cl); i < max; i++ {
-        <- done
-    }
+	dirCl, nonDirCl := filter(cl, pushDirFilter)
+	sort.Sort(ByPrecedence(dirCl))
+	sort.Sort(ByPrecedence(nonDirCl))
 
-	// Time to organize them according branching
+	dirClCount := len(dirCl)
+	if dirClCount >= 1 {
+		spin := g.playabler()
+		spin.play()
+
+		if canPrintSteps {
+			g.log.Logln("Firstly sequentially operating on directories")
+		}
+
+		for i, dirCh := range dirCl {
+			if dirCh == nil {
+				continue
+			}
+
+			fn := translateOpToChanger(g, dirCh)
+			if fn == nil {
+				continue
+			}
+
+			if err := fn(dirCh); err != nil {
+				g.log.LogErrf("push::onDir: %v for dir %q\n", err, dirCh.Path)
+			} else if canPrintSteps {
+				g.log.Logf("\033[01mDirOp done %s (%d/%d)\033[00m\n", dirCh.Path, i+1, dirClCount)
+			}
+		}
+
+		spin.stop()
+		g.log.Logf("\r\n")
+	}
+
+	doneCount := len(nonDirCl)
+	done := make(chan bool, doneCount)
+
+	go func() {
+		defer close(bench)
+		for i, c := range nonDirCl {
+			if c == nil {
+				g.log.LogErrf("BUGON:: push: nil change found for change index %d\n", i)
+				continue
+			}
+
+			fn := translateOpToChanger(g, c)
+
+			if fn == nil {
+				g.log.LogErrf("push: cannot find operator for %v", c.Op())
+				done <- true
+				continue
+			}
+
+			bench <- &workPair{fn: fn, arg: c}
+			<-ackChan
+		}
+	}()
+
+	throttle := time.Tick(time.Duration(1e9 / n))
+
+	go func() {
+		for wp := range bench {
+			fn, c := wp.fn, wp.arg
+
+			<-throttle
+
+			go func() {
+				if canPrintSteps {
+					g.log.Logln("\033[01mStarted", c.Path, "\033[00m")
+				}
+
+				if err := fn(c); err != nil {
+					g.log.LogErrf("push: %s err: %v\n", c.Path, err)
+				}
+
+				if canPrintSteps {
+					g.log.Logln("\033[05mDone", c.Path, "\033[00m")
+				}
+
+				done <- true
+				ackChan <- true
+			}()
+		}
+	}()
+
+	for i := 0; i < doneCount; i++ {
+		<-done
+	}
+
 	g.taskFinish()
 	return err
 }
@@ -553,6 +602,30 @@ func namedPipe(mode os.FileMode) bool {
 
 func symlink(mode os.FileMode) bool {
 	return (mode & os.ModeSymlink) != 0
+}
+
+func dirLikeChange(c *Change, onDest bool) bool {
+	if c == nil {
+		return false
+	}
+	f := c.Src
+	if onDest {
+		f = c.Dest
+	}
+
+	return f != nil && f.IsDir
+}
+
+func filter(cl []*Change, fn func(*Change) bool) (pass, fail []*Change) {
+	for _, ch := range cl {
+		if fn(ch) {
+			pass = append(pass, ch)
+		} else {
+			fail = append(fail, ch)
+		}
+	}
+
+	return
 }
 
 func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp) (fileChan chan *File, err error) {

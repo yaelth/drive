@@ -537,7 +537,7 @@ func maxProcs() int {
 	}
 
 	maxProcsInt := int(maxProcs)
-	if maxProcs < 1 {
+	if maxProcsInt < 1 {
 		return DefaultMaxProcs
 	}
 

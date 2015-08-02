@@ -84,6 +84,7 @@ type Options struct {
 	ExplicitlyExport  bool
 	Md5sum            bool
 	indexingOnly      bool
+	Verbose           bool
 }
 
 type Commands struct {
