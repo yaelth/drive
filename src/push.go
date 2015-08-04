@@ -291,63 +291,19 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 		ackChan <- true
 	}
 
-	pushDirFilter := func(c *Change) bool {
-		return dirLikeChange(c, false)
-	}
-
 	throttle := time.Tick(time.Duration(1e9 / n))
 	canPrintSteps := g.opts.Verbose && g.opts.canPrompt()
 
-	nonDirCl := cl
+	sort.Sort(ByPrecedence(cl))
 
-	if true {
-		var dirCl []*Change
-		dirCl, nonDirCl = filter(cl, pushDirFilter)
-		sort.Sort(ByPrecedence(dirCl))
-
-		dirClCount := len(dirCl)
-		if dirClCount >= 1 {
-			spin := g.playabler()
-			spin.play()
-			dirDone := make(chan bool)
-
-			if canPrintSteps {
-				g.log.Logln("Firstly sequentially operating on directories")
-			}
-
-			for i, dirCh := range dirCl {
-				if dirCh == nil {
-					dirDone <- true
-					continue
-				}
-
-				fn := translateOpToChanger(g, dirCh)
-				if fn == nil {
-					continue
-				}
-
-				<-throttle
-
-				if err := fn(dirCh); err != nil {
-					g.log.LogErrf("push::onDir: %v for dir %q\n", err, dirCh.Path)
-				} else if canPrintSteps {
-					g.log.Logf("\033[01mDirOp done %s (%d/%d)\033[00m\n", dirCh.Path, i+1, dirClCount)
-				}
-			}
-
-			spin.stop()
-			g.log.Logf("\r\n")
-		}
-	}
-
-	sort.Sort(ByPrecedence(nonDirCl))
-	doneCount := len(nonDirCl)
+	doneCount := len(cl)
 	done := make(chan bool, doneCount)
 
 	go func() {
 		defer close(bench)
-		for i, c := range nonDirCl {
+		for i, c := range cl {
 			if c == nil {
+				done <- true
 				g.log.LogErrf("BUGON:: push: nil change found for change index %d\n", i)
 				continue
 			}
@@ -369,11 +325,9 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 		for wp := range bench {
 			fn, c := wp.fn, wp.arg
 
-			<-throttle
-
 			go func() {
 				if canPrintSteps {
-					g.log.Logln("\033[01mStarted", c.Path, "\033[00m")
+					g.log.Logln("\033[01mPush::Started", c.Path, "\033[00m")
 				}
 
 				if err := fn(c); err != nil {
@@ -381,8 +335,10 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 				}
 
 				if canPrintSteps {
-					g.log.Logln("\033[04mDone", c.Path, "\033[00m")
+					g.log.Logln("\033[04mPush::Done", c.Path, "\033[00m")
 				}
+
+				<-throttle
 
 				done <- true
 				ackChan <- true
@@ -444,11 +400,20 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	absPath := g.context.AbsPathOf(change.Path)
 
-	var parent *File
-	if change.Dest != nil && change.Src != nil {
+	if change.Src != nil && change.Src.IsDir {
+		needsMkdirAll := change.Dest == nil || change.Src.Id == ""
+		if needsMkdirAll {
+			if destFile, _ := g.remoteMkdirAll(change.Path); destFile != nil {
+				change.Src.Id = destFile.Id
+			}
+		}
+	}
+
+	if change.Dest != nil && change.Src != nil && change.Src.Id == "" {
 		change.Src.Id = change.Dest.Id // TODO: bad hack
 	}
 
+	var parent *File
 	parentPath := g.parentPather(change.Path)
 	parent, err = g.remoteMkdirAll(parentPath)
 
@@ -559,13 +524,14 @@ func (g *Commands) remoteDelete(change *Change) error {
 
 func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	mkdirAllMu.Lock()
+
 	cachedValue, ok := g.mkdirAllCache.Get(d)
-	mkdirAllMu.Unlock()
 
 	if ok && cachedValue != nil {
 		castF, castOk := cachedValue.Value().(*File)
 		// g.log.Logln("CacheHit", d, castF, castOk)
 		if castOk && castF != nil {
+			mkdirAllMu.Unlock()
 			return castF, nil
 		}
 	}
@@ -574,26 +540,36 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	retrFile, retryErr := g.rem.FindByPath(d)
 
 	if retryErr != nil && retryErr != ErrPathNotExists {
+		mkdirAllMu.Unlock()
 		return retrFile, retryErr
 	}
 
 	if retrFile != nil {
+		mkdirAllMu.Unlock()
 		return retrFile, nil
 	}
 
 	parDirPath, last := remotePathSplit(d)
 
 	parent, parentErr := g.rem.FindByPath(parDirPath)
+
 	if parentErr != nil && parentErr != ErrPathNotExists {
+		mkdirAllMu.Unlock()
 		return parent, parentErr
 	}
 
+	mkdirAllMu.Unlock()
 	if parent == nil {
 		parent, parentErr = g.remoteMkdirAll(parDirPath)
 		if parentErr != nil || parent == nil {
 			return parent, parentErr
 		}
 	}
+
+	mkdirAllMu.Lock()
+	defer mkdirAllMu.Unlock()
+
+	g.mkdirAllCache.Put(parDirPath, newExpirableCacheValue(parent))
 
 	remoteFile := &File{
 		IsDir:   true,
@@ -605,25 +581,26 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 		parentId: parent.Id,
 		src:      remoteFile,
 	}
-	parent, parentErr = g.rem.UpsertByComparison(&args)
-	if parentErr != nil {
-		return parent, parentErr
+
+	cur, curErr := g.rem.UpsertByComparison(&args)
+	if curErr != nil {
+		return cur, curErr
 	}
 
-	if parent == nil {
-		return parent, ErrPathNotExists
+	if cur == nil {
+		return cur, ErrPathNotExists
 	}
 
-	index := parent.ToIndex()
+	index := cur.ToIndex()
 	wErr := g.context.SerializeIndex(index)
 
 	// TODO: Should indexing errors be reported?
 	if wErr != nil {
-		g.log.LogErrf("serializeIndex %s: %v\n", parent.Name, wErr)
+		g.log.LogErrf("serializeIndex %s: %v\n", cur.Name, wErr)
 	}
 
-	g.mkdirAllCache.Put(parDirPath, newExpirableCacheValue(parent))
-	return parent, nil
+	g.mkdirAllCache.Put(d, newExpirableCacheValue(cur))
+	return cur, nil
 }
 
 func namedPipe(mode os.FileMode) bool {
@@ -632,30 +609,6 @@ func namedPipe(mode os.FileMode) bool {
 
 func symlink(mode os.FileMode) bool {
 	return (mode & os.ModeSymlink) != 0
-}
-
-func dirLikeChange(c *Change, onDest bool) bool {
-	if c == nil {
-		return false
-	}
-	f := c.Src
-	if onDest {
-		f = c.Dest
-	}
-
-	return f != nil && f.IsDir
-}
-
-func filter(cl []*Change, fn func(*Change) bool) (pass, fail []*Change) {
-	for _, ch := range cl {
-		if fn(ch) {
-			pass = append(pass, ch)
-		} else {
-			fail = append(fail, ch)
-		}
-	}
-
-	return
 }
 
 func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp) (fileChan chan *File, err error) {

@@ -396,6 +396,7 @@ func indexContent(mask int) bool {
 type upsertOpt struct {
 	parentId       string
 	fsAbsPath      string
+	relToRootPath  string
 	src            *File
 	dest           *File
 	mask           int

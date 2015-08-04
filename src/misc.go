@@ -577,5 +577,5 @@ func newExpirableCacheValueWithOffset(v interface{}, offset time.Duration) *expi
 }
 
 var newExpirableCacheValue = func(v interface{}) *expirableCacheValue {
-	return newExpirableCacheValueWithOffset(v, 10*time.Minute)
+	return newExpirableCacheValueWithOffset(v, time.Hour)
 }

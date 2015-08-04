@@ -229,41 +229,7 @@ func (cl ByPrecedence) Less(i, j int) bool {
 	}
 
 	c1, c2 := cl[i], cl[j]
-	c1Op, c2Op := c1.Op(), c2.Op()
-
-	if false {
-		rank1, rank2 := opPrecedence[c1Op], opPrecedence[c2Op]
-		return rank1 < rank2
-	}
-
-	if c1Op != c2Op {
-		rank1, rank2 := opPrecedence[c1Op], opPrecedence[c2Op]
-		return rank1 < rank2
-	}
-
-	if c1.Dest != nil {
-		return changeComparisonLess_(c1, c2)
-	}
-
-	return changeComparisonLess_(c2, c1)
-}
-
-func changeComparisonLess_(c1, c2 *Change) bool {
-	if c1.Dest == nil {
-		return true
-	}
-
-	if c2.Dest == nil {
-		return false
-	}
-
-	if c1.Dest.Size != c2.Dest.Size {
-		return c1.Dest.Size < c2.Dest.Size
-	}
-
-	// This comparison is necessary say when dealing
-	// with directories and you need parents created first.
-	return len(c1.Path) < len(c2.Path)
+	return opPrecedence[c1.Op()] < opPrecedence[c2.Op()]
 }
 
 func (cl ByPrecedence) Len() int {
