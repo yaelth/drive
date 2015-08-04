@@ -410,6 +410,8 @@ func (cmd *indexCmd) Run(args []string) {
 	byId := *cmd.byId
 	byMatches := *cmd.matches
 	sources, context, path := preprocessArgsByToggle(args, byMatches || byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	options := &drive.Options{
 		Sources:           sources,
@@ -493,6 +495,8 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *pullCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, (*cmd.byId || *cmd.matches))
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.excludeOps, ",")...)
 	excludeCrudMask := drive.CrudAtoi(excludes...)
@@ -586,6 +590,8 @@ func (cmd *pushCmd) Run(args []string) {
 		cmd.pushMounted(args)
 	} else {
 		sources, context, path := preprocessArgs(args)
+		exitWithError(context.OpenDB())
+		defer context.CloseDB()
 
 		options := cmd.createPushOptions()
 		options.Path = path
@@ -618,6 +624,8 @@ func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *touchCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	opts := drive.Options{
 		Hidden:    *cmd.hidden,
@@ -695,6 +703,9 @@ func (cmd *pushCmd) pushMounted(args []string) {
 
 	rest = drive.NonEmptyStrings(rest...)
 	context, path := discoverContext(contextArgs)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	contextAbsPath, err := filepath.Abs(path)
 	exitWithError(err)
 
@@ -773,6 +784,9 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *diffCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	exitWithError(drive.New(context, &drive.Options{
 		Recursive:         true,
 		Path:              path,
@@ -849,6 +863,8 @@ func (cmd *deleteCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *deleteCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	opts := drive.Options{
 		Path:    path,
@@ -880,6 +896,9 @@ func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *trashCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	opts := drive.Options{
 		Path:    path,
 		Sources: sources,
@@ -906,6 +925,9 @@ func (cmd *newCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *newCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	opts := drive.Options{
 		Path:    path,
 		Sources: sources,
@@ -950,6 +972,9 @@ func (cmd *copyCmd) Run(args []string) {
 	dest := args[end]
 
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	// Unshift by the end path
 	sources = sources[:len(sources)-1]
 	destRels, err := relativePaths(context.AbsPathOf(""), dest)
@@ -983,6 +1008,8 @@ func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *untrashCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId || *cmd.matches)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	opts := drive.Options{
 		Path:    path,
@@ -1061,6 +1088,9 @@ func (cmd *moveCmd) Run(args []string) {
 		exitWithError(fmt.Errorf("move: expecting a path or more"))
 	}
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	// Unshift by the end path
 	sources = sources[:len(sources)-1]
 
@@ -1097,6 +1127,8 @@ func (cmd *renameCmd) Run(args []string) {
 	}
 	rest, last := args[:argc-1], args[argc-1]
 	sources, context, path := preprocessArgsByToggle(rest, *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	sources = append(sources, last)
 	exitWithError(drive.New(context, &drive.Options{
