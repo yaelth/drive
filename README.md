@@ -94,7 +94,7 @@ OR
 To bundle debug information with the binary, you can run:
 
 ```shell
-$ go get -u github.com/odeke-em/drive/drive/drive-gen && drive-gen drive-google
+$ go get -u github.com/odeke-em/drive/drive-gen && drive-gen drive-google
 ```
 
 
