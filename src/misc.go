@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/api/googleapi"
+
 	spinner "github.com/odeke-em/cli-spinner"
 )
 
@@ -42,12 +44,6 @@ const (
 var DefaultMaxProcs = runtime.NumCPU()
 
 var BytesPerKB = float64(1024)
-
-var (
-	MsgInternalServerError       = "googleapi: Error 500: Internal Error, internalError"
-	MsgUserLimitExceeded         = "googleapi: Error 403: User rate limit exceeded, userRateLimitExceeded"
-	MsgAuthPotentialTimeoutError = "googleapi: Error 401: Invalid Credentials, authError"
-)
 
 type desktopEntry struct {
 	name string
@@ -74,21 +70,30 @@ type tuple struct {
 func retryableErrorCheck(v interface{}) (ok, retryable bool) {
 	pr, pOk := v.(*tuple)
 	if pr == nil || !pOk {
-		return false, true
+		retryable = true
+		return
 	}
 
-	err, ok := pr.last.(error)
-	if !ok || err == nil {
-		return false, false
+	err, assertOk := pr.last.(*googleapi.Error)
+	if !assertOk || err == nil {
+		ok = true
+		return
 	}
 
-	switch err.Error() {
-	case MsgUserLimitExceeded, MsgInternalServerError, MsgAuthPotentialTimeoutError:
-		return false, true
+	statusCode := err.Code
+	if statusCode >= 500 && statusCode <= 599 {
+		retryable = true
+		return
+	}
+
+	switch statusCode {
+	case 401, 403:
+		retryable = true
+
 		// TODO: Add other errors
 	}
 
-	return false, false
+	return
 }
 
 func noopPlayable() *playable {
