@@ -43,8 +43,9 @@ const (
 var BytesPerKB = float64(1024)
 
 var (
-	MsgInternalServerError = "googleapi: Error 500: Internal Error, internalError"
-	MsgUserLimitExceeded   = "googleapi: Error 403: User rate limit exceeded, userRateLimitExceeded"
+	MsgInternalServerError       = "googleapi: Error 500: Internal Error, internalError"
+	MsgUserLimitExceeded         = "googleapi: Error 403: User rate limit exceeded, userRateLimitExceeded"
+	MsgAuthPotentialTimeoutError = "googleapi: Error 401: Invalid Credentials, authError"
 )
 
 type desktopEntry struct {
@@ -75,19 +76,18 @@ func retryableErrorCheck(v interface{}) (ok, retryable bool) {
 		return false, true
 	}
 
-	err, ok := pr.first.(error)
+	err, ok := pr.last.(error)
 	if !ok || err == nil {
 		return false, false
 	}
 
 	switch err.Error() {
-	case MsgUserLimitExceeded, MsgInternalServerError:
+	case MsgUserLimitExceeded, MsgInternalServerError, MsgAuthPotentialTimeoutError:
 		return false, true
-	default:
-		return false, false
+		// TODO: Add other errors
 	}
 
-	return false, true
+	return false, false
 }
 
 func noopPlayable() *playable {
