@@ -32,7 +32,6 @@ import (
 )
 
 var context *config.Context
-var DefaultMaxProcs = runtime.NumCPU()
 
 func bindCommandWithAliases(key, description string, cmd command.Cmd, requiredFlags []string) {
 	command.On(key, description, cmd, requiredFlags)
@@ -47,7 +46,7 @@ func bindCommandWithAliases(key, description string, cmd command.Cmd, requiredFl
 func main() {
 	maxProcs, err := strconv.ParseInt(os.Getenv("GOMAXPROCS"), 10, 0)
 	if err != nil || maxProcs < 1 {
-		maxProcs = int64(DefaultMaxProcs)
+		maxProcs = int64(drive.DefaultMaxProcs)
 	}
 	runtime.GOMAXPROCS(int(maxProcs))
 

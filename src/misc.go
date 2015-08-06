@@ -36,9 +36,10 @@ const (
 )
 
 const (
-	DefaultMaxProcs     = 4
 	MaxFailedRetryCount = uint32(20) // Arbitrary value
 )
+
+var DefaultMaxProcs = runtime.NumCPU()
 
 var BytesPerKB = float64(1024)
 
