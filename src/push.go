@@ -292,7 +292,7 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 	}
 
 	throttle := time.Tick(time.Duration(1e9 / n))
-	canPrintSteps := g.opts.Verbose && g.opts.canPrompt()
+	canPrintSteps := g.opts.Verbose || g.opts.canPrompt()
 
 	sort.Sort(ByPrecedence(cl))
 

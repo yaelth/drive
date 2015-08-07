@@ -467,6 +467,8 @@ type pullCmd struct {
 	ignoreNameClashes *bool
 	skipMimeKey       *string
 	explicitlyExport  *bool
+
+	verbose *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -488,6 +490,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "pull by id instead of path")
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	cmd.explicitlyExport = fs.Bool(drive.CLIOptionExplicitlyExport, false, drive.DescExplicitylPullExports)
+	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
 
 	return fs
 }
@@ -528,6 +531,7 @@ func (cmd *pullCmd) Run(args []string) {
 		ExcludeCrudMask:   excludeCrudMask,
 		ExplicitlyExport:  *cmd.explicitlyExport,
 		Meta:              &meta,
+		Verbose:           *cmd.verbose,
 	}
 
 	if *cmd.matches {
@@ -580,7 +584,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
 	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
-	cmd.verbose = fs.Bool(drive.CLIOptionVerboseShortKey, false, drive.DescVerbose)
+	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
 	return fs
 }
 

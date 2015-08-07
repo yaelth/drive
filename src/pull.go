@@ -22,14 +22,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"sync"
 
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/statos"
 )
 
-const (
-	maxNumOfConcPullTasks = 4
+var (
+	maxConcPulls = DefaultMaxProcs
 )
 
 type urlMimeTypeExt struct {
@@ -139,7 +138,6 @@ func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 		go combiner(ccl, &cl, done)
 		go combiner(cclashes, &clashes, done)
 
-		<-done
 		<-done
 	}
 
@@ -286,8 +284,6 @@ func (g *Commands) pullAndDownload(relToRootPath string, fh io.Writer, rem *File
 }
 
 func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Operation]sizeCounter) (err error) {
-	var next []*Change
-
 	if opMap == nil {
 		result := opChangeCount(cl)
 		opMap = &result
@@ -314,31 +310,39 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 		}
 	}()
 
-	for {
-		if len(cl) > maxNumOfConcPullTasks {
-			next, cl = cl[:maxNumOfConcPullTasks], cl[maxNumOfConcPullTasks:len(cl)]
-		} else {
-			next, cl = cl, []*Change{}
-		}
-		if len(next) == 0 {
-			break
-		}
-		var wg sync.WaitGroup
-		wg.Add(len(next))
+	nMax := len(cl)
+	doneAck := make(chan bool)
 
-		// play the changes
-		// TODO: add timeouts
+	maxConcPulls := maxProcs()
 
-		for i, c := range next {
+	loader := make(chan *Change, maxConcPulls)
+	waiter := make(chan bool, maxConcPulls)
+
+	for i := 0; i < maxConcPulls; i++ {
+		waiter <- true
+	}
+
+	go func() {
+		defer close(loader)
+
+		for _, c := range cl {
 			if c == nil {
-				g.log.LogErrf("BUGON:: pull: nil change found for change index %d\n", i)
+				doneAck <- true
 				continue
 			}
 
-			var fn func(*sync.WaitGroup, *Change, []string) error = nil
+			<-waiter
+			loader <- c
+		}
+	}()
 
-			op := c.Op()
+	canPrintSteps := g.opts.Verbose || g.opts.canPrompt()
 
+	go func() {
+		for ch := range loader {
+			var fn func(*Change, []string) error = nil
+
+			op := ch.Op()
 			switch op {
 			case OpMod:
 				fn = g.localMod
@@ -354,24 +358,39 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 
 			if fn == nil {
 				g.log.LogErrf("pull: cannot find operator for %v", op)
+				doneAck <- true
+				waiter <- true
 				continue
 			}
 
-			go func(wgg *sync.WaitGroup, ch *Change, exportArgs []string) {
-				if err := fn(wgg, ch, exportArgs); err != nil {
-					g.log.LogErrf("pull: %s err: %v\n", ch.Path, err)
+			go func(c *Change, f func(*Change, []string) error) {
+				if canPrintSteps {
+					g.log.Logln("\033[01mPull::Started", c.Path, "\033[00m")
 				}
-			}(&wg, c, exports)
-		}
 
-		wg.Wait()
+				if err := f(c, exports); err != nil {
+					g.log.LogErrf("pull: %s err: %v\n", c.Path, err)
+				}
+
+				if canPrintSteps {
+					g.log.Logln("\033[04mPull::Done", c.Path, "\033[00m")
+				}
+
+				doneAck <- true
+				waiter <- true
+			}(ch, fn)
+		}
+	}()
+
+	for i := 0; i < nMax; i++ {
+		<-doneAck
 	}
 
 	g.taskFinish()
 	return err
 }
 
-func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change, conform []string) (err error) {
+func (g *Commands) localAddIndex(change *Change, conform []string) (err error) {
 	f := change.Src
 	defer func() {
 		if f != nil {
@@ -380,13 +399,12 @@ func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change, conform []s
 				g.rem.progressChan <- n
 			}
 		}
-		wg.Done()
 	}()
 
 	return g.createIndex(f)
 }
 
-func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
+func (g *Commands) localMod(change *Change, exports []string) (err error) {
 	defer func() {
 		if err == nil {
 			src := change.Src
@@ -396,7 +414,6 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 				g.log.LogErrf("localMod:createIndex %s: %v\n", src.Name, indexErr)
 			}
 		}
-		wg.Done()
 	}()
 
 	destAbsPath := g.context.AbsPathOf(change.Path)
@@ -427,7 +444,7 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 	return
 }
 
-func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
+func (g *Commands) localAdd(change *Change, exports []string) (err error) {
 	defer func() {
 		if err == nil && change.Src != nil {
 			fileToSerialize := change.Src
@@ -438,7 +455,6 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 				g.log.LogErrf("localAdd:createIndex %s: %v\n", fileToSerialize.Name, indexErr)
 			}
 		}
-		wg.Done()
 	}()
 
 	destAbsPath := g.context.AbsPathOf(change.Path)
@@ -470,7 +486,7 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	return
 }
 
-func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change, conform []string) (err error) {
+func (g *Commands) localDelete(change *Change, conform []string) (err error) {
 	defer func() {
 		if err == nil {
 			chunks := chunkInt64(change.Dest.Size)
@@ -486,7 +502,6 @@ func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change, conform []str
 				g.log.LogErrf("localDelete removing index for: \"%s\" at \"%s\" %v\n", dest.Name, dest.BlobAt, rmErr)
 			}
 		}
-		wg.Done()
 	}()
 
 	err = os.RemoveAll(change.Dest.BlobAt)
@@ -537,16 +552,16 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 		})
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(len(waitables))
+	n := len(waitables)
+	doneAck := make(chan bool, n)
 
 	basePath := filepath.Base(f.Name)
 	baseDir := path.Join(dirPath, basePath)
 
 	for _, exportee := range waitables {
-		go func(wg *sync.WaitGroup, baseDirPath, id string, urlMExt *urlMimeTypeExt) error {
+		go func(baseDirPath, id string, urlMExt *urlMimeTypeExt) error {
 			defer func() {
-				wg.Done()
+				doneAck <- true
 			}()
 
 			exportPath := sepJoin(".", baseDirPath, urlMExt.ext)
@@ -572,10 +587,15 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 			if err == nil {
 				manifest = append(manifest, exportPath)
 			}
+
 			return err
-		}(&wg, baseDir, f.Id, exportee)
+		}(baseDir, f.Id, exportee)
 	}
-	wg.Wait()
+
+	for i := 0; i < n; i++ {
+		<-doneAck
+	}
+
 	return
 }
 

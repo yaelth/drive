@@ -334,6 +334,14 @@ $ drive pull --exclude-ops "delete,update" vines
 $ drive push --exclude-ops "create" sensitive_files
 ```
 
++ To show more information during pushes or pulls e.g show the current operation,
+pass in option `--verbose` e.g:
+
+```shell
+$ drive pull --verbose 2015/Photos content
+$ drive push --verbose Music Fall2014
+```
+
 ### Publishing
 
 The `pub` command publishes a file or directory globally so that anyone can view it on the web using the link returned.
