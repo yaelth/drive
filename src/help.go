@@ -142,6 +142,7 @@ const (
 	DescNotOwner           = "ignore elements owned by these users"
 	DescNew                = "create a new file/folder"
 	DescAllIndexOperations = "perform all the index related operations"
+	DescVerbose            = "show step by step information verbosely"
 )
 
 const (
@@ -162,11 +163,14 @@ const (
 	CLIOptionNotOwner           = "skip-owner"
 	CLIOptionPruneIndices       = "prune"
 	CLIOptionAllIndexOperations = "all-ops"
+	CLIOptionVerboseKey         = "verbose"
+	CLIOptionVerboseShortKey    = "v"
 )
 
 const (
 	GoogleApiClientIdEnvKey     = "GOOGLE_API_CLIENT_ID"
 	GoogleApiClientSecretEnvKey = "GOOGLE_API_CLIENT_SECRET"
+	GoMaxProcsKey               = "GOMAXPROCS"
 )
 
 const (

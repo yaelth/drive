@@ -25,7 +25,6 @@ import (
 	"github.com/odeke-em/ripper/src"
 	"github.com/odeke-em/xon/pkger/src"
 
-	_ "github.com/odeke-em/drive/cmd/drive"
 	_ "github.com/odeke-em/drive/config"
 )
 
@@ -60,6 +59,7 @@ func main() {
 		{"CommitHash", pkgInfo.CommitHash},
 		{"GoVersion", pkgInfo.GoVersion},
 		{"OsInfo", pkgInfo.OsInfo},
+		{"BuildTime", pkgInfo.BuildTime},
 	}
 
 	importsClause := "import \"github.com/odeke-em/xon/pkger/src\"\n\n"
@@ -75,6 +75,10 @@ func main() {
 	exitIfError(err)
 
 	generatedInfoPath := filepath.Join(generatedDir, "generated.go")
+
+	originalContent, origReadErr := drive.ReadFullFile(generatedInfoPath)
+	exitIfError(origReadErr)
+
 	f, fErr := os.Create(generatedInfoPath)
 	exitIfError(fErr)
 
@@ -95,7 +99,7 @@ func main() {
 	for _, clause := range clauses {
 		_, wErr := f.Write([]byte(clause))
 		if wErr != nil {
-			logErr(err)
+			logErr(wErr)
 		}
 	}
 
@@ -125,5 +129,19 @@ func main() {
 	}
 
 	err = generateCmd.Run()
+
+	// Now revert the original content
+	revertHandle, revertOpenErr := os.Create(generatedInfoPath)
+	exitIfError(revertOpenErr)
+
+	for _, revertedClause := range originalContent {
+		fullClause := fmt.Sprintf("%s\n", revertedClause)
+		_, wErr := revertHandle.Write([]byte(fullClause))
+		if wErr != nil {
+			logErr(wErr)
+		}
+	}
+	revertHandle.Close()
+
 	exitIfError(err)
 }

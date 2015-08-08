@@ -20,9 +20,12 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/api/googleapi"
 
 	spinner "github.com/odeke-em/cli-spinner"
 )
@@ -33,6 +36,12 @@ const (
 
 	FmtTimeString = "2006-01-02T15:04:05.000Z"
 )
+
+const (
+	MaxFailedRetryCount = uint32(20) // Arbitrary value
+)
+
+var DefaultMaxProcs = runtime.NumCPU()
 
 var BytesPerKB = float64(1024)
 
@@ -50,6 +59,41 @@ type playable struct {
 }
 
 func noop() {
+}
+
+type tuple struct {
+	first  interface{}
+	second interface{}
+	last   interface{}
+}
+
+func retryableErrorCheck(v interface{}) (ok, retryable bool) {
+	pr, pOk := v.(*tuple)
+	if pr == nil || !pOk {
+		retryable = true
+		return
+	}
+
+	err, assertOk := pr.last.(*googleapi.Error)
+	if !assertOk || err == nil {
+		ok = true
+		return
+	}
+
+	statusCode := err.Code
+	if statusCode >= 500 && statusCode <= 599 {
+		retryable = true
+		return
+	}
+
+	switch statusCode {
+	case 401, 403:
+		retryable = true
+
+		// TODO: Add other errors
+	}
+
+	return
 }
 
 func noopPlayable() *playable {
@@ -288,7 +332,11 @@ func commonPrefix(values ...string) string {
 	return string(prefix)
 }
 
-func readCommentedFile(p, comment string) (clauses []string, err error) {
+func ReadFullFile(p string) (clauses []string, err error) {
+	return readFile_(p, nil)
+}
+
+func readFile_(p string, ignorer func(string) bool) (clauses []string, err error) {
 	f, fErr := os.Open(p)
 	if fErr != nil || f == nil {
 		err = fErr
@@ -305,12 +353,20 @@ func readCommentedFile(p, comment string) (clauses []string, err error) {
 		line := scanner.Text()
 		line = strings.Trim(line, " ")
 		line = strings.Trim(line, "\n")
-		if strings.HasPrefix(line, comment) || len(line) < 1 {
+		if ignorer != nil && ignorer(line) {
 			continue
 		}
 		clauses = append(clauses, line)
 	}
 	return
+}
+
+func readCommentedFile(p, comment string) (clauses []string, err error) {
+	ignorer := func(line string) bool {
+		return strings.HasPrefix(line, comment) || len(line) < 1
+	}
+
+	return readFile_(p, ignorer)
 }
 
 func chunkInt64(v int64) chan int {
@@ -513,6 +569,52 @@ func _hasAnyAtExtreme(value string, fn func(string, string) bool, queries []stri
 	return false
 }
 
+func maxProcs() int {
+	maxProcs, err := strconv.ParseInt(os.Getenv(GoMaxProcsKey), 10, 0)
+	if err != nil {
+		return DefaultMaxProcs
+	}
+
+	maxProcsInt := int(maxProcs)
+	if maxProcsInt < 1 {
+		return DefaultMaxProcs
+	}
+
+	return maxProcsInt
+}
+
 func customQuote(s string) string {
 	return "\"" + strings.Replace(strings.Replace(s, "\\", "\\\\", -1), "\"", "\\\"", -1) + "\""
+}
+
+type expirableCacheValue struct {
+	value     interface{}
+	entryTime time.Time
+}
+
+func (e *expirableCacheValue) Expired(q time.Time) bool {
+	if e == nil {
+		return true
+	}
+
+	return e.entryTime.Before(q)
+}
+
+func (e *expirableCacheValue) Value() interface{} {
+	if e == nil {
+		return nil
+	}
+
+	return e.value
+}
+
+func newExpirableCacheValueWithOffset(v interface{}, offset time.Duration) *expirableCacheValue {
+	return &expirableCacheValue{
+		value:     v,
+		entryTime: time.Now().Add(offset),
+	}
+}
+
+var newExpirableCacheValue = func(v interface{}) *expirableCacheValue {
+	return newExpirableCacheValueWithOffset(v, time.Hour)
 }

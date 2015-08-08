@@ -212,6 +212,9 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 
 	var change *Change
 
+	cl = make([]*Change, 0)
+	clashes = make([]*Change, 0)
+
 	explicitlyRequested := g.opts.ExplicitlyExport && hasExportLinks(r) && len(g.opts.Exports) >= 1
 
 	if clr.push {

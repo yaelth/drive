@@ -95,7 +95,7 @@ OR
 To bundle debug information with the binary, you can run:
 
 ```shell
-$ go get -u github.com/odeke-em/drive/drive/drive-gen && drive-gen drive-google
+$ go get -u github.com/odeke-em/drive/drive-gen && drive-gen drive-google
 ```
 
 
@@ -333,6 +333,14 @@ e.g
 ```shell
 $ drive pull --exclude-ops "delete,update" vines
 $ drive push --exclude-ops "create" sensitive_files
+```
+
++ To show more information during pushes or pulls e.g show the current operation,
+pass in option `--verbose` e.g:
+
+```shell
+$ drive pull --verbose 2015/Photos content
+$ drive push --verbose Music Fall2014
 ```
 
 ### Publishing
@@ -856,6 +864,7 @@ Background sync is not just hard, it is stupid. My technical and philosophical r
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
 * Racing conditions occur if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
 * drive rejects reading from namedPipes because they could infinitely hang. See [issue #208](https://github.com/odeke-em/drive/issues/208).
+* If you have less than 1GB memory on your device see [Precautions for building on devices with less than 1GB RAM](https://github.com/odeke-em/drive/wiki/Precautions-for-building-on-devices-with-less-than-1GB-RAM).
 
 ## Reach out
 

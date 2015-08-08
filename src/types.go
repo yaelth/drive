@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
+	drive "github.com/google/google-api-go-client/drive/v2"
 	"github.com/odeke-em/drive/config"
-	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 )
 
 type Operation int
@@ -228,8 +228,8 @@ func (cl ByPrecedence) Less(i, j int) bool {
 		return true
 	}
 
-	rank1, rank2 := opPrecedence[cl[i].Op()], opPrecedence[cl[j].Op()]
-	return rank1 < rank2
+	c1, c2 := cl[i], cl[j]
+	return opPrecedence[c1.Op()] < opPrecedence[c2.Op()]
 }
 
 func (cl ByPrecedence) Len() int {
@@ -363,11 +363,19 @@ func (c *Change) crudValue() CrudValue {
 }
 
 func (c *Change) op() Operation {
+	if c == nil {
+		return OpNone
+	}
+
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
 	}
 
-	indexingOnly := c.g.opts.indexingOnly
+	indexingOnly := false
+	if c.g != nil && c.g.opts != nil {
+		indexingOnly = c.g.opts.indexingOnly
+	}
+
 	if c.Src != nil && c.Dest == nil {
 		return indexExistanceOrDeferTo(c, OpAdd, indexingOnly)
 	}
@@ -439,6 +447,10 @@ func (c *Change) checkIndexExistance() (bool, error) {
 }
 
 func (c *Change) Op() Operation {
+	if c == nil {
+		return OpNone
+	}
+
 	op := c.op()
 	if c.Force {
 		if op == OpModConflict {

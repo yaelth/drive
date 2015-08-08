@@ -21,7 +21,7 @@
 		},
 		{
 			"ImportPath": "github.com/odeke-em/command",
-			"Rev": "cf17ee21b576af54d617481549a589567b339795"
+			"Rev": "e193fa4a028b950e8fa1c584458ecc1991d50b52"
 		},
 		{
 			"ImportPath": "github.com/odeke-em/google-api-go-client/drive/v2",
@@ -45,7 +45,7 @@
 		},
 		{
 			"ImportPath": "github.com/odeke-em/xon/pkger/src",
-			"Rev": "d580be739d723da4f6378083128f93017b8ab295"
+			"Rev": "0af932ae72e246898c3a49eab51137bb38ccdbf0"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",

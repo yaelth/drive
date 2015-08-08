@@ -24,10 +24,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/odeke-em/drive/config"
 )
+
+var mkdirAllMu = sync.Mutex{}
 
 // Pushes to remote if local path exists and in a gd context. If path is a
 // directory, it recursively pushes to the remote if there are local changes.
@@ -235,8 +238,24 @@ func (g *Commands) deserializeIndex(identifier string) *config.Index {
 	return index
 }
 
-func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounter) (err error) {
+func translateOpToChanger(g *Commands, c *Change) func(*Change) error {
+	var fn func(*Change) error = nil
 
+	op := c.Op()
+	switch op {
+	case OpMod:
+		fn = g.remoteMod
+	case OpModConflict:
+		fn = g.remoteMod
+	case OpAdd:
+		fn = g.remoteAdd
+	case OpDelete:
+		fn = g.remoteTrash
+	}
+	return fn
+}
+
+func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounter) (err error) {
 	if opMap == nil {
 		result := opChangeCount(cl)
 		opMap = &result
@@ -252,47 +271,85 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 
 	defer close(g.rem.progressChan)
 
-	// TODO: Only provide precedence ordering if all the other options are allowed
-	// Currently noop on sorting by precedence
-	sort.Sort(ByPrecedence(cl))
-
 	go func() {
 		for n := range g.rem.progressChan {
 			g.taskAdd(int64(n))
 		}
 	}()
 
-	for i, c := range cl {
-		if c == nil {
-			g.log.LogErrf("BUGON:: push: nil change found for change index %d\n", i)
-			continue
-		}
-
-		var fn func(*Change) error = nil
-
-		op := c.Op()
-		switch op {
-		case OpMod:
-			fn = g.remoteMod
-		case OpModConflict:
-			fn = g.remoteMod
-		case OpAdd:
-			fn = g.remoteAdd
-		case OpDelete:
-			fn = g.remoteTrash
-		}
-
-		if fn == nil {
-			g.log.LogErrf("push: cannot find operator for %v", op)
-			continue
-		}
-
-		if err := fn(c); err != nil {
-			g.log.LogErrf("push: %s err: %v\n", c.Path, err)
-		}
+	type workPair struct {
+		fn  func(*Change) error
+		arg *Change
 	}
 
-	// Time to organize them according branching
+	n := maxProcs()
+	bench := make(chan *workPair, n)
+	ackChan := make(chan bool, n)
+
+	// Fill up ackChan initially with pass tokens
+	for i := 0; i < n; i++ {
+		ackChan <- true
+	}
+
+	throttle := time.Tick(time.Duration(1e9 / n))
+	canPrintSteps := g.opts.Verbose || g.opts.canPrompt()
+
+	sort.Sort(ByPrecedence(cl))
+
+	doneCount := len(cl)
+	done := make(chan bool, doneCount)
+
+	go func() {
+		defer close(bench)
+		for i, c := range cl {
+			if c == nil {
+				done <- true
+				g.log.LogErrf("BUGON:: push: nil change found for change index %d\n", i)
+				continue
+			}
+
+			fn := translateOpToChanger(g, c)
+
+			if fn == nil {
+				g.log.LogErrf("push: cannot find operator for %v", c.Op())
+				done <- true
+				continue
+			}
+
+			bench <- &workPair{fn: fn, arg: c}
+			<-ackChan
+		}
+	}()
+
+	go func() {
+		for wp := range bench {
+			fn, c := wp.fn, wp.arg
+
+			go func() {
+				if canPrintSteps {
+					g.log.Logln("\033[01mPush::Started", c.Path, "\033[00m")
+				}
+
+				if err := fn(c); err != nil {
+					g.log.LogErrf("push: %s err: %v\n", c.Path, err)
+				}
+
+				if canPrintSteps {
+					g.log.Logln("\033[04mPush::Done", c.Path, "\033[00m")
+				}
+
+				<-throttle
+
+				done <- true
+				ackChan <- true
+			}()
+		}
+	}()
+
+	for i := 0; i < doneCount; i++ {
+		<-done
+	}
+
 	g.taskFinish()
 	return err
 }
@@ -343,11 +400,20 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	absPath := g.context.AbsPathOf(change.Path)
 
-	var parent *File
-	if change.Dest != nil && change.Src != nil {
+	if change.Src != nil && change.Src.IsDir {
+		needsMkdirAll := change.Dest == nil || change.Src.Id == ""
+		if needsMkdirAll {
+			if destFile, _ := g.remoteMkdirAll(change.Path); destFile != nil {
+				change.Src.Id = destFile.Id
+			}
+		}
+	}
+
+	if change.Dest != nil && change.Src != nil && change.Src.Id == "" {
 		change.Src.Id = change.Dest.Id // TODO: bad hack
 	}
 
+	var parent *File
 	parentPath := g.parentPather(change.Path)
 	parent, err = g.remoteMkdirAll(parentPath)
 
@@ -431,6 +497,12 @@ func remoteRemover(g *Commands, change *Change, fn func(string) error) (err erro
 		return
 	}
 
+	if change.Dest.IsDir {
+		mkdirAllMu.Lock()
+		g.mkdirAllCache.Remove(change.Path)
+		mkdirAllMu.Unlock()
+	}
+
 	index := change.Dest.ToIndex()
 	err = g.context.RemoveIndex(index, g.context.AbsPathOf(""))
 
@@ -451,30 +523,53 @@ func (g *Commands) remoteDelete(change *Change) error {
 }
 
 func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
+	mkdirAllMu.Lock()
+
+	cachedValue, ok := g.mkdirAllCache.Get(d)
+
+	if ok && cachedValue != nil {
+		castF, castOk := cachedValue.Value().(*File)
+		// g.log.Logln("CacheHit", d, castF, castOk)
+		if castOk && castF != nil {
+			mkdirAllMu.Unlock()
+			return castF, nil
+		}
+	}
+
 	// Try the lookup one last time in case a coroutine raced us to it.
 	retrFile, retryErr := g.rem.FindByPath(d)
 
 	if retryErr != nil && retryErr != ErrPathNotExists {
+		mkdirAllMu.Unlock()
 		return retrFile, retryErr
 	}
 
 	if retrFile != nil {
+		mkdirAllMu.Unlock()
 		return retrFile, nil
 	}
 
-	rest, last := remotePathSplit(d)
+	parDirPath, last := remotePathSplit(d)
 
-	parent, parentErr := g.rem.FindByPath(rest)
+	parent, parentErr := g.rem.FindByPath(parDirPath)
+
 	if parentErr != nil && parentErr != ErrPathNotExists {
+		mkdirAllMu.Unlock()
 		return parent, parentErr
 	}
 
+	mkdirAllMu.Unlock()
 	if parent == nil {
-		parent, parentErr = g.remoteMkdirAll(rest)
+		parent, parentErr = g.remoteMkdirAll(parDirPath)
 		if parentErr != nil || parent == nil {
 			return parent, parentErr
 		}
 	}
+
+	mkdirAllMu.Lock()
+	defer mkdirAllMu.Unlock()
+
+	g.mkdirAllCache.Put(parDirPath, newExpirableCacheValue(parent))
 
 	remoteFile := &File{
 		IsDir:   true,
@@ -486,24 +581,26 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 		parentId: parent.Id,
 		src:      remoteFile,
 	}
-	parent, parentErr = g.rem.UpsertByComparison(&args)
-	if parentErr != nil {
-		return parent, parentErr
+
+	cur, curErr := g.rem.UpsertByComparison(&args)
+	if curErr != nil {
+		return cur, curErr
 	}
 
-	if parent == nil {
-		return parent, ErrPathNotExists
+	if cur == nil {
+		return cur, ErrPathNotExists
 	}
 
-	index := parent.ToIndex()
+	index := cur.ToIndex()
 	wErr := g.context.SerializeIndex(index)
 
 	// TODO: Should indexing errors be reported?
 	if wErr != nil {
-		g.log.LogErrf("serializeIndex %s: %v\n", parent.Name, wErr)
+		g.log.LogErrf("serializeIndex %s: %v\n", cur.Name, wErr)
 	}
 
-	return parent, nil
+	g.mkdirAllCache.Put(d, newExpirableCacheValue(cur))
+	return cur, nil
 }
 
 func namedPipe(mode os.FileMode) bool {

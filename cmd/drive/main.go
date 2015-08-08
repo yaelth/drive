@@ -32,7 +32,6 @@ import (
 )
 
 var context *config.Context
-var DefaultMaxProcs = runtime.NumCPU()
 
 func bindCommandWithAliases(key, description string, cmd command.Cmd, requiredFlags []string) {
 	command.On(key, description, cmd, requiredFlags)
@@ -47,7 +46,7 @@ func bindCommandWithAliases(key, description string, cmd command.Cmd, requiredFl
 func main() {
 	maxProcs, err := strconv.ParseInt(os.Getenv("GOMAXPROCS"), 10, 0)
 	if err != nil || maxProcs < 1 {
-		maxProcs = int64(DefaultMaxProcs)
+		maxProcs = int64(drive.DefaultMaxProcs)
 	}
 	runtime.GOMAXPROCS(int(maxProcs))
 
@@ -470,6 +469,8 @@ func (cmd *indexCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	byId := *cmd.byId
 	byMatches := *cmd.matches
 	sources, context, path := preprocessArgsByToggle(args, byMatches || byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	options := &drive.Options{
 		Sources:           sources,
@@ -526,6 +527,8 @@ type pullCmd struct {
 	ignoreNameClashes *bool
 	skipMimeKey       *string
 	explicitlyExport  *bool
+
+	verbose *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -547,12 +550,15 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "pull by id instead of path")
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	cmd.explicitlyExport = fs.Bool(drive.CLIOptionExplicitlyExport, false, drive.DescExplicitylPullExports)
+	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
 
 	return fs
 }
 
 func (cmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, (*cmd.byId || *cmd.matches))
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.excludeOps, ",")...)
 	excludeCrudMask := drive.CrudAtoi(excludes...)
@@ -585,6 +591,7 @@ func (cmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		ExcludeCrudMask:   excludeCrudMask,
 		ExplicitlyExport:  *cmd.explicitlyExport,
 		Meta:              &meta,
+		Verbose:           *cmd.verbose,
 	}
 
 	if *cmd.matches {
@@ -617,6 +624,7 @@ type pushCmd struct {
 	coercedMimeKey    *string
 	excludeOps        *string
 	skipMimeKey       *string
+	verbose           *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -636,6 +644,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
 	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
+	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
 	return fs
 }
 
@@ -644,6 +653,8 @@ func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		cmd.pushMounted(args)
 	} else {
 		sources, context, path := preprocessArgs(args)
+		exitWithError(context.OpenDB())
+		defer context.CloseDB()
 
 		options := cmd.createPushOptions()
 		options.Path = path
@@ -676,6 +687,8 @@ func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	opts := drive.Options{
 		Hidden:    *cmd.hidden,
@@ -726,6 +739,7 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		TypeMask:          mask,
 		ExcludeCrudMask:   excludeCrudMask,
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
+		Verbose:           *cmd.verbose,
 	}
 }
 
@@ -752,6 +766,9 @@ func (cmd *pushCmd) pushMounted(args []string) {
 
 	rest = drive.NonEmptyStrings(rest...)
 	context, path := discoverContext(contextArgs)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	contextAbsPath, err := filepath.Abs(path)
 	exitWithError(err)
 
@@ -830,6 +847,9 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *diffCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgs(args)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	exitWithError(drive.New(context, &drive.Options{
 		Recursive:         true,
 		Path:              path,
@@ -906,6 +926,8 @@ func (cmd *deleteCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *deleteCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	opts := drive.Options{
 		Path:    path,
@@ -937,6 +959,9 @@ func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *trashCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	opts := drive.Options{
 		Path:    path,
 		Sources: sources,
@@ -963,6 +988,9 @@ func (cmd *newCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *newCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgs(args)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	opts := drive.Options{
 		Path:    path,
 		Sources: sources,
@@ -1007,6 +1035,9 @@ func (cmd *copyCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	dest := args[end]
 
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	// Unshift by the end path
 	sources = sources[:len(sources)-1]
 	destRels, err := relativePaths(context.AbsPathOf(""), dest)
@@ -1040,6 +1071,8 @@ func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *untrashCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId || *cmd.matches)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	opts := drive.Options{
 		Path:    path,
@@ -1108,7 +1141,7 @@ type moveCmd struct {
 
 func (cmd *moveCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
-	cmd.byId = fs.Bool(drive.CLIOptionId, false, "unshare by id instead of path")
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "move by id instead of path")
 	return fs
 }
 
@@ -1118,6 +1151,9 @@ func (cmd *moveCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		exitWithError(fmt.Errorf("move: expecting a path or more"))
 	}
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
+
 	// Unshift by the end path
 	sources = sources[:len(sources)-1]
 
@@ -1154,6 +1190,8 @@ func (cmd *renameCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}
 	rest, last := args[:argc-1], args[argc-1]
 	sources, context, path := preprocessArgsByToggle(rest, *cmd.byId)
+	exitWithError(context.OpenDB())
+	defer context.CloseDB()
 
 	sources = append(sources, last)
 	exitWithError(drive.New(context, &drive.Options{
