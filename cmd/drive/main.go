@@ -176,37 +176,30 @@ func (cmd *quotaCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	exitWithError(drive.New(context, opts).About(drive.AboutQuota))
 }
 
-func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	// fmt.Println("fs", fs)
-
-	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
-	lp := fs.Lookup(drive.DepthKey)
-	depthPtr := flag.Int(drive.DepthKey, 1, "maximum recursion depth")
-	fmt.Println("lp", lp, lp.Value, lp.Name, depthPtr)
-	byId * bool
-	hidden * bool
-	pageCount * int
-	recursive * bool
-	files * bool
-	directories * bool
-	depth * int
-	pageSize * int64
-	pageSize * int64
-	longFmt * bool
-	noPrompt * bool
-	shared * bool
-	inTrash * bool
-	version * bool
-	matches * bool
-	owners * bool
-	quiet * bool
-	skipMimeKey * string
-	matchMimeKey * string
-	exactTitle * string
-	matchOwner * string
-	exactOwner * string
-	notOwner * string
-	sort * string
+type listCmd struct {
+	byId         *bool
+	hidden       *bool
+	pageCount    *int
+	recursive    *bool
+	files        *bool
+	directories  *bool
+	depth        *int
+	pageSize     *int64
+	longFmt      *bool
+	noPrompt     *bool
+	shared       *bool
+	inTrash      *bool
+	version      *bool
+	matches      *bool
+	owners       *bool
+	quiet        *bool
+	skipMimeKey  *string
+	matchMimeKey *string
+	exactTitle   *string
+	matchOwner   *string
+	exactOwner   *string
+	notOwner     *string
+	sort         *string
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -273,22 +266,6 @@ func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		depth = drive.InfiniteDepth
 	}
 
-	/*
-		options := drive.Options{
-			Depth:     depth,
-			Hidden:    *cmd.hidden,
-			InTrash:   *cmd.inTrash,
-			PageSize:  *cmd.pageSize,
-			Path:      path,
-			NoPrompt:  *cmd.noPrompt,
-			Recursive: *cmd.recursive,
-			Sources:   sources,
-			TypeMask:  typeMask,
-			Quiet:     *cmd.quiet,
-			Meta:      &meta,
-		}
-	*/
-
 	meta := map[string][]string{
 		drive.SortKey:         drive.NonEmptyTrimmedStrings(*cmd.sort),
 		drive.SkipMimeKeyKey:  drive.NonEmptyTrimmedStrings(strings.Split(*cmd.skipMimeKey, ",")...),
@@ -298,6 +275,7 @@ func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		drive.ExactOwnerKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.exactOwner, ",")...),
 		drive.NotOwnerKey:     drive.NonEmptyTrimmedStrings(strings.Split(*cmd.notOwner, ",")...),
 	}
+
 	opts.Path = path
 	if cmd.hidden != nil {
 		opts.Hidden = *cmd.hidden
@@ -326,6 +304,22 @@ func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	if cmd.quiet != nil {
 		opts.Quiet = *cmd.quiet
 	}
+
+	options := drive.Options{
+		Depth:     depth,
+		Hidden:    *cmd.hidden,
+		InTrash:   *cmd.inTrash,
+		PageSize:  *cmd.pageSize,
+		Path:      path,
+		NoPrompt:  *cmd.noPrompt,
+		Recursive: *cmd.recursive,
+		Sources:   sources,
+		TypeMask:  typeMask,
+		Quiet:     *cmd.quiet,
+		Meta:      &meta,
+	}
+
+	fmt.Println("options", options)
 
 	opts.Sources = sources
 	opts.TypeMask = typeMask
@@ -649,6 +643,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	fmt.Println("definedFlags", definedFlags)
 	if *cmd.mountedPush {
 		cmd.pushMounted(args)
 	} else {

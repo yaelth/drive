@@ -40,53 +40,53 @@ const (
 
 type Options struct {
 	// Depth is the number of pages/ listing recursion depth
-	Depth int
+	Depth int `cli:"depth"`
 	// Exports contains the formats to export your Google Docs + Sheets to
 	// e.g ["csv" "txt"]
-	Exports []string
+	Exports []string `cli:"exports"`
 	// ExportsDir is the directory to put the exported Google Docs + Sheets.
 	// If not provided, will export them to the same dir as the source files are
-	ExportsDir string
+	ExportsDir string `cli:"exportsDir"`
 	// Force once set always converts NoChange into an Addition
-	Force bool
+	Force bool `cli:"force"`
 	// Hidden discovers hidden paths if set
-	Hidden       bool
+	Hidden       bool `cli:"hidden"`
 	IgnoreRegexp *regexp.Regexp
 	// IgnoreChecksum when set avoids the step
 	// of comparing checksums as a final check.
-	IgnoreChecksum bool
+	IgnoreChecksum bool `cli:"ignore"`
 	// IgnoreConflict when set turns off the conflict resolution safety.
-	IgnoreConflict bool
+	IgnoreConflict bool `cli:"ignoreConflict"`
 	// Allows listing of content in trash
-	InTrash bool
+	InTrash bool `cli:"inTrash"`
 	Meta    *map[string][]string
 	Mount   *config.Mount
 	// NoClobber when set prevents overwriting of stale content
-	NoClobber bool
+	NoClobber bool `cli:"noClobber"`
 	// NoPrompt overwrites any prompt pauses
-	NoPrompt bool
+	NoPrompt bool `cli:"noPrompt"`
 	Path     string
 	// PageSize determines the number of results returned per API call
-	PageSize  int64
-	Recursive bool
+	PageSize  int64 `cli:"pagesize"`
+	Recursive bool  `cli:"recursive"`
 	// Sources is a of list all paths that are
 	// within the scope/path of the current gd context
-	Sources []string
+	Sources []string `cli:"sources"`
 	// TypeMask contains the result of setting different type bits e.g
 	// Folder to search only for folders etc.
-	TypeMask int
+	TypeMask int `cli:"typeMask"`
 	// Piped when set means to infer content to or from stdin
-	Piped bool
+	Piped bool `cli:"piped"`
 	// Quiet when set toggles only logging of errors to stderrs as
 	// well as reading from stdin in this case stdout is not logged to
-	Quiet             bool
-	StdoutIsTty       bool
-	IgnoreNameClashes bool
-	ExcludeCrudMask   CrudValue
-	ExplicitlyExport  bool
-	Md5sum            bool
-	indexingOnly      bool
-	Verbose           bool
+	Quiet             bool      `cli:"quiet"`
+	StdoutIsTty       bool      `cli:"istty"`
+	IgnoreNameClashes bool      `cli:"ignoreNameClashes"`
+	ExcludeCrudMask   CrudValue `cli:"excludeCrudMask"`
+	ExplicitlyExport  bool      `cli:"explicitlyExport"`
+	Md5sum            bool      `cli:"md5sum"`
+	indexingOnly      bool      `cli:"indexingOnly"`
+	Verbose           bool      `cli:"verbose"`
 }
 
 type Commands struct {
@@ -147,7 +147,7 @@ func New(context *config.Context, opts *Options) *Commands {
 		rcP, rcErr := opts.rcPath()
 		if rcErr == nil {
 			rcOpt, err := rcFileToOptions(rcP)
-			if false { // DEBUG
+			if true { // DEBUG
 				fmt.Println("kvmap", rcOpt, "err", err)
 			}
 		}
