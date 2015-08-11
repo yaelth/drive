@@ -85,19 +85,23 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 			return
 		}
 	}
+
 	relPath = strings.Join([]string{"", relPath}, "/")
 
 	return
 }
 
 func (g *Commands) resolveToLocalFile(relToRoot string, fsPaths ...string) (local *File, err error) {
-	if g.opts.IgnoreRegexp != nil && g.opts.IgnoreRegexp.Match([]byte(relToRoot)) {
+	checks := append([]string{relToRoot}, fsPaths...)
+
+	if anyMatch(g.opts.IgnoreRegexp, checks...) {
 		err = fmt.Errorf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
 		return
 	}
 
 	for _, fsPath := range fsPaths {
 		localInfo, statErr := os.Stat(fsPath)
+
 		if statErr != nil && !os.IsNotExist(statErr) {
 			err = statErr
 			return
@@ -129,6 +133,10 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, c
 	var r *File
 	r, err = g.rem.FindByPath(relToRoot)
 	if err != nil && err != ErrPathNotExists {
+		return
+	}
+
+	if r != nil && anyMatch(g.opts.IgnoreRegexp, r.Name) {
 		return
 	}
 
@@ -214,6 +222,20 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 
 	cl = make([]*Change, 0)
 	clashes = make([]*Change, 0)
+
+	matchChecks := []string{base}
+
+	if l != nil {
+		matchChecks = append(matchChecks, l.Name)
+	}
+
+	if r != nil {
+		matchChecks = append(matchChecks, r.Name)
+	}
+
+	if anyMatch(g.opts.IgnoreRegexp, matchChecks...) {
+		return
+	}
 
 	explicitlyRequested := g.opts.ExplicitlyExport && hasExportLinks(r) && len(g.opts.Exports) >= 1
 
