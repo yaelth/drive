@@ -570,7 +570,7 @@ func _hasAnyAtExtreme(value string, fn func(string, string) bool, queries []stri
 }
 
 func maxProcs() int {
-	maxProcs, err := strconv.ParseInt(os.Getenv(GoMaxProcsKey), 10, 0)
+	maxProcs, err := strconv.ParseInt(os.Getenv(DriveGoMaxProcsKey), 10, 0)
 	if err != nil {
 		return DefaultMaxProcs
 	}

@@ -44,7 +44,7 @@ func bindCommandWithAliases(key, description string, cmd command.Cmd, requiredFl
 }
 
 func main() {
-	maxProcs, err := strconv.ParseInt(os.Getenv("GOMAXPROCS"), 10, 0)
+	maxProcs, err := strconv.ParseInt(os.Getenv(drive.GoMaxProcsKey), 10, 0)
 	if err != nil || maxProcs < 1 {
 		maxProcs = int64(drive.DefaultMaxProcs)
 	}
