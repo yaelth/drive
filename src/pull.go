@@ -336,7 +336,7 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 		}
 	}()
 
-	canPrintSteps := g.opts.Verbose || g.opts.canPrompt()
+	canPrintSteps := g.opts.Verbose && g.opts.canPrompt()
 
 	go func() {
 		for ch := range loader {
