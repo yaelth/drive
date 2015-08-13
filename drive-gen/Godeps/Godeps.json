@@ -28,6 +28,10 @@
 			"Rev": "610063bb4aeef25f7645b3e6080456655ec0fb33"
 		},
 		{
+			"ImportPath": "github.com/odeke-em/command",
+			"Rev": "cf17ee21b576af54d617481549a589567b339795"
+		},
+		{
 			"ImportPath": "github.com/odeke-em/exponential-backoff",
 			"Rev": "96e25d36ae36ad09ac02cbfe653b44c4043a8e09"
 		},
