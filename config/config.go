@@ -33,6 +33,7 @@ var (
 
 	ErrNoDriveContext      = errors.New("no drive context found; run `drive init` or go into one of the directories (sub directories) that you performed `drive init`")
 	ErrDerefNilIndex       = errors.New("cannot dereference a nil index")
+	ErrDerefNilDB          = errors.New("cannot dereference a nil db")
 	ErrEmptyFileIdForIndex = errors.New("fileId for index must be non-empty")
 	ErrNoSuchDbKey         = errors.New("no such db key exists")
 	ErrNoSuchDbBucket      = errors.New("no such bucket exists")
@@ -52,7 +53,6 @@ type Context struct {
 	ClientSecret string   `json:"client_secret"`
 	RefreshToken string   `json:"refresh_token"`
 	AbsPath      string   `json:"-"`
-	DB           *bolt.DB `json:"-"`
 }
 
 type Index struct {
@@ -111,9 +111,16 @@ func (c *Context) DeserializeIndex(key string) (*Index, error) {
 		return nil, creationErr
 	}
 
+    db, err := c.OpenDB()
+    if err != nil {
+        return nil, err
+    }
+
+    defer db.Close()
+
 	var data []byte
 
-	err := c.DB.View(func(tx *bolt.Tx) error {
+	err = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(byteify(IndicesKey))
 		if bucket == nil {
 			return ErrNoSuchDbBucket
@@ -143,12 +150,19 @@ func (c *Context) ListKeys(dir, bucketName string) (chan string, error) {
 		return keysChan, creationErr
 	}
 
+    db, err := c.OpenDB()
+    if err != nil {
+        close(keysChan)
+        return keysChan, err
+    }
+
 	go func() {
 		defer func() {
+            db.Close()
 			close(keysChan)
 		}()
 
-		c.DB.View(func(tx *bolt.Tx) error {
+		db.View(func(tx *bolt.Tx) error {
 			bucket := tx.Bucket(byteify(bucketName))
 			if bucket == nil {
 				return ErrNoSuchDbBucket
@@ -172,7 +186,13 @@ func (c *Context) PopIndicesKey(key string) error {
 }
 
 func (c *Context) popDbKey(bucketName, key string) error {
-	return c.DB.Update(func(tx *bolt.Tx) error {
+    db, err := c.OpenDB()
+    if err != nil {
+        return err
+    }
+    defer db.Close()
+
+    return db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
 		if err != nil {
 			return err
@@ -193,7 +213,13 @@ func (c *Context) RemoveIndex(index *Index, p string) error {
 		return ErrEmptyFileIdForIndex
 	}
 
-	return c.DB.Update(func(tx *bolt.Tx) error {
+    db, err := c.OpenDB()
+    if err != nil {
+        return err
+    }
+    defer db.Close()
+
+	return db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
 		if err != nil {
 			return err
@@ -206,7 +232,13 @@ func (c *Context) RemoveIndex(index *Index, p string) error {
 }
 
 func (c *Context) CreateIndicesBucket() error {
-	return c.DB.Update(func(tx *bolt.Tx) error {
+    db, err := c.OpenDB()
+    if err != nil {
+        return err
+    }
+    defer db.Close()
+
+	return db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
 		if err != nil {
 			return err
@@ -220,11 +252,19 @@ func (c *Context) CreateIndicesBucket() error {
 
 func (c *Context) SerializeIndex(index *Index) (err error) {
 	var data []byte
+    var db *bolt.DB
+
 	if data, err = json.Marshal(index); err != nil {
 		return
 	}
 
-	return c.DB.Update(func(tx *bolt.Tx) error {
+    db, err = c.OpenDB()
+    if err != nil {
+        return err
+    }
+    defer db.Close()
+
+	return db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
 		if err != nil {
 			return err
@@ -268,23 +308,19 @@ func (c *Context) DeInitialize(prompter func(...interface{}) bool, returnOnAnyEr
 	return nil
 }
 
-func (c *Context) OpenDB() error {
+func (c *Context) OpenDB() (db *bolt.DB, err error) {
 	dbPath := DbSuffixedPath(c.AbsPathOf(""))
-	db, err := bolt.Open(dbPath, O_RWForAll, nil)
-	if err != nil {
-		return err
-	}
+    db, err = bolt.Open(dbPath, O_RWForAll, nil)
 
-	c.DB = db
-	return nil
-}
+    if err != nil {
+        return db, err
+    }
 
-func (c *Context) CloseDB() error {
-	if c.DB == nil {
-		return errors.New("nil dereference of db")
-	}
+    if db == nil {
+        return db, ErrDerefNilDB
+    }
 
-	return c.DB.Close()
+	return db, nil
 }
 
 // Discovers the gd directory, if no gd directory or credentials
