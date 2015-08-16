@@ -232,6 +232,10 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, (*cmd.byId || *cmd.matches))
 
+    defaultOptions, err := drive.ResourceConfigurationToOptions(path)
+    exitWithError(err)
+    fmt.Println("defaultOptions", defaultOptions)
+
 	typeMask := 0
 	if *cmd.directories {
 		typeMask |= drive.Folder
@@ -265,6 +269,22 @@ func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	if *cmd.recursive {
 		depth = drive.InfiniteDepth
 	}
+
+	/*
+		options := drive.Options{
+			Depth:     depth,
+			Hidden:    *cmd.hidden,
+			InTrash:   *cmd.inTrash,
+			PageSize:  *cmd.pageSize,
+			Path:      path,
+			NoPrompt:  *cmd.noPrompt,
+			Recursive: *cmd.recursive,
+			Sources:   sources,
+			TypeMask:  typeMask,
+			Quiet:     *cmd.quiet,
+			Meta:      &meta,
+		}
+	*/
 
 	meta := map[string][]string{
 		drive.SortKey:         drive.NonEmptyTrimmedStrings(*cmd.sort),

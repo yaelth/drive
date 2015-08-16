@@ -28,7 +28,6 @@ const (
 	FeaturesKey   = "features"
 	HelpKey       = "help"
 	InitKey       = "init"
-	DeInitKey     = "deinit"
 	LinkKey       = "Link"
 	ListKey       = "list"
 	MoveKey       = "move"
