@@ -43,6 +43,16 @@ func bindCommandWithAliases(key, description string, cmd command.Cmd, requiredFl
 	}
 }
 
+func translateKeyChecks(definedFlags map[string]*flag.Flag) map[string]bool {
+	keysOnly := map[string]bool{}
+
+	for k, _ := range definedFlags {
+		keysOnly[k] = true
+	}
+
+	return keysOnly
+}
+
 func main() {
 	maxProcs, err := strconv.ParseInt(os.Getenv(drive.GoMaxProcsKey), 10, 0)
 	if err != nil || maxProcs < 1 {
@@ -108,10 +118,8 @@ func (cmd *featuresCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	opts, _ := drive.ResourceConfigurationToOptions(path)
 	// TODO: Log resource config errors if being verbose
 	if opts == nil {
-		opts = &drive.Options{}
+		opts = &drive.Options{Path: path}
 	}
-
-	opts.Path = path
 
 	exitWithError(drive.New(context, opts).About(drive.AboutFeatures))
 }
@@ -232,9 +240,9 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, (*cmd.byId || *cmd.matches))
 
-    defaultOptions, err := drive.ResourceConfigurationToOptions(path)
-    exitWithError(err)
-    fmt.Println("defaultOptions", defaultOptions)
+	defaultOptions, err := drive.ResourceConfigurationToOptions(path)
+	exitWithError(err)
+	fmt.Println("defaultOptions", defaultOptions)
 
 	typeMask := 0
 	if *cmd.directories {
@@ -343,6 +351,13 @@ func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 
 	opts.Sources = sources
 	opts.TypeMask = typeMask
+
+	keysOnly := translateKeyChecks(definedFlags)
+	defaultOpts, err := drive.ResourceConfigurationToOptions(path)
+
+	if err == nil && defaultOpts != nil {
+		drive.CopyOptionsFromKeysIfNotSet(defaultOpts, opts, keysOnly)
+	}
 
 	if *cmd.shared {
 		exitWithError(drive.New(context, opts).ListShared())
@@ -661,13 +676,20 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	fmt.Println("definedFlags", definedFlags)
 	if *cmd.mountedPush {
-		cmd.pushMounted(args)
+		cmd.pushMounted(args, definedFlags)
 	} else {
 		sources, context, path := preprocessArgs(args)
 
 		options := cmd.createPushOptions()
 		options.Path = path
 		options.Sources = sources
+
+		keysOnly := translateKeyChecks(definedFlags)
+		defaultOpts, err := drive.ResourceConfigurationToOptions(path)
+
+		if err == nil && defaultOpts != nil {
+			drive.CopyOptionsFromKeysIfNotSet(defaultOpts, options, keysOnly)
+		}
 
 		if *cmd.piped {
 			exitWithError(drive.New(context, options).PushPiped())
@@ -750,7 +772,7 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 	}
 }
 
-func (cmd *pushCmd) pushMounted(args []string) {
+func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Flag) {
 	argc := len(args)
 
 	var contextArgs, rest, sources []string
@@ -791,6 +813,13 @@ func (cmd *pushCmd) pushMounted(args []string) {
 	options := cmd.createPushOptions()
 	options.Mount = mount
 	options.Sources = sources
+
+	keysOnly := translateKeyChecks(definedFlags)
+	defaultOpts, err := drive.ResourceConfigurationToOptions(path)
+
+	if err == nil && defaultOpts != nil {
+		drive.CopyOptionsFromKeysIfNotSet(defaultOpts, options, keysOnly)
+	}
 
 	exitWithError(drive.New(context, options).Push())
 }

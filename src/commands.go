@@ -46,7 +46,7 @@ type Options struct {
 	Exports []string `cli:"exports"`
 	// ExportsDir is the directory to put the exported Google Docs + Sheets.
 	// If not provided, will export them to the same dir as the source files are
-	ExportsDir string `cli:"exportsDir"`
+	ExportsDir string `cli:"exports-dir"`
 	// Force once set always converts NoChange into an Addition
 	Force bool `cli:"force"`
 	// Hidden discovers hidden paths if set
@@ -56,15 +56,15 @@ type Options struct {
 	// of comparing checksums as a final check.
 	IgnoreChecksum bool `cli:"ignore"`
 	// IgnoreConflict when set turns off the conflict resolution safety.
-	IgnoreConflict bool `cli:"ignoreConflict"`
+	IgnoreConflict bool `cli:"ignore-conflict"`
 	// Allows listing of content in trash
-	InTrash bool `cli:"inTrash"`
+	InTrash bool `cli:"in-trash"`
 	Meta    *map[string][]string
 	Mount   *config.Mount
 	// NoClobber when set prevents overwriting of stale content
-	NoClobber bool `cli:"noClobber"`
+	NoClobber bool `cli:"no-clobber"`
 	// NoPrompt overwrites any prompt pauses
-	NoPrompt bool `cli:"noPrompt"`
+	NoPrompt bool `cli:"no-prompt"`
 	Path     string
 	// PageSize determines the number of results returned per API call
 	PageSize  int64 `cli:"pagesize"`

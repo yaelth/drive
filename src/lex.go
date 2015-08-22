@@ -16,6 +16,7 @@ package drive
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -176,4 +177,31 @@ func intfer(varname, value string, optSave *Options) error {
 		*ptr = int(retr64)
 	}
 	return nil
+}
+
+func CopyOptionsFromKeysIfNotSet(fromPtr, toPtr *Options, alreadySetKeys map[string]bool) {
+	from := *fromPtr
+	fromValue := reflect.ValueOf(from)
+	toValue := reflect.ValueOf(toPtr).Elem()
+
+	fromType := reflect.TypeOf(from)
+
+	for i, n := 0, fromType.NumField(); i < n; i++ {
+		fromFieldT := fromType.Field(i)
+		fromTag := fromFieldT.Tag.Get("cli")
+
+		_, alreadySet := alreadySetKeys[fromTag]
+		if alreadySet {
+			continue
+		}
+
+		fromFieldV := fromValue.Field(i)
+		toFieldV := toValue.Field(i)
+
+		if !toFieldV.CanSet() {
+			continue
+		}
+
+		toFieldV.Set(fromFieldV)
+	}
 }

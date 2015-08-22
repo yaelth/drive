@@ -23,6 +23,7 @@ const (
 	AllKey        = "all"
 	CopyKey       = "copy"
 	DeleteKey     = "delete"
+	DeInitKey     = "deinit"
 	DiffKey       = "diff"
 	EmptyTrashKey = "emptytrash"
 	FeaturesKey   = "features"
