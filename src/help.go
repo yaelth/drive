@@ -82,6 +82,7 @@ const (
 	FolderKey             = "folder"
 	MimeKey               = "mime-key"
 	DriveRepoRelPath      = "github.com/odeke-em/drive"
+	UrlKey                = "url"
 )
 
 const (
@@ -132,6 +133,7 @@ const (
 	DescNotOwner           = "ignore elements owned by these users"
 	DescNew                = "create a new file/folder"
 	DescAllIndexOperations = "perform all the index related operations"
+	DescUrl                = "returns the url of each file"
 	DescVerbose            = "show step by step information verbosely"
 )
 

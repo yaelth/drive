@@ -78,6 +78,7 @@ func main() {
 	bindCommandWithAliases(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
 	bindCommandWithAliases(drive.NewKey, drive.DescNew, &newCmd{}, []string{})
 	bindCommandWithAliases(drive.IndexKey, drive.DescIndex, &indexCmd{}, []string{})
+	bindCommandWithAliases(drive.UrlKey, drive.DescUrl, &urlCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -160,6 +161,26 @@ func (cmd *quotaCmd) Run(args []string) {
 	exitWithError(drive.New(context, &drive.Options{
 		Path: path,
 	}).About(drive.AboutQuota))
+}
+
+type urlCmd struct {
+	byId *bool
+}
+
+func (cmd *urlCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "resolve url by id instead of path")
+	return fs
+}
+
+func (cmd *urlCmd) Run(args []string) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+
+	opts := drive.Options{
+		Path:    path,
+		Sources: sources,
+	}
+
+	exitWithError(drive.New(context, &opts).Url(*cmd.byId))
 }
 
 type listCmd struct {

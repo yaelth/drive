@@ -41,6 +41,7 @@
   - [DesktopEntry](#desktopentry)
   - [Command Aliases](#command-aliases)
   - [Index Prune](#index-prune)
+  - [Url](#url)
 - [Revoking Account Access](#revoking-account-access)
 - [Uninstalling](#uninstalling)
 - [Applying patches](#applying-patches)
@@ -775,6 +776,14 @@ To combine both operations (prune and then fetch) for indices:
 $ drive index --all-ops
 ```
 
+## Url
+
+The url command prints out the url of a file. It allows you to specify multiple paths relative to root or even by id
+
+```shell
+$ drive url Photos/2015/07/Releases intros/flux
+$ drive url --id  0Bz5qQkvRAeVEV0JtZl4zVUZFWWx  1Pwu8lzYc9RTPTEpwYjhRMnlSbDQ 0Cz5qUrvDBeX4RUFFbFZ5UXhKZm8
+```
 
 ### Revoking Account Access
 
