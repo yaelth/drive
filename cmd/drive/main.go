@@ -79,6 +79,7 @@ func main() {
 	bindCommandWithAliases(drive.NewKey, drive.DescNew, &newCmd{}, []string{})
 	bindCommandWithAliases(drive.IndexKey, drive.DescIndex, &indexCmd{}, []string{})
 	bindCommandWithAliases(drive.UrlKey, drive.DescUrl, &urlCmd{}, []string{})
+	bindCommandWithAliases(drive.OpenKey, drive.DescOpen, &openCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -161,6 +162,42 @@ func (cmd *quotaCmd) Run(args []string) {
 	exitWithError(drive.New(context, &drive.Options{
 		Path: path,
 	}).About(drive.AboutQuota))
+}
+
+type openCmd struct {
+	byId    *bool
+	local   *bool
+	browser *bool
+}
+
+func (cmd *openCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "open by id instead of path")
+	cmd.local = fs.Bool(drive.CLIOptionFileBrowser, true, "open file with the local file manager")
+	cmd.browser = fs.Bool(drive.CLIOptionWebBrowser, true, "open file in default browser")
+	return fs
+}
+
+func (cmd *openCmd) Run(args []string) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+
+	opts := drive.Options{
+		Path:    path,
+		Sources: sources,
+	}
+
+	openType := drive.OpenNone
+
+	if *cmd.byId {
+		openType |= drive.IdOpen
+	}
+	if *cmd.browser {
+		openType |= drive.BrowserOpen
+	}
+	if *cmd.local {
+		openType |= drive.FileManagerOpen
+	}
+
+	exitWithError(drive.New(context, &opts).Open(openType))
 }
 
 type urlCmd struct {

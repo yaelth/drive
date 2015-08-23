@@ -14,43 +14,51 @@
 
 package drive
 
-func (g *Commands) Url(byId bool) error {
+import (
+	"github.com/skratchdot/open-golang/open"
+)
+
+type OpenType uint
+
+const (
+	OpenNone OpenType = 1 << iota
+	FileManagerOpen
+	BrowserOpen
+	IdOpen
+)
+
+type opener func(string) error
+
+func (g *Commands) Open(ot OpenType) error {
+	byId := (ot & IdOpen) != 0
 	kvChan := g.urler(byId)
 
 	for kv := range kvChan {
 		switch kv.value.(type) {
 		case error:
 			g.log.LogErrf("%s: %s\n", kv.key, kv.value)
-		default:
-			g.log.Logf("%s: %s\n", kv.key, kv.value)
+			continue
+		}
+
+		openArgs := []string{}
+		canAddUrl := (ot & BrowserOpen) != 0
+
+		if byId {
+			canAddUrl = true
+		} else if (ot & FileManagerOpen) != 0 {
+			openArgs = append(openArgs, g.context.AbsPathOf(kv.key))
+		}
+
+		if canAddUrl {
+			if castKey, ok := kv.value.(string); ok {
+				openArgs = append(openArgs, castKey)
+			}
+		}
+
+		for _, arg := range openArgs {
+			open.Start(arg)
 		}
 	}
 
 	return nil
-}
-
-func (g *Commands) urler(byId bool) (kvChan chan *keyValue) {
-	resolver := g.rem.FindByPath
-	if byId {
-		resolver = g.rem.FindById
-	}
-
-	kvChan = make(chan *keyValue)
-
-	go func() {
-		defer close(kvChan)
-
-		for _, source := range g.opts.Sources {
-			f, err := resolver(source)
-
-			kv := keyValue{key: source, value: err}
-			if err == nil {
-				kv.value = f.Url()
-			}
-
-			kvChan <- &kv
-		}
-	}()
-
-	return kvChan
 }

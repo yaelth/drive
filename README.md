@@ -785,6 +785,15 @@ $ drive url Photos/2015/07/Releases intros/flux
 $ drive url --id  0Bz5qQkvRAeVEV0JtZl4zVUZFWWx  1Pwu8lzYc9RTPTEpwYjhRMnlSbDQ 0Cz5qUrvDBeX4RUFFbFZ5UXhKZm8
 ```
 
+## Open
+
+The open command allows for files to be opened by the default file browser, default web browser, either by path or by id for paths that exist atleast remotely
+
+```shell
+$ drive open --file-browser=false --web-browser f1/f2/f3 jamaican.mp4
+$ drive open --file-browser --id 0Bz8qQkpZAeV9T1PObvs2Y3BMQEj 0Y9jtQkpXAeV9M1PObvs4Y3BNRFk
+```
+
 ### Revoking Account Access
 
 To revoke OAuth Access of drive to your account, when logged in with your Google account, go to https://security.google.com/settings/security/permissions and revoke the desired permissions
