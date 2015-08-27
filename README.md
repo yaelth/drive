@@ -128,7 +128,7 @@ Optionally set the `GOOGLE_API_CLIENT_ID` and `GOOGLE_API_CLIENT_SECRET` environ
 
 ### Initializing
 
-Before you can use `drive`, you need to mount your Google Drive directory on your local file system:
+Before you can use `drive`, you'll need to mount your Google Drive directory on your local file system:
 
 ```shell
 $ drive init ~/gdrive
@@ -143,12 +143,12 @@ The opposite of `drive init`, it will remove your credentials locally as well as
 $ drive deinit [--no-prompt]
 ```
 
-For a complete de-initializing don't forget to revoke account access, [please see revoking account access](#revoking-account-access)
+For a complete deinit-ialization, don't forget to revoke account access, [please see revoking account access](#revoking-account-access)
 
 
 ### Pulling
 
-The `pull` command downloads data from Google Drive that does not exist locally, and deletes local data that is not present on Google Drive. 
+The `pull` command downloads data that does not exist locally but does remotely on Google drive, and may delete local data that is not present on Google Drive. 
 Run it without any arguments to pull all of the files from the current path:
 
 ```shell
@@ -213,7 +213,7 @@ To explicitly export instead of using `--force`
 $ drive pull --export pdf,rtf,docx,txt --explicitly-export
 ```
 
-By default, the exported files will be placed in a new directory suffixed by `_exports` in the same path. To export the files to a different directory, use the `-export-dir` option:
+By default, the exported files will be placed in a new directory suffixed by `\_exports` in the same path. To export the files to a different directory, use the `-export-dir` option:
 
 ```shell
 $ drive pull -export pdf,rtf,docx,txt -export-dir ~/Desktop/exports
@@ -462,7 +462,7 @@ $ drive untrash --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 
 ### Emptying the Trash
 
-Emptying the trash will permanently delete all trashed files. They will be unrecoverable using `untrash` after running this command.
+Emptying the trash will permanently delete all trashed files. Caution: They cannot be recovered after running this command.
 
 ```shell
 $ drive emptytrash
@@ -489,9 +489,9 @@ $ drive delete --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 
 ### Listing Files
 
-The `list` command shows a paginated list of paths on the cloud.
+The `list` command shows a paginated list of files present remotely.
 
-Run it without arguments to list all files in the current directory:
+Run it without arguments to list all files in the current directory's remote equivalent:
 
 ```shell
 $ drive list
@@ -708,7 +708,7 @@ $ drive move photos/2015 angles library archives/storage
 + Also supports moving by fileId
 
 ```shell
-$ drive rename 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U ../../new_location
+$ drive move --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U ../../new_location
 ```
 
 
@@ -742,6 +742,7 @@ desire the ability to have \*.desktop files that enable the file to be opened ap
 + cp : copy
 + ls : list 
 + mv : move
++ rm : delete
 
 
 ## Index Prune
@@ -824,28 +825,28 @@ $ go get github.com/odeke-em/drive/cmd/drive
 
 ## Why another Google Drive client?
 
-Background sync is not just hard, it is stupid. My technical and philosophical rants about why it is not worth to implement:
+Background sync is not just hard, it is stupid. Here are my technical and philosophical rants about why it is not worth to implement:
 
-* Too racy. Data has been shared between your remote resource, local disk and sometimes in your sync daemon's in-memory struct. Any party could touch a file any time, hard to lock these actions. You end up working with multiple isolated copies of the same file and trying to determine which is the latest version and should be synced across different contexts.
+* Too racy. Data is shared between your remote resource, local disk and sometimes in your sync daemon's in-memory structs. Any party could touch a file at any time. It is hard to lock these actions. You end up working with multiple isolated copies of the same file and trying to determine which is the latest version that should be synced across different contexts.
 
-* It requires great scheduling to perform best with your existing environmental constraints. On the other hand, file attributes has an impact on the sync strategy. Large files are blocking, you wouldn't like to sit on and wait for a VM image to get synced before you start to work on a tiny text file.
+* It requires great scheduling to perform best with your existing environmental constraints. On the other hand, file attribute have an impact on the sync strategy. Large files block -- you wouldn't like to sit on and wait for a VM image to get synced before you can start working on a tiny text file.
 
-* It needs to read your mind to understand your priorities. Which file you need most? It needs to read your mind to foresee your future actions. I'm editing a file, and saving the changes time to time. Why not to wait until I feel confident enough to commit the changes to the remote resource?
+* It needs to read your mind to understand your priorities. Which file do you need most? It needs to read your mind to foresee your future actions. I'm editing a file, and saving the changes time to time. Why not to wait until I feel confident enough to commit the changes remotely?
 
 `drive` is not a sync daemon, it provides:
 
-* Upstreaming and downstreaming. Unlike a sync command, we provide pull and push actions. User has opportunity to decide what to do with their local copy and when. Do some changes, either push it to remote or revert it to the remote version. Perform these actions with user prompt.
+* Upstreaming and downstreaming. Unlike a sync command, we provide pull and push actions. The user has the opportunity to decide what to do with their local copy and when they decide to. Make some changes, either push the file remotely or revert it to the remote version. You can perform these actions with user prompt:
 
 	    $ echo "hello" > hello.txt
 	    $ drive push # pushes hello.txt to Google Drive
 	    $ echo "more text" >> hello.txt
 	    $ drive pull # overwrites the local changes with the remote version
 
-* Allowing to work with a specific file or directory, optionally not recursively. If you recently uploaded a large VM image to Google Drive, yet  only a few text files are required for you to work, simply only push/pull the file you want to work with.
+* Allowing to work with a specific file or directory, optionally not recursively. If you recently uploaded a large VM image to Google Drive, yet only a few text files are required for you to work, simply only push/pull the exact files you'd like to worth with:
 
 	    $ echo "hello" > hello.txt
 	    $ drive push hello.txt # pushes only the specified file
-	    $ drive pull path/to/a/b # pulls the remote directory recursively
+	    $ drive pull path/to/a/b path2/to/c/d/e # pulls the remote directory recursively
 
 * Better I/O scheduling. One of the major goals is to provide better scheduling to improve upload/download times.
 
@@ -853,11 +854,11 @@ Background sync is not just hard, it is stupid. My technical and philosophical r
 
 ## Known issues
 
-* Probably, it doesn't work on Windows.
+* It probably doesn't work on Windows.
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
 * Racing conditions occur if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
 * drive rejects reading from namedPipes because they could infinitely hang. See [issue #208](https://github.com/odeke-em/drive/issues/208).
-* If you have less than 1GB memory on your device see [Precautions for building on devices with less than 1GB RAM](https://github.com/odeke-em/drive/wiki/Precautions-for-building-on-devices-with-less-than-1GB-RAM).
+
 
 ## Reach out
 
