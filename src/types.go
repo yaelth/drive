@@ -185,6 +185,22 @@ func fauxLocalFile(relToRootPath string) *File {
 	}
 }
 
+func (f *File) Url() (url string) {
+	if f == nil {
+		return
+	}
+
+	if hasExportLinks(f) {
+		return f.AlternateLink
+	}
+
+	if f.Id != "" {
+		url = fmt.Sprintf("%s/open?id=%s", DriveResourceEntryURL, f.Id)
+	}
+
+	return
+}
+
 func (f *File) localAliases(prefix string) (aliases []string) {
 	aliases = append(aliases, prefix)
 

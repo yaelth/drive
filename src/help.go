@@ -75,6 +75,7 @@ const (
 	NoPromptKey           = "no-prompt"
 	SizeKey               = "size"
 	NameKey               = "name"
+	OpenKey               = "open"
 	OriginalNameKey       = "oname"
 	ModTimeKey            = "modt"
 	LastViewedByMeTimeKey = "lvt"
@@ -92,6 +93,7 @@ const (
 	MimeKey               = "mime-key"
 	PageSizeKey           = "page-size"
 	DriveRepoRelPath      = "github.com/odeke-em/drive"
+	UrlKey                = "url"
 )
 
 const (
@@ -142,6 +144,8 @@ const (
 	DescNotOwner           = "ignore elements owned by these users"
 	DescNew                = "create a new file/folder"
 	DescAllIndexOperations = "perform all the index related operations"
+	DescOpen               = "open a file in the appropriate filemanager or default browser"
+	DescUrl                = "returns the url of each file"
 	DescVerbose            = "show step by step information verbosely"
 )
 
@@ -165,6 +169,9 @@ const (
 	CLIOptionAllIndexOperations = "all-ops"
 	CLIOptionVerboseKey         = "verbose"
 	CLIOptionVerboseShortKey    = "v"
+	CLIOptionOpen               = "open"
+	CLIOptionWebBrowser         = "web-browser"
+	CLIOptionFileBrowser        = "file-browser"
 )
 
 const (

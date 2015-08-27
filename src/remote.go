@@ -48,6 +48,9 @@ const (
 
 	// Google Drive webpage host
 	DriveResourceHostURL = "https://googledrive.com/host/"
+
+	// Google Drive entry point
+	DriveResourceEntryURL = "https://drive.google.com"
 )
 
 const (
