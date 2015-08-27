@@ -195,7 +195,7 @@ func (f *File) Url() (url string) {
 	}
 
 	if f.Id != "" {
-		url = DriveResourceHostURL + f.Id
+		url = fmt.Sprintf("%s/open?id=%s", DriveResourceEntryURL, f.Id)
 	}
 
 	return
