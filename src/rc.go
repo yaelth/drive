@@ -130,7 +130,9 @@ func rcMapToOptions(rcMap map[string]string) (*Options, error) {
 		{
 			key: RecursiveKey, resolver: boolfer,
 		},
-
+		{
+			key: PageSizeKey, resolver: intfer,
+		},
 		{
 			key: DepthKey, resolver: intfer,
 		},

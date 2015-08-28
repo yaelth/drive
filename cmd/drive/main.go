@@ -199,7 +199,7 @@ func (cmd *openCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *openCmd) Run(args []string) {
+func (cmd *openCmd) Run(args []string, definedArgs map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
 	opts := drive.Options{
@@ -231,7 +231,7 @@ func (cmd *urlCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *urlCmd) Run(args []string) {
+func (cmd *urlCmd) Run(args []string, definedArgs map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
 	opts := drive.Options{
@@ -243,29 +243,29 @@ func (cmd *urlCmd) Run(args []string) {
 }
 
 type listCmd struct {
-	byId         *bool
-	hidden       *bool
-	pageCount    *int
-	recursive    *bool
-	files        *bool
-	directories  *bool
-	depth        *int
-	pageSize     *int64
-	longFmt      *bool
-	noPrompt     *bool
-	shared       *bool
-	inTrash      *bool
-	version      *bool
-	matches      *bool
-	owners       *bool
-	quiet        *bool
-	skipMimeKey  *string
-	matchMimeKey *string
+	byId         *bool   `cli:"by-id"`
+	hidden       *bool   `cli:"hidden"`
+	pageCount    *int    `cli:"page-count"`
+	recursive    *bool   `cli:"recursive"`
+	files        *bool   `cli:"files"`
+	directories  *bool   `cli:"directories"`
+	depth        *int    `cli:"depth"`
+	pageSize     *int64  `cli:"page-size"`
+	longFmt      *bool   `cli:"long"`
+	noPrompt     *bool   `cli:"no-prompt"`
+	shared       *bool   `cli:"shared"`
+	inTrash      *bool   `cli:"in-trash"`
+	version      *bool   `cli:"version"`
+	matches      *bool   `cli:"matches"`
+	owners       *bool   `cli:"owners"`
+	quiet        *bool   `cli:"quiet"`
+	skipMimeKey  *string `cli:"skip-mime"`
+	matchMimeKey *string `cli:"match-mime"`
 	exactTitle   *string
 	matchOwner   *string
 	exactOwner   *string
 	notOwner     *string
-	sort         *string
+	sort         *string `cli:"sort"`
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -274,7 +274,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.files = fs.Bool("f", false, "list only files")
 	cmd.directories = fs.Bool("d", false, "list all directories")
 	cmd.longFmt = fs.Bool("l", false, "long listing of contents")
-	cmd.pageSize = fs.Int64("p", 100, "number of results per pagination")
+	cmd.pageSize = fs.Int64(drive.PageSizeKey, 100, "number of results per pagination")
 	cmd.shared = fs.Bool("shared", false, "show files that are shared with me")
 	cmd.inTrash = fs.Bool(drive.TrashedKey, false, "list content in the trash")
 	cmd.version = fs.Bool("version", false, "show the number of times that the file has been modified on \n\t\tthe server even with changes not visible to the user")

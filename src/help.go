@@ -91,7 +91,7 @@ const (
 	SortKey               = "sort"
 	FolderKey             = "folder"
 	MimeKey               = "mime-key"
-	PageSizeKey           = "page-size"
+	PageSizeKey           = "pagesize"
 	DriveRepoRelPath      = "github.com/odeke-em/drive"
 	UrlKey                = "url"
 )
