@@ -610,6 +610,9 @@ Sample usage:
 $ drive new --folder flux
 $ drive new --mime-key doc bofx
 $ drive new --mime-key folder content
+$ drive new --mime-key presentation ProjectsPresentation
+$ drive new --mime-key sheet Hours2015Sept
+$ drive new --mime-key form taxForm2016 taxFormCounty
 $ drive new flux.txt oxen.pdf # Allow auto type resolution from the extension
 ```
 
