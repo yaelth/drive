@@ -334,7 +334,7 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 			found = true
 			break
 		}
-		newPath := path.Join(p, "..")
+		newPath := filepath.Join(p, "..")
 		if p == newPath {
 			break
 		}
