@@ -16,6 +16,7 @@ package drive
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -618,4 +619,25 @@ func newExpirableCacheValueWithOffset(v interface{}, offset time.Duration) *expi
 
 var newExpirableCacheValue = func(v interface{}) *expirableCacheValue {
 	return newExpirableCacheValueWithOffset(v, time.Hour)
+}
+
+func reComposeError(prevErr error, messages ...string) error {
+	if len(messages) < 1 {
+		return prevErr
+	}
+
+	joinedMessage := messages[0]
+	for i, n := 1, len(messages); i < n; i++ {
+		joinedMessage = fmt.Sprintf("%s\n%s", joinedMessage, messages[i])
+	}
+
+	if prevErr == nil {
+		if len(joinedMessage) < 1 {
+			return nil
+		}
+	} else {
+		joinedMessage = fmt.Sprintf("%v\n%s", prevErr, joinedMessage)
+	}
+
+	return errors.New(joinedMessage)
 }
