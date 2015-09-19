@@ -16,6 +16,7 @@ package drive
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -413,7 +414,7 @@ func NonEmptyTrimmedStrings(v ...string) (splits []string) {
 }
 
 var regExtStrMap = map[string]string{
-	"csv":   "text/csv",
+	"csv":   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 	"html?": "text/html",
 	"te?xt": "text/plain",
 	"xml":   "text/xml",
@@ -452,7 +453,8 @@ var regExtStrMap = map[string]string{
 	"mp3": "audio/mpeg",
 
 	"docx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	"pptx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.presentation",
+	"pptx?": "application/vnd.ms-powerpoint",
+	"tsv":   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 	"xlsx?": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
@@ -509,13 +511,13 @@ func anyMatch(pat *regexp.Regexp, args ...string) bool {
 }
 
 var mimeTypeFromQuery = cacher(regMapper(regExtStrMap, map[string]string{
-	"docs":         "application/vnd.google-apps.document",
-	"folder":       DriveFolderMimeType,
-	"form":         "application/vnd.google-apps.form",
-	"mp4":          "video/mp4",
-	"presentation": "application/vnd.google-apps.presentation",
-	"sheet":        "application/vnd.google-apps.spreadsheet",
-	"script":       "application/vnd.google-apps.script",
+	"docs":   "application/vnd.google-apps.document",
+	"folder": DriveFolderMimeType,
+	"form":   "application/vnd.google-apps.form",
+	"mp4":    "video/mp4",
+	"slides?|presentation": "application/vnd.google-apps.presentation",
+	"sheet":                "application/vnd.google-apps.spreadsheet",
+	"script":               "application/vnd.google-apps.script",
 }))
 
 var mimeTypeFromExt = cacher(regMapper(regExtStrMap))
@@ -617,4 +619,25 @@ func newExpirableCacheValueWithOffset(v interface{}, offset time.Duration) *expi
 
 var newExpirableCacheValue = func(v interface{}) *expirableCacheValue {
 	return newExpirableCacheValueWithOffset(v, time.Hour)
+}
+
+func reComposeError(prevErr error, messages ...string) error {
+	if len(messages) < 1 {
+		return prevErr
+	}
+
+	joinedMessage := messages[0]
+	for i, n := 1, len(messages); i < n; i++ {
+		joinedMessage = fmt.Sprintf("%s\n%s", joinedMessage, messages[i])
+	}
+
+	if prevErr == nil {
+		if len(joinedMessage) < 1 {
+			return nil
+		}
+	} else {
+		joinedMessage = fmt.Sprintf("%v\n%s", prevErr, joinedMessage)
+	}
+
+	return errors.New(joinedMessage)
 }

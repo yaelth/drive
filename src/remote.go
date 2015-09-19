@@ -386,7 +386,7 @@ func (r *Remote) Touch(id string) (*File, error) {
 func toUTCString(t time.Time) string {
 	utc := t.UTC().Round(time.Second)
 	// Ugly but straight forward formatting as time.Parse is such a prima donna
-	return fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%0d.000Z",
+	return fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d.000Z",
 		utc.Year(), utc.Month(), utc.Day(),
 		utc.Hour(), utc.Minute(), utc.Second())
 }
