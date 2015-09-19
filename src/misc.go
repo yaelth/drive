@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -640,4 +641,73 @@ func reComposeError(prevErr error, messages ...string) error {
 	}
 
 	return errors.New(joinedMessage)
+}
+
+func CopyOptionsFromKeysIfNotSet(fromPtr, toPtr *Options, alreadySetKeys map[string]bool) {
+	from := *fromPtr
+	fromValue := reflect.ValueOf(from)
+	toValue := reflect.ValueOf(toPtr).Elem()
+
+	fromType := reflect.TypeOf(from)
+
+	for i, n := 0, fromType.NumField(); i < n; i++ {
+		fromFieldT := fromType.Field(i)
+		fromTag := fromFieldT.Tag.Get("cli")
+
+		_, alreadySet := alreadySetKeys[fromTag]
+		if alreadySet {
+			continue
+		}
+
+		fromFieldV := fromValue.Field(i)
+		toFieldV := toValue.Field(i)
+
+		if !toFieldV.CanSet() {
+			continue
+		}
+
+		toFieldV.Set(fromFieldV)
+	}
+}
+
+type CliSifter struct {
+	From, To       interface{}
+	Defaults       map[string]interface{}
+	AlreadyDefined map[string]bool
+}
+
+func SiftCliTags(cs *CliSifter) (passes map[string]interface{}) {
+	from := cs.From
+	to := cs.To
+	defaults := cs.Defaults
+
+	passes = make(map[string]interface{})
+
+	fromValue := reflect.ValueOf(from)
+	fromType := reflect.TypeOf(from)
+	toValue := reflect.ValueOf(to)
+
+	for i, n := 0, fromType.NumField(); i < n; i++ {
+		fromFieldT := fromType.Field(i)
+		fromTag := fromFieldT.Tag.Get("cli")
+
+		if fromTag == "" {
+			continue
+		}
+
+		if _, defaultSet := defaults[fromTag]; defaultSet {
+			continue
+		}
+
+		toFieldV := toValue.Field(i)
+		if !toFieldV.CanSet() {
+			fmt.Println("not able to set", fromTag, toFieldV, fromValue.Field(i).CanSet())
+			continue
+		}
+
+		fromFieldV := fromValue.Field(i)
+		toFieldV.Set(fromFieldV)
+	}
+
+	return passes
 }

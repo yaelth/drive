@@ -232,6 +232,7 @@ func (cmd *urlCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *urlCmd) Run(args []string, definedArgs map[string]*flag.Flag) {
+	fmt.Println(definedArgs)
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
 	opts := drive.Options{
@@ -243,85 +244,103 @@ func (cmd *urlCmd) Run(args []string, definedArgs map[string]*flag.Flag) {
 }
 
 type listCmd struct {
-	byId         *bool   `cli:"by-id"`
-	hidden       *bool   `cli:"hidden"`
-	pageCount    *int    `cli:"page-count"`
-	recursive    *bool   `cli:"recursive"`
-	files        *bool   `cli:"files"`
-	directories  *bool   `cli:"directories"`
-	depth        *int    `cli:"depth"`
-	pageSize     *int64  `cli:"page-size"`
-	longFmt      *bool   `cli:"long"`
-	noPrompt     *bool   `cli:"no-prompt"`
-	shared       *bool   `cli:"shared"`
-	inTrash      *bool   `cli:"in-trash"`
-	version      *bool   `cli:"version"`
-	matches      *bool   `cli:"matches"`
-	owners       *bool   `cli:"owners"`
-	quiet        *bool   `cli:"quiet"`
-	skipMimeKey  *string `cli:"skip-mime"`
-	matchMimeKey *string `cli:"match-mime"`
-	exactTitle   *string
-	matchOwner   *string
-	exactOwner   *string
-	notOwner     *string
-	sort         *string `cli:"sort"`
+	ById         *bool   `cli:"by-id"`
+	Hidden       *bool   `cli:"hidden"`
+	PageCount    *int    `cli:"page-count"`
+	Recursive    *bool   `cli:"recursive"`
+	Files        *bool   `cli:"files"`
+	Directories  *bool   `cli:"directories"`
+	Depth        *int    `cli:"depth"`
+	PageSize     *int64  `cli:"page-size"`
+	LongFmt      *bool   `cli:"long"`
+	NoPrompt     *bool   `cli:"no-prompt"`
+	Shared       *bool   `cli:"shared"`
+	InTrash      *bool   `cli:"in-trash"`
+	Version      *bool   `cli:"version"`
+	Matches      *bool   `cli:"matches"`
+	Owners       *bool   `cli:"owners"`
+	Quiet        *bool   `cli:"quiet"`
+	SkipMimeKey  *string `cli:"skip-mime"`
+	MatchMimeKey *string `cli:"match-mime"`
+	ExactTitle   *string
+	MatchOwner   *string
+	ExactOwner   *string
+	NotOwner     *string
+	Sort         *string `cli:"sort"`
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
-	cmd.hidden = fs.Bool(drive.HiddenKey, false, "list all paths even hidden ones")
-	cmd.files = fs.Bool("f", false, "list only files")
-	cmd.directories = fs.Bool("d", false, "list all directories")
-	cmd.longFmt = fs.Bool("l", false, "long listing of contents")
-	cmd.pageSize = fs.Int64(drive.PageSizeKey, 100, "number of results per pagination")
-	cmd.shared = fs.Bool("shared", false, "show files that are shared with me")
-	cmd.inTrash = fs.Bool(drive.TrashedKey, false, "list content in the trash")
-	cmd.version = fs.Bool("version", false, "show the number of times that the file has been modified on \n\t\tthe server even with changes not visible to the user")
-	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before pagination")
-	cmd.owners = fs.Bool("owners", false, "shows the owner names per file")
-	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
-	cmd.sort = fs.String(drive.SortKey, "", drive.DescSort)
-	cmd.matches = fs.Bool(drive.MatchesKey, false, "list by prefix")
-	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
-	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
-	cmd.matchMimeKey = fs.String(drive.CLIOptionMatchMime, "", drive.DescMatchMime)
-	cmd.exactTitle = fs.String(drive.CLIOptionExactTitle, "", drive.DescExactTitle)
-	cmd.matchOwner = fs.String(drive.CLIOptionMatchOwner, "", drive.DescMatchOwner)
-	cmd.exactOwner = fs.String(drive.CLIOptionExactOwner, "", drive.DescExactOwner)
-	cmd.notOwner = fs.String(drive.CLIOptionNotOwner, "", drive.DescNotOwner)
-	cmd.byId = fs.Bool(drive.CLIOptionId, false, "list by id instead of path")
+	cmd.Depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
+	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "list all paths even hidden ones")
+	cmd.Files = fs.Bool("f", false, "list only files")
+	cmd.Directories = fs.Bool("d", false, "list all directories")
+	cmd.LongFmt = fs.Bool("l", false, "long listing of contents")
+	cmd.PageSize = fs.Int64(drive.PageSizeKey, 100, "number of results per pagination")
+	cmd.Shared = fs.Bool("shared", false, "show files that are shared with me")
+	cmd.InTrash = fs.Bool(drive.TrashedKey, false, "list content in the trash")
+	cmd.Version = fs.Bool("version", false, "show the number of times that the file has been modified on \n\t\tthe server even with changes not visible to the user")
+	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before pagination")
+	cmd.Owners = fs.Bool("owners", false, "shows the owner names per file")
+	cmd.Recursive = fs.Bool("r", false, "recursively list subdirectories")
+	cmd.Sort = fs.String(drive.SortKey, "", drive.DescSort)
+	cmd.Matches = fs.Bool(drive.MatchesKey, false, "list by prefix")
+	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.SkipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
+	cmd.MatchMimeKey = fs.String(drive.CLIOptionMatchMime, "", drive.DescMatchMime)
+	cmd.ExactTitle = fs.String(drive.CLIOptionExactTitle, "", drive.DescExactTitle)
+	cmd.MatchOwner = fs.String(drive.CLIOptionMatchOwner, "", drive.DescMatchOwner)
+	cmd.ExactOwner = fs.String(drive.CLIOptionExactOwner, "", drive.DescExactOwner)
+	cmd.NotOwner = fs.String(drive.CLIOptionNotOwner, "", drive.DescNotOwner)
+	cmd.ById = fs.Bool(drive.CLIOptionId, false, "list by id instead of path")
 
 	return fs
 }
 
 func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	sources, context, path := preprocessArgsByToggle(args, (*cmd.byId || *cmd.matches))
+	fmt.Println("pk", definedFlags, args)
 
-	defaultOptions, err := drive.ResourceConfigurationToOptions(path)
+	for key, _ := range definedFlags {
+		fmt.Println("key", key)
+	}
+
+	sources, context, path := preprocessArgsByToggle(args, (*cmd.ById || *cmd.Matches))
+	parsed, err := drive.ResourceMappings(path)
+
+	virginCmd := listCmd{}
+
+	cs := drive.CliSifter{
+		From:           *cmd,
+		Defaults:       parsed,
+		To:             virginCmd,
+		AlreadyDefined: translateKeyChecks(definedFlags),
+	}
+
+	passes := drive.SiftCliTags(&cs)
+
 	exitWithError(err)
-	fmt.Println("defaultOptions", defaultOptions)
+	fmt.Println("parsed", parsed, "err", err, "passes", passes, "virginCmd", virginCmd)
+	return
 
 	typeMask := 0
-	if *cmd.directories {
+	if *cmd.Directories {
 		typeMask |= drive.Folder
 	}
-	if *cmd.shared {
+	if *cmd.Shared {
 		typeMask |= drive.Shared
 	}
-	if *cmd.owners {
+	if *cmd.Owners {
 		typeMask |= drive.Owners
 	}
-	if *cmd.version {
+	if *cmd.Version {
 		typeMask |= drive.CurrentVersion
 	}
-	if *cmd.files {
+	if *cmd.Files {
 		typeMask |= drive.NonFolder
 	}
-	if *cmd.inTrash {
+	if *cmd.InTrash {
 		typeMask |= drive.InTrash
 	}
-	if !*cmd.longFmt {
+	if !*cmd.LongFmt {
 		typeMask |= drive.Minimal
 	}
 
@@ -331,77 +350,61 @@ func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		opts = &drive.Options{}
 	}
 
-	depth := *cmd.depth
-	if *cmd.recursive {
+	depth := *cmd.Depth
+	if *cmd.Recursive {
 		depth = drive.InfiniteDepth
 	}
 
-	/*
-		options := drive.Options{
-			Depth:     depth,
-			Hidden:    *cmd.hidden,
-			InTrash:   *cmd.inTrash,
-			PageSize:  *cmd.pageSize,
-			Path:      path,
-			NoPrompt:  *cmd.noPrompt,
-			Recursive: *cmd.recursive,
-			Sources:   sources,
-			TypeMask:  typeMask,
-			Quiet:     *cmd.quiet,
-			Meta:      &meta,
-		}
-	*/
-
 	meta := map[string][]string{
-		drive.SortKey:         drive.NonEmptyTrimmedStrings(*cmd.sort),
-		drive.SkipMimeKeyKey:  drive.NonEmptyTrimmedStrings(strings.Split(*cmd.skipMimeKey, ",")...),
-		drive.MatchMimeKeyKey: drive.NonEmptyTrimmedStrings(strings.Split(*cmd.matchMimeKey, ",")...),
-		drive.ExactTitleKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.exactTitle, ",")...),
-		drive.MatchOwnerKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.matchOwner, ",")...),
-		drive.ExactOwnerKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.exactOwner, ",")...),
-		drive.NotOwnerKey:     drive.NonEmptyTrimmedStrings(strings.Split(*cmd.notOwner, ",")...),
+		drive.SortKey:         drive.NonEmptyTrimmedStrings(*cmd.Sort),
+		drive.SkipMimeKeyKey:  drive.NonEmptyTrimmedStrings(strings.Split(*cmd.SkipMimeKey, ",")...),
+		drive.MatchMimeKeyKey: drive.NonEmptyTrimmedStrings(strings.Split(*cmd.MatchMimeKey, ",")...),
+		drive.ExactTitleKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.ExactTitle, ",")...),
+		drive.MatchOwnerKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.MatchOwner, ",")...),
+		drive.ExactOwnerKey:   drive.NonEmptyTrimmedStrings(strings.Split(*cmd.ExactOwner, ",")...),
+		drive.NotOwnerKey:     drive.NonEmptyTrimmedStrings(strings.Split(*cmd.NotOwner, ",")...),
 	}
 
 	opts.Path = path
-	if cmd.hidden != nil {
-		opts.Hidden = *cmd.hidden
+	if cmd.Hidden != nil {
+		opts.Hidden = *cmd.Hidden
 	}
 
-	if cmd.depth != nil {
-		opts.Depth = *cmd.depth
+	if cmd.Depth != nil {
+		opts.Depth = *cmd.Depth
 	}
 
-	if cmd.inTrash != nil {
-		opts.InTrash = *cmd.inTrash
+	if cmd.InTrash != nil {
+		opts.InTrash = *cmd.InTrash
 	}
 
-	if cmd.pageSize != nil {
-		opts.PageSize = *cmd.pageSize
+	if cmd.PageSize != nil {
+		opts.PageSize = *cmd.PageSize
 	}
 
-	if cmd.noPrompt != nil {
-		opts.NoPrompt = *cmd.noPrompt
+	if cmd.NoPrompt != nil {
+		opts.NoPrompt = *cmd.NoPrompt
 	}
 
-	if cmd.recursive != nil {
-		opts.Recursive = *cmd.recursive
+	if cmd.Recursive != nil {
+		opts.Recursive = *cmd.Recursive
 	}
 
-	if cmd.quiet != nil {
-		opts.Quiet = *cmd.quiet
+	if cmd.Quiet != nil {
+		opts.Quiet = *cmd.Quiet
 	}
 
 	options := drive.Options{
 		Depth:     depth,
-		Hidden:    *cmd.hidden,
-		InTrash:   *cmd.inTrash,
-		PageSize:  *cmd.pageSize,
+		Hidden:    *cmd.Hidden,
+		InTrash:   *cmd.InTrash,
+		PageSize:  *cmd.PageSize,
 		Path:      path,
-		NoPrompt:  *cmd.noPrompt,
-		Recursive: *cmd.recursive,
+		NoPrompt:  *cmd.NoPrompt,
+		Recursive: *cmd.Recursive,
 		Sources:   sources,
 		TypeMask:  typeMask,
-		Quiet:     *cmd.quiet,
+		Quiet:     *cmd.Quiet,
 		Meta:      &meta,
 	}
 
@@ -417,12 +420,12 @@ func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		drive.CopyOptionsFromKeysIfNotSet(defaultOpts, opts, keysOnly)
 	}
 
-	if *cmd.shared {
+	if *cmd.Shared {
 		exitWithError(drive.New(context, opts).ListShared())
-	} else if *cmd.matches {
+	} else if *cmd.Matches {
 		exitWithError(drive.New(context, opts).ListMatches())
 	} else {
-		exitWithError(drive.New(context, opts).List(*cmd.byId))
+		exitWithError(drive.New(context, opts).List(*cmd.ById))
 	}
 }
 

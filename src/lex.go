@@ -16,7 +16,6 @@ package drive
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -40,7 +39,7 @@ type typeEmitterPair struct {
 type typeResolver struct {
 	key      string
 	value    string
-	resolver func(varname, v string, optSave *Options) error
+	resolver func(varname, v string) (interface{}, error)
 }
 
 type tParsed int
@@ -70,60 +69,42 @@ func parseErrorer(varname string, t tParsed, value interface{}, args ...interfac
 	return fmt.Errorf("%s: got \"%v\", expected type %s %v", varname, value, t, args)
 }
 
-func boolfer(varname string, value string, optSave *Options) error {
-	retr, err := strconv.ParseBool(value)
-	if err != nil {
-		return parseErrorer(varname, TBool, value, err)
+func _boolfer(varname, strValue string) (interface{}, error) {
+	retr, rErr := strconv.ParseBool(strValue)
+	var value bool
+	var err error
+
+	if rErr == nil {
+		value = retr
+	} else {
+		err = parseErrorer(varname, TBool, value, rErr)
 	}
 
-	var ptr *bool
-	switch strings.ToLower(varname) {
-	case QuietKey:
-		ptr = &optSave.Quiet
-	case HiddenKey:
-		ptr = &optSave.Hidden
-	case NoClobberKey:
-		ptr = &optSave.NoClobber
-	case ForceKey:
-		ptr = &optSave.Force
-	case IgnoreChecksumKey:
-		ptr = &optSave.IgnoreChecksum
-	case NoPromptKey:
-		ptr = &optSave.NoPrompt
-	case IgnoreConflictKey:
-		ptr = &optSave.IgnoreConflict
-	case RecursiveKey:
-		ptr = &optSave.Recursive
-	case IgnoreNameClashesKey:
-		ptr = &optSave.IgnoreNameClashes
-	}
-
-	if ptr != nil {
-		*ptr = retr
-	}
-
-	return nil
+	return value, err
 }
 
-func stringfer(varname, value string, optSave *Options) error {
+func _stringfer(varname, value string) (interface{}, error) {
 	// TODO: perform strips and trims
-	retr := value
+	return value, nil
+}
 
-	var ptr *string
-	switch strings.ToLower(varname) {
-	case ExportsDirKey:
-		ptr = &optSave.ExportsDir
-	}
-
-	if ptr != nil {
-		*ptr = retr
-	}
-
-	return nil
+func _stringArrayfer(varname, value string) (interface{}, error) {
+	splits := NonEmptyTrimmedStrings(strings.Split(value, ",")...)
+	return splits, nil
 }
 
 func stringArrayfer(varname, value string, optSave *Options) error {
-	splits := NonEmptyTrimmedStrings(strings.Split(value, ",")...)
+	var splits []string
+	splitsInterface, err := _stringArrayfer(varname, value)
+	if err != nil {
+		return err
+	}
+
+	splits, ok := splitsInterface.([]string)
+	if !ok {
+		return fmt.Errorf("varname: %s value: %s. Failed to create []string", varname, value)
+	}
+
 	var ptr *[]string
 
 	varnameLower := strings.ToLower(varname)
@@ -143,65 +124,16 @@ func stringArrayfer(varname, value string, optSave *Options) error {
 	return nil
 }
 
-func int64fer(varname, value string, optSave *Options) error {
-	retr, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return parseErrorer(varname, TInt64, value, err)
+func _intfer(varname, strValue string) (interface{}, error) {
+	var value int
+	var err error
+
+	v64, vErr := strconv.ParseInt(strValue, 10, 32)
+	if vErr == nil {
+		value = int(v64)
+	} else {
+		err = parseErrorer(varname, TInt, value, vErr)
 	}
 
-	var ptr *int64
-	switch strings.ToLower(varname) {
-	case PageSizeKey:
-		ptr = &optSave.PageSize
-	}
-
-	if ptr != nil {
-		*ptr = retr
-	}
-	return nil
-}
-
-func intfer(varname, value string, optSave *Options) error {
-	retr64, err := strconv.ParseInt(value, 10, 32)
-	if err != nil {
-		return parseErrorer(varname, TInt, value, err)
-	}
-
-	var ptr *int
-	switch strings.ToLower(varname) {
-	case DepthKey:
-		ptr = &optSave.Depth
-	}
-
-	if ptr != nil {
-		*ptr = int(retr64)
-	}
-	return nil
-}
-
-func CopyOptionsFromKeysIfNotSet(fromPtr, toPtr *Options, alreadySetKeys map[string]bool) {
-	from := *fromPtr
-	fromValue := reflect.ValueOf(from)
-	toValue := reflect.ValueOf(toPtr).Elem()
-
-	fromType := reflect.TypeOf(from)
-
-	for i, n := 0, fromType.NumField(); i < n; i++ {
-		fromFieldT := fromType.Field(i)
-		fromTag := fromFieldT.Tag.Get("cli")
-
-		_, alreadySet := alreadySetKeys[fromTag]
-		if alreadySet {
-			continue
-		}
-
-		fromFieldV := fromValue.Field(i)
-		toFieldV := toValue.Field(i)
-
-		if !toFieldV.CanSet() {
-			continue
-		}
-
-		toFieldV.Set(fromFieldV)
-	}
+	return value, err
 }

@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 )
 
@@ -27,41 +26,10 @@ const (
 )
 
 var (
-	HomeEnvKey           = "HOME"
-	HomeShellEnvKey      = "$" + HomeEnvKey
-	FsHomeDir            = os.Getenv(HomeEnvKey)
-	ShellVarSplitsRegStr = "(\\$+[^\\s\\/]*)"
+	HomeEnvKey      = "HOME"
+	HomeShellEnvKey = "$" + HomeEnvKey
+	FsHomeDir       = os.Getenv(HomeEnvKey)
 )
-
-var (
-	ShellVarRegCompile, _ = regexp.Compile(ShellVarSplitsRegStr)
-)
-
-func envResolved(v string) string {
-
-	matches := ShellVarRegCompile.FindAll([]byte(v), -1)
-	if len(matches) < 1 {
-		return v
-	}
-
-	uniq := make(map[string]string)
-
-	for _, match := range matches {
-		strMatch := string(match)
-		if _, ok := uniq[strMatch]; ok {
-			continue
-		}
-		uniq[strMatch] = strMatch
-	}
-
-	for envKey, _ := range uniq {
-		qKey := strings.Replace(envKey, "$", "", -1)
-		resolved := os.Getenv(qKey)
-		v = strings.Replace(v, envKey, resolved, -1)
-	}
-
-	return v
-}
 
 func kvifyCommentedFile(p, comment string) (kvMap map[string]string, err error) {
 	var clauses []string
@@ -107,43 +75,61 @@ func ResourceConfigurationToOptions(path string) (*Options, error) {
 	return rcFileToOptions(rcP)
 }
 
-func rcMapToOptions(rcMap map[string]string) (*Options, error) {
+func ResourceMappings(rcPath string) (parsed map[string]interface{}, err error) {
+	beginOpts := Options{Path: rcPath}
+	rcPath, rcErr := beginOpts.rcPath()
+	if rcErr != nil {
+		err = rcErr
+		return
+	}
+
+	rcMap, rErr := kvifyCommentedFile(rcPath, CommentStr)
+	if rErr != nil {
+		err = rErr
+		return
+	}
+	return parseRCValues(rcMap)
+}
+
+func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{}, err error) {
+	valueMappings = make(map[string]interface{})
+
 	targetKeys := []typeResolver{
 		{
-			key: ForceKey, resolver: boolfer,
+			key: ForceKey, resolver: _boolfer,
 		},
 		{
-			key: QuietKey, resolver: boolfer,
+			key: QuietKey, resolver: _boolfer,
 		},
 		{
-			key: HiddenKey, resolver: boolfer,
+			key: HiddenKey, resolver: _boolfer,
 		},
 		{
-			key: NoPromptKey, resolver: boolfer,
+			key: NoPromptKey, resolver: _boolfer,
 		},
 		{
-			key: NoClobberKey, resolver: boolfer,
+			key: NoClobberKey, resolver: _boolfer,
 		},
 		{
-			key: IgnoreConflictKey, resolver: boolfer,
+			key: IgnoreConflictKey, resolver: _boolfer,
 		},
 		{
-			key: RecursiveKey, resolver: boolfer,
+			key: RecursiveKey, resolver: _boolfer,
 		},
 		{
-			key: PageSizeKey, resolver: intfer,
+			key: PageSizeKey, resolver: _intfer,
 		},
 		{
-			key: DepthKey, resolver: intfer,
+			key: DepthKey, resolver: _intfer,
 		},
 		{
-			key: ExportsDirKey, resolver: stringfer,
+			key: ExportsDirKey, resolver: _stringfer,
 		},
 		{
-			key: ExportsKey, resolver: stringArrayfer,
+			key: ExportsKey, resolver: _stringArrayfer,
 		},
 		{
-			key: ExcludeOpsKey, resolver: stringArrayfer,
+			key: ExcludeOpsKey, resolver: _stringArrayfer,
 		},
 	}
 
@@ -151,6 +137,7 @@ func rcMapToOptions(rcMap map[string]string) (*Options, error) {
 	for _, stK := range targetKeys {
 		lowerKey := strings.ToLower(stK.key)
 		retr, ok := rcMap[lowerKey]
+		fmt.Println("lowerKey", lowerKey, retr, ok)
 		if !ok {
 			continue
 		}
@@ -160,19 +147,27 @@ func rcMapToOptions(rcMap map[string]string) (*Options, error) {
 	}
 
 	if len(accepted) < 1 {
-		return nil, fmt.Errorf("rcMapping: no keys matched")
+		err = fmt.Errorf("rcMapping: no keys matched")
+		return
 	}
 
 	if false {
 		fmt.Println("rcMap", rcMap, "accepted", accepted)
 	}
 
-	opts := &Options{}
 	for lowerKey, stK := range accepted {
-		if err := stK.resolver(lowerKey, stK.value, opts); err != nil {
-			return nil, err
+		if value, err := stK.resolver(lowerKey, stK.value); err == nil {
+			valueMappings[lowerKey] = value
+		} else {
+			fmt.Fprintf(os.Stderr, "rc: %s err %v\n", lowerKey, err)
 		}
 	}
+
+	return
+}
+
+func rcMapToOptions(rcMap map[string]string) (*Options, error) {
+	opts := &Options{}
 
 	return opts, nil
 }
@@ -208,7 +203,7 @@ func splitAndStrip(line string, resolveFromEnv bool) (kv keyValue, err error) {
 	resolvedValue := joinedValue
 
 	if resolveFromEnv {
-		resolvedValue = envResolved(resolvedValue)
+		resolvedValue = os.ExpandEnv(resolvedValue)
 	}
 
 	if resolvedValue != "" && joinedValue != "" {
