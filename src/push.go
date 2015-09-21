@@ -122,7 +122,12 @@ func (g *Commands) Push() (err error) {
 	}
 
 	if unSafe {
-		g.log.LogErrf(" projected size: (%d) %s\n", pushSize, prettyBytes(pushSize))
+		unSafeQuotaMsg := fmt.Sprintf("projected size: (%d) %s\n", pushSize, prettyBytes(pushSize))
+		if !g.opts.canPrompt() {
+			return fmt.Errorf("quota: noPrompt is set yet for quota %s", unSafeQuotaMsg)
+		}
+
+		g.log.LogErrf(" %s", unSafeQuotaMsg)
 		if !promptForChanges() {
 			return
 		}
