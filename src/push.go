@@ -103,10 +103,8 @@ func (g *Commands) Push() (err error) {
 
 	pushSize, modSize := reduceToSize(cl, SelectDest|SelectSrc)
 
-	// TODO: Handle compensation from deletions and modifications
-	if false {
-		pushSize -= modSize
-	}
+	// Compensate for deletions and modifications
+	pushSize -= modSize
 
 	// Warn about (near) quota exhaustion
 	quotaStatus, quotaErr := g.QuotaStatus(pushSize)
@@ -122,6 +120,7 @@ func (g *Commands) Push() (err error) {
 		g.log.LogErrln("\033[91mThis change will exceed your drive quota\033[00m")
 		unSafe = true
 	}
+
 	if unSafe {
 		g.log.LogErrf(" projected size: (%d) %s\n", pushSize, prettyBytes(pushSize))
 		if !promptForChanges() {
