@@ -136,6 +136,10 @@ func NewRemoteFile(f *drive.File) *File {
 }
 
 func DupFile(f *File) *File {
+	if f == nil {
+		return f
+	}
+
 	return &File{
 		BlobAt:      f.BlobAt,
 		Etag:        f.Etag,

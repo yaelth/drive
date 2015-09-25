@@ -203,10 +203,15 @@ func (g *Commands) PushPiped() (err error) {
 			}
 		}
 
+		fauxSrc := DupFile(rem)
+		if fauxSrc != nil {
+			fauxSrc.ModTime = time.Now()
+		}
+
 		args := upsertOpt{
 			parentId:       parent.Id,
 			fsAbsPath:      relToRootPath,
-			src:            rem,
+			src:            fauxSrc,
 			dest:           rem,
 			mask:           g.opts.TypeMask,
 			nonStatable:    true,
