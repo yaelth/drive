@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	drive "github.com/google/google-api-go-client/drive/v2"
+	drive "google.golang.org/api/drive/v2"
 	"github.com/odeke-em/drive/config"
 )
 
