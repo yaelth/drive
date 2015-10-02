@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	drive "google.golang.org/api/drive/v2"
 	"github.com/odeke-em/drive/config"
+	drive "google.golang.org/api/drive/v2"
 )
 
 type Operation int

@@ -16,8 +16,8 @@ package drive
 
 import (
 	"fmt"
-	drive "google.golang.org/api/drive/v2"
 	"github.com/odeke-em/log"
+	drive "google.golang.org/api/drive/v2"
 	"path/filepath"
 	"strings"
 )

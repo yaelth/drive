@@ -31,7 +31,7 @@ type opener func(string) error
 
 func (g *Commands) Open(ot OpenType) error {
 	byId := (ot & IdOpen) != 0
-	kvChan := g.urler(byId)
+	kvChan := g.urler(byId, g.opts.Sources)
 
 	for kv := range kvChan {
 		switch kv.value.(type) {
