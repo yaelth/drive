@@ -16,6 +16,7 @@
 package main
 
 import (
+    "encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -244,37 +245,36 @@ func (cmd *urlCmd) Run(args []string, definedArgs map[string]*flag.Flag) {
 }
 
 type listCmd struct {
-	ById         *bool   `cli:"by-id"`
-	Hidden       *bool   `cli:"hidden"`
-	PageCount    *int    `cli:"page-count"`
-	Recursive    *bool   `cli:"recursive"`
-	Files        *bool   `cli:"files"`
-	Directories  *bool   `cli:"directories"`
-	Depth        *int    `cli:"depth"`
-	PageSize     *int64  `cli:"page-size"`
-	LongFmt      *bool   `cli:"long"`
-	NoPrompt     *bool   `cli:"no-prompt"`
-	Shared       *bool   `cli:"shared"`
-	InTrash      *bool   `cli:"in-trash"`
-	Version      *bool   `cli:"version"`
-	Matches      *bool   `cli:"matches"`
-	Owners       *bool   `cli:"owners"`
-	Quiet        *bool   `cli:"quiet"`
-	SkipMimeKey  *string `cli:"skip-mime"`
-	MatchMimeKey *string `cli:"match-mime"`
-	ExactTitle   *string
-	MatchOwner   *string
-	ExactOwner   *string
-	NotOwner     *string
-	Sort         *string `cli:"sort"`
+	ById         *bool   `json:"by-id"`
+	Hidden       *bool   `json:"hidden"`
+	Recursive    *bool   `json:"recursive"`
+	Files        *bool   `json:"files"`
+	Directories  *bool   `json:"directories"`
+	Depth        *int    `json:"depth"`
+	PageSize     *int64  `json:"page-size"`
+	LongFmt      *bool   `json:"long"`
+	NoPrompt     *bool   `json:"no-prompt"`
+	Shared       *bool   `json:"shared"`
+	InTrash      *bool   `json:"in-trash"`
+	Version      *bool   `json:"version"`
+	Matches      *bool   `json:"matches"`
+	Owners       *bool   `json:"owners"`
+	Quiet        *bool   `json:"quiet"`
+	SkipMimeKey  *string `json:"skip-mime"`
+	MatchMimeKey *string `json:"match-mime"`
+	ExactTitle   *string `json:"exact-title"`
+	MatchOwner   *string `json:"match-owner"`
+	ExactOwner   *string `json:"exact-owner"`
+	NotOwner     *string `json:"not-owner"`
+	Sort         *string `json:"sort"`
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
 	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "list all paths even hidden ones")
-	cmd.Files = fs.Bool("f", false, "list only files")
-	cmd.Directories = fs.Bool("d", false, "list all directories")
-	cmd.LongFmt = fs.Bool("l", false, "long listing of contents")
+	cmd.Files = fs.Bool(drive.CLIOptionFiles, false, "list only files")
+	cmd.Directories = fs.Bool(drive.CLIOptionDirectories, false, "list all directories")
+	cmd.LongFmt = fs.Bool(drive.CLIOptionLongFmt, false, "long listing of contents")
 	cmd.PageSize = fs.Int64(drive.PageSizeKey, 100, "number of results per pagination")
 	cmd.Shared = fs.Bool("shared", false, "show files that are shared with me")
 	cmd.InTrash = fs.Bool(drive.TrashedKey, false, "list content in the trash")
@@ -296,30 +296,34 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	fmt.Println("pk", definedFlags, args)
 
 	for key, _ := range definedFlags {
 		fmt.Println("key", key)
 	}
 
-	sources, context, path := preprocessArgsByToggle(args, (*cmd.ById || *cmd.Matches))
+	sources, context, path := preprocessArgsByToggle(args, (*lCmd.ById || *lCmd.Matches))
 	parsed, err := drive.ResourceMappings(path)
 
-	virginCmd := listCmd{}
+	cmd := listCmd{}
 
 	cs := drive.CliSifter{
-		From:           *cmd,
+		From:           *lCmd,
 		Defaults:       parsed,
-		To:             virginCmd,
 		AlreadyDefined: translateKeyChecks(definedFlags),
 	}
 
-	passes := drive.SiftCliTags(&cs)
+	jsonStringified := drive.SiftCliTags(&cs)
+    fmt.Println("jsonStringified", jsonStringified)
+    if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
+        exitWithError(err)
+    }
+   
+    fmt.Println(cmd.NotOwner) 
 
 	exitWithError(err)
-	fmt.Println("parsed", parsed, "err", err, "passes", passes, "virginCmd", virginCmd)
-	return
+	fmt.Println("parsed", parsed, "err", err, "passes", "virginCmd", cmd)
 
 	typeMask := 0
 	if *cmd.Directories {

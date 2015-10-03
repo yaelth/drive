@@ -114,6 +114,9 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 			key: IgnoreConflictKey, resolver: _boolfer,
 		},
 		{
+			key: CLIOptionExactTitle, resolver: _boolfer,
+		},
+		{
 			key: RecursiveKey, resolver: _boolfer,
 		},
 		{
@@ -121,6 +124,15 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 		},
 		{
 			key: DepthKey, resolver: _intfer,
+		},
+		{
+			key: CLIOptionFiles, resolver: _boolfer,
+		},
+		{
+			key: CLIOptionLongFmt, resolver: _boolfer,
+		},
+		{
+			key: CLIOptionNotOwner, resolver: _stringfer,
 		},
 		{
 			key: ExportsDirKey, resolver: _stringfer,

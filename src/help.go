@@ -172,6 +172,9 @@ const (
 	CLIOptionOpen               = "open"
 	CLIOptionWebBrowser         = "web-browser"
 	CLIOptionFileBrowser        = "file-browser"
+	CLIOptionDirectories        = "directories"
+	CLIOptionFiles              = "files"
+	CLIOptionLongFmt            = "long"
 )
 
 const (

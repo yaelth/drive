@@ -685,43 +685,57 @@ func CopyOptionsFromKeysIfNotSet(fromPtr, toPtr *Options, alreadySetKeys map[str
 }
 
 type CliSifter struct {
-	From, To       interface{}
+	From           interface{}
 	Defaults       map[string]interface{}
 	AlreadyDefined map[string]bool
 }
 
-func SiftCliTags(cs *CliSifter) (passes map[string]interface{}) {
+func SiftCliTags(cs *CliSifter) string {
 	from := cs.From
-	to := cs.To
 	defaults := cs.Defaults
-
-	passes = make(map[string]interface{})
+	alreadyDefined := cs.AlreadyDefined
 
 	fromValue := reflect.ValueOf(from)
 	fromType := reflect.TypeOf(from)
-	toValue := reflect.ValueOf(to)
+
+	mapping := map[string]string{}
 
 	for i, n := 0, fromType.NumField(); i < n; i++ {
 		fromFieldT := fromType.Field(i)
-		fromTag := fromFieldT.Tag.Get("cli")
+		fromTag := fromFieldT.Tag.Get("json")
 
 		if fromTag == "" {
 			continue
 		}
 
-		if _, defaultSet := defaults[fromTag]; defaultSet {
-			continue
-		}
-
-		toFieldV := toValue.Field(i)
-		if !toFieldV.CanSet() {
-			fmt.Println("not able to set", fromTag, toFieldV, fromValue.Field(i).CanSet())
-			continue
-		}
-
 		fromFieldV := fromValue.Field(i)
-		toFieldV.Set(fromFieldV)
+
+		elem := fromFieldV.Elem()
+
+		if _, defined := alreadyDefined[fromTag]; !defined {
+			if retr, defaultSet := defaults[fromTag]; defaultSet {
+				elem = reflect.ValueOf(retr)
+			}
+		}
+
+		stringified := ""
+		switch elem.Kind() {
+		case reflect.String:
+			stringified = fmt.Sprintf("%q", elem)
+		default:
+			stringified = fmt.Sprintf("%v", elem)
+		}
+
+		mapping[fromTag] = stringified
 	}
 
-	return passes
+	joined := []string{}
+
+	for k, v := range mapping {
+		joined = append(joined, fmt.Sprintf("%q:%v", k, v))
+	}
+
+	stringified := sepJoin(",", joined...)
+
+	return fmt.Sprintf("{%v}", stringified)
 }
