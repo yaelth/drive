@@ -103,10 +103,8 @@ func (g *Commands) Push() (err error) {
 
 	pushSize, modSize := reduceToSize(cl, SelectDest|SelectSrc)
 
-	// TODO: Handle compensation from deletions and modifications
-	if false {
-		pushSize -= modSize
-	}
+	// Compensate for deletions and modifications
+	pushSize -= modSize
 
 	// Warn about (near) quota exhaustion
 	quotaStatus, quotaErr := g.QuotaStatus(pushSize)
@@ -122,8 +120,14 @@ func (g *Commands) Push() (err error) {
 		g.log.LogErrln("\033[91mThis change will exceed your drive quota\033[00m")
 		unSafe = true
 	}
+
 	if unSafe {
-		g.log.LogErrf(" projected size: (%d) %s\n", pushSize, prettyBytes(pushSize))
+		unSafeQuotaMsg := fmt.Sprintf("projected size: (%d) %s\n", pushSize, prettyBytes(pushSize))
+		if !g.opts.canPrompt() {
+			return fmt.Errorf("quota: noPrompt is set yet for quota %s", unSafeQuotaMsg)
+		}
+
+		g.log.LogErrf(" %s", unSafeQuotaMsg)
 		if !promptForChanges() {
 			return
 		}
@@ -199,10 +203,15 @@ func (g *Commands) PushPiped() (err error) {
 			}
 		}
 
+		fauxSrc := DupFile(rem)
+		if fauxSrc != nil {
+			fauxSrc.ModTime = time.Now()
+		}
+
 		args := upsertOpt{
 			parentId:       parent.Id,
 			fsAbsPath:      relToRootPath,
-			src:            rem,
+			src:            fauxSrc,
 			dest:           rem,
 			mask:           g.opts.TypeMask,
 			nonStatable:    true,

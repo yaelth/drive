@@ -76,8 +76,22 @@ func retryableErrorCheck(v interface{}) (ok, retryable bool) {
 		return
 	}
 
+	if pr.last == nil {
+		ok = true
+		return
+	}
+
 	err, assertOk := pr.last.(*googleapi.Error)
-	if !assertOk || err == nil {
+	// In relation to https://github.com/google/google-api-go-client/issues/93
+	// where not every error is of googleapi.Error instance e.g io timeout errors
+	// etc, let's assume that non-nil errors are retryable
+
+	if !assertOk {
+		retryable = true
+		return
+	}
+
+	if err == nil {
 		ok = true
 		return
 	}

@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	drive "github.com/google/google-api-go-client/drive/v2"
 	"github.com/odeke-em/drive/config"
+	drive "google.golang.org/api/drive/v2"
 )
 
 type Operation int
@@ -136,6 +136,10 @@ func NewRemoteFile(f *drive.File) *File {
 }
 
 func DupFile(f *File) *File {
+	if f == nil {
+		return f
+	}
+
 	return &File{
 		BlobAt:      f.BlobAt,
 		Etag:        f.Etag,

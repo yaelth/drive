@@ -116,8 +116,8 @@ func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 		p = ""
 	}
 
-	combiner := func(from []*Change, to *[]*Change, done chan bool) {
-		*to = append(*to, from...)
+	combiner := func(from, to *[]*Change, done chan bool) {
+		*to = append(*to, *from...)
 		done <- true
 	}
 
@@ -134,11 +134,24 @@ func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 			return
 		}
 
-		done := make(chan bool, 2)
-		go combiner(ccl, &cl, done)
-		go combiner(cclashes, &clashes, done)
+		combines := []struct {
+			from, to *[]*Change
+		}{
+			{from: &ccl, to: &cl},
+			{from: &cclashes, to: &clashes},
+		}
 
-		<-done
+		nCombines := len(combines)
+		done := make(chan bool, nCombines)
+
+		for i := 0; i < nCombines; i++ {
+			curCombine := combines[i]
+			go combiner(curCombine.from, curCombine.to, done)
+		}
+
+		for i := 0; i < nCombines; i++ {
+			<-done
+		}
 	}
 
 	return
@@ -157,7 +170,7 @@ func (g *Commands) PullMatches() (err error) {
 	}
 
 	if len(cl) < 1 {
-		return fmt.Errorf("no changes detected!")
+		return nil
 	}
 
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl, false)

@@ -15,7 +15,7 @@
 package drive
 
 func (g *Commands) Url(byId bool) error {
-	kvChan := g.urler(byId)
+	kvChan := g.urler(byId, g.opts.Sources)
 
 	for kv := range kvChan {
 		switch kv.value.(type) {
@@ -29,7 +29,7 @@ func (g *Commands) Url(byId bool) error {
 	return nil
 }
 
-func (g *Commands) urler(byId bool) (kvChan chan *keyValue) {
+func (g *Commands) urler(byId bool, sources []string) (kvChan chan *keyValue) {
 	resolver := g.rem.FindByPath
 	if byId {
 		resolver = g.rem.FindById
@@ -40,7 +40,7 @@ func (g *Commands) urler(byId bool) (kvChan chan *keyValue) {
 	go func() {
 		defer close(kvChan)
 
-		for _, source := range g.opts.Sources {
+		for _, source := range sources {
 			f, err := resolver(source)
 
 			kv := keyValue{key: source, value: err}

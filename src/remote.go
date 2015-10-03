@@ -32,8 +32,8 @@ import (
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/statos"
 
-	drive "github.com/google/google-api-go-client/drive/v2"
 	expb "github.com/odeke-em/exponential-backoff"
+	drive "google.golang.org/api/drive/v2"
 )
 
 const (
