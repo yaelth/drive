@@ -444,6 +444,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		dest:           change.Dest,
 		mask:           g.opts.TypeMask,
 		ignoreChecksum: g.opts.IgnoreChecksum,
+		debug:          g.opts.Verbose && g.opts.canPrompt(),
 	}
 
 	coercedMimeKey, ok := g.coercedMimeKey()
@@ -589,6 +590,7 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	args := upsertOpt{
 		parentId: parent.Id,
 		src:      remoteFile,
+		debug:    g.opts.Verbose && g.opts.canPrompt(),
 	}
 
 	cur, curErr := g.rem.UpsertByComparison(&args)

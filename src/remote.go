@@ -179,12 +179,12 @@ func (r *Remote) FindById(id string) (file *File, err error) {
 	return NewRemoteFile(f), nil
 }
 
-func retryableChangeOp(fn func() (interface{}, error)) *expb.ExponentialBacker {
+func retryableChangeOp(fn func() (interface{}, error), debug bool) *expb.ExponentialBacker {
 	return &expb.ExponentialBacker{
 		Do:          fn,
 		StatusCheck: retryableErrorCheck,
 		RetryCount:  MaxFailedRetryCount,
-		Debug:       true,
+		Debug:       debug,
 	}
 }
 
@@ -408,6 +408,7 @@ func indexContent(mask int) bool {
 }
 
 type upsertOpt struct {
+	debug          bool
 	parentId       string
 	fsAbsPath      string
 	relToRootPath  string
@@ -595,7 +596,7 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 			return &tuple{first: f, second: mediaInserted, last: err}, err
 		}
 
-		retrier := retryableChangeOp(emitter)
+		retrier := retryableChangeOp(emitter, args.debug)
 
 		res, err := expb.ExponentialBackOffSync(retrier)
 		resultLoad <- &tuple{first: res, last: err}
