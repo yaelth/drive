@@ -101,6 +101,10 @@ func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 		&keyValue{"LastModifyingUsername", file.LastModifyingUsername},
 	}
 
+	if file.Description != "" {
+		kvList = append(kvList, &keyValue{"Description", fmt.Sprintf("%q", file.Description)})
+	}
+
 	if file.Name != file.OriginalFilename {
 		kvList = append(kvList, &keyValue{"OriginalFilename", file.OriginalFilename})
 	}

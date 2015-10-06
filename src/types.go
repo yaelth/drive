@@ -106,6 +106,7 @@ type File struct {
 	LastModifyingUsername string
 	OriginalFilename      string
 	Labels                *drive.FileLabels
+	Description           string
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -132,6 +133,7 @@ func NewRemoteFile(f *drive.File) *File {
 		LastModifyingUsername: f.LastModifyingUserName,
 		OriginalFilename:      f.OriginalFilename,
 		Labels:                f.Labels,
+		Description:           f.Description,
 	}
 }
 
@@ -162,6 +164,7 @@ func DupFile(f *File) *File {
 		Labels:             f.Labels,
 		AlternateLink:      f.AlternateLink,
 		OriginalFilename:   f.OriginalFilename,
+		Description:        f.Description,
 	}
 }
 
