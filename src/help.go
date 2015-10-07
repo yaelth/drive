@@ -19,7 +19,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/odeke-em/widther"
+	prettywords "github.com/odeke-em/pretty-words"
 )
 
 const (
@@ -293,7 +293,7 @@ func ShowDescription(topic string) {
 		if len(documentation) >= 1 {
 			PrintfShadow("Description\n")
 			for _, line := range documentation {
-				segments := widther.WidthenByLimit(line, 80)
+				segments := formatText(line)
 				for _, segment := range segments {
 					PrintfShadow("\t%s", segment)
 				}
@@ -303,16 +303,24 @@ func ShowDescription(topic string) {
 	}
 }
 
+func formatText(text string) []string {
+	splits := strings.Split(text, " ")
+
+	pr := prettywords.PrettyRubric{
+		Limit: 80,
+		Body:  splits,
+	}
+
+	return pr.Format()
+}
+
 func PrintfShadow(fmt_ string, args ...interface{}) {
 	FprintfShadow(os.Stdout, fmt_, args...)
 }
 
 func FprintfShadow(f io.Writer, fmt_ string, args ...interface{}) {
 	sprinted := fmt.Sprintf(fmt_, args...)
-	splits := widther.WidthenByLimit(sprinted, 75)
-
-	for _, split := range splits {
-		fmt.Fprintf(f, split)
-		fmt.Fprintf(f, "\n")
-	}
+	splits := formatText(sprinted)
+	joined := strings.Join(splits, "\n")
+	fmt.Fprintf(f, joined)
 }
