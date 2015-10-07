@@ -379,6 +379,7 @@ func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change,
 		base:   absPath,
 		remote: r,
 		local:  l,
+		depth:  g.opts.Depth,
 	}
 
 	return g.resolveChangeListRecv(clr)
