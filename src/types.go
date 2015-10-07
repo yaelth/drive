@@ -19,12 +19,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/odeke-em/drive/config"
-	drive "github.com/odeke-em/google-api-go-client/drive/v2"
+	drive "google.golang.org/api/drive/v2"
 )
 
 type Operation int
@@ -105,6 +106,7 @@ type File struct {
 	LastModifyingUsername string
 	OriginalFilename      string
 	Labels                *drive.FileLabels
+	Description           string
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -131,10 +133,15 @@ func NewRemoteFile(f *drive.File) *File {
 		LastModifyingUsername: f.LastModifyingUserName,
 		OriginalFilename:      f.OriginalFilename,
 		Labels:                f.Labels,
+		Description:           f.Description,
 	}
 }
 
 func DupFile(f *File) *File {
+	if f == nil {
+		return f
+	}
+
 	return &File{
 		BlobAt:      f.BlobAt,
 		Etag:        f.Etag,
@@ -157,6 +164,7 @@ func DupFile(f *File) *File {
 		Labels:             f.Labels,
 		AlternateLink:      f.AlternateLink,
 		OriginalFilename:   f.OriginalFilename,
+		Description:        f.Description,
 	}
 }
 
@@ -184,6 +192,43 @@ func fauxLocalFile(relToRootPath string) *File {
 	}
 }
 
+func (f *File) Url() (url string) {
+	if f == nil {
+		return
+	}
+
+	if hasExportLinks(f) {
+		return f.AlternateLink
+	}
+
+	if f.Id != "" {
+		url = fmt.Sprintf("%s/open?id=%s", DriveResourceEntryURL, f.Id)
+	}
+
+	return
+}
+
+func (f *File) localAliases(prefix string) (aliases []string) {
+	aliases = append(aliases, prefix)
+
+	if f == nil {
+		return
+	}
+
+	suffixes := []string{}
+
+	if runtime.GOOS == OSLinuxKey && hasExportLinks(f) {
+		suffixes = append(suffixes, DesktopExtension)
+	}
+
+	for _, suffix := range suffixes {
+		join := sepJoin(".", prefix, suffix)
+		aliases = append(aliases, join)
+	}
+
+	return
+}
+
 type Change struct {
 	Dest           *File
 	Parent         string
@@ -206,8 +251,8 @@ func (cl ByPrecedence) Less(i, j int) bool {
 		return true
 	}
 
-	rank1, rank2 := opPrecedence[cl[i].Op()], opPrecedence[cl[j].Op()]
-	return rank1 < rank2
+	c1, c2 := cl[i], cl[j]
+	return opPrecedence[c1.Op()] < opPrecedence[c2.Op()]
 }
 
 func (cl ByPrecedence) Len() int {
@@ -341,11 +386,19 @@ func (c *Change) crudValue() CrudValue {
 }
 
 func (c *Change) op() Operation {
+	if c == nil {
+		return OpNone
+	}
+
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
 	}
 
-	indexingOnly := c.g.opts.indexingOnly
+	indexingOnly := false
+	if c.g != nil && c.g.opts != nil {
+		indexingOnly = c.g.opts.indexingOnly
+	}
+
 	if c.Src != nil && c.Dest == nil {
 		return indexExistanceOrDeferTo(c, OpAdd, indexingOnly)
 	}
@@ -384,7 +437,7 @@ func indexExistanceOrDeferTo(c *Change, deferTo Operation, indexingOnly bool) Op
 		return OpNone
 	}
 	ok, err := c.checkIndexExistance()
-	if err != nil {
+	if err != nil && err != config.ErrNoSuchDbKey {
 		c.g.log.LogErrf("checkIndexExists: \"%s\" %v\n", c.Path, err)
 	}
 
@@ -407,20 +460,20 @@ func (c *Change) checkIndexExistance() (bool, error) {
 		return false, nil
 	}
 
-	rootPath := c.g.context.AbsPathOf("")
-	statResult, statErr := os.Stat(config.IndicesAbsPath(rootPath, f.Id))
-
-	if statErr == nil {
-		return statResult != nil, nil
+	index, err := c.g.context.DeserializeIndex(f.Id)
+	if err != nil {
+		return false, err
 	}
 
-	if !os.IsNotExist(statErr) {
-		return false, statErr
-	}
-	return false, nil
+	exists := index != nil
+	return exists, nil
 }
 
 func (c *Change) Op() Operation {
+	if c == nil {
+		return OpNone
+	}
+
 	op := c.op()
 	if c.Force {
 		if op == OpModConflict {

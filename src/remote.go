@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -31,8 +30,10 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"github.com/odeke-em/drive/config"
-	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"github.com/odeke-em/statos"
+
+	expb "github.com/odeke-em/exponential-backoff"
+	drive "google.golang.org/api/drive/v2"
 )
 
 const (
@@ -47,6 +48,9 @@ const (
 
 	// Google Drive webpage host
 	DriveResourceHostURL = "https://googledrive.com/host/"
+
+	// Google Drive entry point
+	DriveResourceEntryURL = "https://drive.google.com"
 )
 
 const (
@@ -60,15 +64,20 @@ const (
 )
 
 var (
-	ErrPathNotExists   = errors.New("remote path doesn't exist")
-	ErrNetLookup       = errors.New("net lookup failed")
-	ErrClashesDetected = fmt.Errorf("clashes detected. use `%s` to override this behavior", CLIOptionIgnoreNameClashes)
+	ErrPathNotExists                  = errors.New("remote path doesn't exist")
+	ErrNetLookup                      = errors.New("net lookup failed")
+	ErrClashesDetected                = fmt.Errorf("clashes detected. use `%s` to override this behavior", CLIOptionIgnoreNameClashes)
+	ErrGoogleApiInvalidQueryHardCoded = errors.New("googleapi: Error 400: Invalid query, invalid")
 )
 
 var (
 	UnescapedPathSep = fmt.Sprintf("%c", os.PathSeparator)
 	EscapedPathSep   = url.QueryEscape(UnescapedPathSep)
 )
+
+func errCannotMkdirAll(p string) error {
+	return fmt.Errorf("cannot mkdirAll: `%s`", p)
+}
 
 type Remote struct {
 	client       *http.Client
@@ -170,6 +179,15 @@ func (r *Remote) FindById(id string) (file *File, err error) {
 	return NewRemoteFile(f), nil
 }
 
+func retryableChangeOp(fn func() (interface{}, error), debug bool) *expb.ExponentialBacker {
+	return &expb.ExponentialBacker{
+		Do:          fn,
+		StatusCheck: retryableErrorCheck,
+		RetryCount:  MaxFailedRetryCount,
+		Debug:       debug,
+	}
+}
+
 func (r *Remote) findByPath(p string, trashed bool) (*File, error) {
 	if rootLike(p) {
 		return r.FindById("root")
@@ -238,7 +256,7 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 
 func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileChan chan *File) {
 	req := r.service.Files.List()
-	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
+	req.Q(fmt.Sprintf("%s in parents and trashed=%v", customQuote(parentId), trashed))
 	return reqDoPage(req, hidden, false)
 }
 
@@ -368,7 +386,7 @@ func (r *Remote) Touch(id string) (*File, error) {
 func toUTCString(t time.Time) string {
 	utc := t.UTC().Round(time.Second)
 	// Ugly but straight forward formatting as time.Parse is such a prima donna
-	return fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%0d.000Z",
+	return fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d.000Z",
 		utc.Year(), utc.Month(), utc.Day(),
 		utc.Hour(), utc.Minute(), utc.Second())
 }
@@ -390,8 +408,10 @@ func indexContent(mask int) bool {
 }
 
 type upsertOpt struct {
+	debug          bool
 	parentId       string
 	fsAbsPath      string
+	relToRootPath  string
 	src            *File
 	dest           *File
 	mask           int
@@ -568,19 +588,49 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 		}
 	}()
 
-	mediaInserted := false
+	resultLoad := make(chan *tuple)
 
-	f, mediaInserted, err = r.upsertByComparison(bd, args)
+	go func() {
+		emitter := func() (interface{}, error) {
+			f, mediaInserted, err := r.upsertByComparison(bd, args)
+			return &tuple{first: f, second: mediaInserted, last: err}, err
+		}
 
-	// Case in which for example just Chtime-ing
-	if !mediaInserted && args.dest != nil {
-		chunks := chunkInt64(args.dest.Size)
-		for n := range chunks {
-			r.progressChan <- n
+		retrier := retryableChangeOp(emitter, args.debug)
+
+		res, err := expb.ExponentialBackOffSync(retrier)
+		resultLoad <- &tuple{first: res, last: err}
+	}()
+
+	result := <-resultLoad
+	if result == nil {
+		return f, err
+	}
+
+	tup, tupOk := result.first.(*tuple)
+	if tupOk {
+		ff, fOk := tup.first.(*File)
+		if fOk {
+			f = ff
+		}
+
+		mediaInserted, mediaOk := tup.second.(bool)
+
+		// Case in which for example just Chtime-ing
+		if mediaOk && !mediaInserted && f != nil {
+			chunks := chunkInt64(f.Size)
+			for n := range chunks {
+				r.progressChan <- n
+			}
+		}
+
+		errV, errCastOk := tup.last.(error)
+		if errCastOk {
+			err = errV
 		}
 	}
 
-	return
+	return f, err
 }
 
 func (r *Remote) findShared(p []string) (chan *File, error) {
@@ -621,7 +671,7 @@ func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
 
 	req := r.service.Files.List()
 
-	parQuery := fmt.Sprintf("(%s in parents)", strconv.Quote(parent.Id))
+	parQuery := fmt.Sprintf("(%s in parents)", customQuote(parent.Id))
 	expr := sepJoinNonEmpty(" and ", parQuery, mq.Stringer())
 
 	req.Q(expr)
@@ -630,7 +680,7 @@ func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
 
 func (r *Remote) findChildren(parentId string, trashed bool) chan *File {
 	req := r.service.Files.List()
-	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
+	req.Q(fmt.Sprintf("%s in parents and trashed=%v", customQuote(parentId), trashed))
 	return reqDoPage(req, true, false)
 }
 
@@ -644,12 +694,11 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	// TODO: use field selectors
 	var expr string
 	head := urlToPath(p[0], false)
-	quote := strconv.Quote
 	if trashed {
-		expr = fmt.Sprintf("title = %s and trashed=true", quote(head))
+		expr = fmt.Sprintf("title = %s and trashed=true", customQuote(head))
 	} else {
 		expr = fmt.Sprintf("%s in parents and title = %s and trashed=false",
-			quote(parentId), quote(head))
+			customQuote(parentId), customQuote(head))
 	}
 	req.Q(expr)
 
@@ -659,6 +708,9 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	files, err := req.Do()
 
 	if err != nil {
+		if err.Error() == ErrGoogleApiInvalidQueryHardCoded.Error() { // Send the user back the query information
+			err = fmt.Errorf("err: %v query: `%s`", err, expr)
+		}
 		return nil, err
 	}
 

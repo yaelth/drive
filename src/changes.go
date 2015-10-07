@@ -17,13 +17,13 @@ package drive
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/odeke-em/drive/config"
-	"github.com/odeke-em/dts/ascii-trie"
 	"github.com/odeke-em/log"
 )
 
@@ -86,63 +86,83 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 			return
 		}
 	}
+
 	relPath = strings.Join([]string{"", relPath}, "/")
 
 	return
 }
 
-func (g *Commands) resolveToLocalFile(relToRoot, fsPath string) (local *File, err error) {
-	if g.opts.IgnoreRegexp != nil && g.opts.IgnoreRegexp.Match([]byte(relToRoot)) {
+func (g *Commands) resolveToLocalFile(relToRoot string, fsPaths ...string) (local *File, err error) {
+	checks := append([]string{relToRoot}, fsPaths...)
+
+	if anyMatch(g.opts.IgnoreRegexp, checks...) {
 		err = fmt.Errorf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
 		return
 	}
 
-	localinfo, statErr := os.Stat(fsPath)
-	if statErr != nil && !os.IsNotExist(statErr) {
-		err = statErr
-		return
-	}
+	for _, fsPath := range fsPaths {
+		localInfo, statErr := os.Stat(fsPath)
 
-	if localinfo != nil {
-		if namedPipe(localinfo.Mode()) {
-			err = fmt.Errorf("%s (%s) is a named pipe, yet not reading from it", relToRoot, fsPath)
+		if statErr != nil && !os.IsNotExist(statErr) {
+			err = statErr
+			return
+		} else if localInfo != nil {
+			if namedPipe(localInfo.Mode()) {
+				err = fmt.Errorf("%s (%s) is a named pipe, yet not reading from it", relToRoot, fsPath)
+				return
+			}
+
+			local = NewLocalFile(fsPath, localInfo)
 			return
 		}
-
-		local = NewLocalFile(fsPath, localinfo)
 	}
 
 	return
 }
 
-func (g *Commands) byRemoteResolve(relToRoot, fsPath string, r *File, isPush bool) (cl, clashes []*Change, err error) {
+func (g *Commands) byRemoteResolve(relToRoot, fsPath string, r *File, push bool) (cl, clashes []*Change, err error) {
 	var l *File
-	l, err = g.resolveToLocalFile(relToRoot, fsPath)
+	l, err = g.resolveToLocalFile(relToRoot, r.localAliases(fsPath)...)
 	if err != nil {
 		return cl, clashes, err
 	}
 
-	return g.doChangeListRecv(relToRoot, fsPath, l, r, isPush)
+	return g.doChangeListRecv(relToRoot, fsPath, l, r, push)
 }
 
-func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl, clashes []*Change, err error) {
+func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, clashes []*Change, err error) {
 	var r *File
 	r, err = g.rem.FindByPath(relToRoot)
 	if err != nil && err != ErrPathNotExists {
 		return
 	}
 
-	return g.byRemoteResolve(relToRoot, fsPath, r, isPush)
+	if r != nil && anyMatch(g.opts.IgnoreRegexp, r.Name) {
+		return
+	}
+
+	return g.byRemoteResolve(relToRoot, fsPath, r, push)
 }
 
-func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, isPush bool) (cl, clashes []*Change, err error) {
+func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, push bool) (cl, clashes []*Change, err error) {
 	if l == nil && r == nil {
 		err = fmt.Errorf("'%s' aka '%s' doesn't exist locally nor remotely",
 			relToRoot, fsPath)
 		return
 	}
 
-	return g.resolveChangeListRecv(isPush, relToRoot, relToRoot, r, l)
+	dirname := path.Dir(relToRoot)
+
+	clr := &changeListResolve{
+		dir:    dirname,
+		base:   relToRoot,
+		local:  l,
+		push:   push,
+		remote: r,
+		depth:  g.opts.Depth,
+	}
+
+	return g.resolveChangeListRecv(clr)
 }
 
 func (g *Commands) clearMountPoints() {
@@ -188,19 +208,60 @@ func (g *Commands) coercedMimeKey() (coerced string, ok bool) {
 	return
 }
 
-func (g *Commands) resolveChangeListRecv(
-	isPush bool, d, p string, r *File, l *File) (cl, clashes []*Change, err error) {
+type changeListResolve struct {
+	dir    string
+	base   string
+	local  *File
+	remote *File
+	push   bool
+	depth  int
+}
+
+type changeSliceArg struct {
+	clashesMap    map[int][]*Change
+	id            int
+	wg            *sync.WaitGroup
+	depth         int
+	push          bool
+	parent        string
+	dirList       []*dirList
+	changeListPtr *[]*Change
+}
+
+func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []*Change, err error) {
+	l := clr.local
+	r := clr.remote
+	dir := clr.dir
+	base := clr.base
+
 	var change *Change
+
+	cl = make([]*Change, 0)
+	clashes = make([]*Change, 0)
+
+	matchChecks := []string{base}
+
+	if l != nil {
+		matchChecks = append(matchChecks, l.Name)
+	}
+
+	if r != nil {
+		matchChecks = append(matchChecks, r.Name)
+	}
+
+	if anyMatch(g.opts.IgnoreRegexp, matchChecks...) {
+		return
+	}
 
 	explicitlyRequested := g.opts.ExplicitlyExport && hasExportLinks(r) && len(g.opts.Exports) >= 1
 
-	if isPush {
+	if clr.push {
 		// Handle the case of doc files for which we don't have a direct download
 		// url but have exportable links. These files should not be clobbered on push
 		if hasExportLinks(r) {
 			return cl, clashes, nil
 		}
-		change = &Change{Path: p, Src: l, Dest: r, Parent: d, g: g}
+		change = &Change{Path: base, Src: l, Dest: r, Parent: dir, g: g}
 	} else {
 		exportable := !g.opts.Force && hasExportLinks(r)
 		if exportable && !explicitlyRequested {
@@ -211,7 +272,7 @@ func (g *Commands) resolveChangeListRecv(
 				return cl, clashes, nil
 			}
 		}
-		change = &Change{Path: p, Src: r, Dest: l, Parent: d, g: g}
+		change = &Change{Path: base, Src: r, Dest: l, Parent: dir, g: g}
 	}
 
 	change.NoClobber = g.opts.NoClobber
@@ -237,10 +298,16 @@ func (g *Commands) resolveChangeListRecv(
 	}
 
 	// TODO: handle cases where remote and local type don't match
-	if !isPush && r != nil && !r.IsDir {
+	if !clr.push && r != nil && !r.IsDir {
 		return cl, clashes, nil
 	}
-	if isPush && l != nil && !l.IsDir {
+	if clr.push && l != nil && !l.IsDir {
+		return cl, clashes, nil
+	}
+
+	traversalDepth := clr.depth
+
+	if traversalDepth == 0 {
 		return cl, clashes, nil
 	}
 
@@ -250,7 +317,14 @@ func (g *Commands) resolveChangeListRecv(
 		localChildren = make(chan *File)
 		close(localChildren)
 	} else {
-		localChildren, err = list(g.context, p, g.opts.Hidden, g.opts.IgnoreRegexp)
+		fslArg := fsListingArg{
+			parent:  base,
+			context: g.context,
+			depth:   traversalDepth,
+			ignore:  g.opts.IgnoreRegexp,
+		}
+
+		localChildren, err = list(&fslArg)
 		if err != nil {
 			return
 		}
@@ -266,12 +340,12 @@ func (g *Commands) resolveChangeListRecv(
 	dirlist, clashingFiles := merge(remoteChildren, localChildren, g.opts.IgnoreNameClashes)
 
 	if !g.opts.IgnoreNameClashes && len(clashingFiles) >= 1 {
-		if rootLike(p) {
-			p = ""
+		if rootLike(base) {
+			base = ""
 		}
 
 		for _, dup := range clashingFiles {
-			clashes = append(clashes, &Change{Path: sepJoin("/", p, dup.Name), Src: dup, g: g})
+			clashes = append(clashes, &Change{Path: sepJoin("/", base, dup.Name), Src: dup, g: g})
 		}
 
 		// Ensure all clashes are retrieved and listed
@@ -297,40 +371,30 @@ func (g *Commands) resolveChangeListRecv(
 
 	clashesMap := make(map[int][]*Change)
 
+	traversalDepth = decrementTraversalDepth(traversalDepth)
+
 	for j := 0; j < chunkCount; j += 1 {
 		end := i + chunkSize
 		if end >= srcLen {
 			end = srcLen
 		}
 
-		go func(id int, wg *sync.WaitGroup, isPush bool, cl *[]*Change, p string, dlist []*dirList) {
-			defer wg.Done()
-			for _, l := range dlist {
-				// Avoiding path.Join which normalizes '/+' to '/'
-				var joined string
-				if p == "/" {
-					joined = "/" + l.Name()
-				} else {
-					joined = strings.Join([]string{p, l.Name()}, "/")
-				}
-				childChanges, childClashes, cErr := g.resolveChangeListRecv(isPush, p, joined, l.remote, l.local)
-				if cErr == nil {
-					*cl = append(*cl, childChanges...)
-					continue
-				}
+		cslArgs := changeSliceArg{
+			id:            j,
+			wg:            &wg,
+			push:          clr.push,
+			dirList:       dirlist[i:end],
+			parent:        base,
+			depth:         traversalDepth,
+			changeListPtr: &cl,
+			clashesMap:    clashesMap,
+		}
 
-				if cErr == ErrClashesDetected {
-					clashesMap[id] = childClashes
-					continue
-				} else if cErr != ErrPathNotExists {
-					g.log.LogErrf("%s: %v\n", p, cErr)
-					break
-				}
-			}
-		}(j, &wg, isPush, &cl, p, dirlist[i:end])
+		go g.changeSlice(&cslArgs)
 
 		i += chunkSize
 	}
+
 	wg.Wait()
 
 	for _, cclashes := range clashesMap {
@@ -344,48 +408,98 @@ func (g *Commands) resolveChangeListRecv(
 	return cl, clashes, err
 }
 
-func merge(remotes, locals chan *File, ignoreClashes bool) (merged []*dirList, clashesChan []*File) {
-	localsTrie := asciitrie.New()
-	remotesTrie := asciitrie.New()
+func (g *Commands) changeSlice(cslArg *changeSliceArg) {
+	p := cslArg.parent
+	cl := cslArg.changeListPtr
+	id := cslArg.id
+	wg := cslArg.wg
+	push := cslArg.push
+	dlist := cslArg.dirList
+	clashesMap := cslArg.clashesMap
+
+	defer wg.Done()
+	for _, l := range dlist {
+		// Avoiding path.Join which normalizes '/+' to '/'
+		var joined string
+		if p == "/" {
+			joined = "/" + l.Name()
+		} else {
+			joined = sepJoin("/", p, l.Name())
+		}
+
+		clr := &changeListResolve{
+			push:   push,
+			dir:    p,
+			base:   joined,
+			remote: l.remote,
+			local:  l.local,
+			depth:  cslArg.depth,
+		}
+
+		childChanges, childClashes, cErr := g.resolveChangeListRecv(clr)
+		if cErr == nil {
+			*cl = append(*cl, childChanges...)
+			continue
+		}
+
+		if cErr == ErrClashesDetected {
+			clashesMap[id] = childClashes
+			continue
+		} else if cErr != ErrPathNotExists {
+			g.log.LogErrf("%s: %v\n", p, cErr)
+			break
+		}
+	}
+}
+
+func merge(remotes, locals chan *File, ignoreClashes bool) (merged []*dirList, clashes []*File) {
+	localsMap := map[string]*File{}
+	remotesMap := map[string]*File{}
+
+	uniqClashes := map[string]bool{}
+
+	registerClash := func(v *File) {
+		key := v.Id
+		if key == "" {
+			key = v.Name
+		}
+		_, ok := uniqClashes[key]
+		if !ok {
+			uniqClashes[key] = true
+			clashes = append(clashes, v)
+		}
+	}
 
 	// TODO: Add support for FileSystems that allow same names but different files.
 	for l := range locals {
-		localsTrie.Set(l.Name, l)
+		localsMap[l.Name] = l
 	}
 
 	for r := range remotes {
 		list := &dirList{remote: r}
 
 		if !ignoreClashes {
-			evicted := remotesTrie.Set(r.Name, r)
-			if evicted != nil {
-				evictedFile, ok := evicted.(*File)
-				if ok {
-					clashesChan = append(clashesChan, evictedFile)
-				}
+			prev, present := remotesMap[r.Name]
+			if present {
+				registerClash(r)
+				registerClash(prev)
 				continue
 			}
+
+			remotesMap[r.Name] = r
 		}
 
-		mem, ok := localsTrie.Get(r.Name)
+		l, ok := localsMap[r.Name]
 		// look for local
-		if ok {
-			l, lOk := mem.(*File)
-			if lOk && (l.IsDir == r.IsDir) {
-				list.local = l
-				localsTrie.Pop(r.Name)
-			}
+		if ok && l != nil && l.IsDir == r.IsDir {
+			list.local = l
+			delete(localsMap, r.Name)
 		}
 		merged = append(merged, list)
 	}
 
 	// if anything left in locals, add to the dir listing
-	walk := localsTrie.Walk()
-	for item := range walk {
-		l, ok := item.(*File)
-		if !ok {
-			continue
-		}
+	for _, l := range localsMap {
 		merged = append(merged, &dirList{local: l})
 	}
 	return
@@ -470,9 +584,26 @@ func conflictsPersist(conflicts []*Change) bool {
 }
 
 func warnConflictsPersist(logy *log.Logger, conflicts []*Change) {
-	logy.LogErrf("These %d file(s) would be overwritten. Use -%s to override this behaviour\n", len(conflicts), CLIOptionIgnoreConflict)
-	for _, conflict := range conflicts {
-		logy.LogErrln(conflict.Path)
+	_warnChangeStopper(logy, conflicts, "\033[31mX\033[00m", "These %d file(s) would be overwritten. Use -%s to override this behaviour\n", len(conflicts), CLIOptionIgnoreConflict)
+}
+
+func warnClashesPersist(logy *log.Logger, conflicts []*Change) {
+	_warnChangeStopper(logy, conflicts, "\033[31mX\033[00m", "These paths clash\n")
+}
+
+func _warnChangeStopper(logy *log.Logger, items []*Change, perItemPrefix, fmt_ string, args ...interface{}) {
+	logy.LogErrf(fmt_, args...)
+	for _, item := range items {
+		if item != nil {
+			fileId := ""
+			if item.Src != nil && item.Src.Id != "" {
+				fileId = item.Src.Id
+			} else if item.Dest != nil && item.Dest.Id != "" {
+				fileId = item.Dest.Id
+			}
+
+			logy.LogErrln(perItemPrefix, item.Path, fileId)
+		}
 	}
 }
 

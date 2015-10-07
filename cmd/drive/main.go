@@ -32,7 +32,6 @@ import (
 )
 
 var context *config.Context
-var DefaultMaxProcs = runtime.NumCPU()
 
 func bindCommandWithAliases(key, description string, cmd command.Cmd, requiredFlags []string) {
 	command.On(key, description, cmd, requiredFlags)
@@ -45,9 +44,9 @@ func bindCommandWithAliases(key, description string, cmd command.Cmd, requiredFl
 }
 
 func main() {
-	maxProcs, err := strconv.ParseInt(os.Getenv("GOMAXPROCS"), 10, 0)
+	maxProcs, err := strconv.ParseInt(os.Getenv(drive.GoMaxProcsKey), 10, 0)
 	if err != nil || maxProcs < 1 {
-		maxProcs = int64(DefaultMaxProcs)
+		maxProcs = int64(drive.DefaultMaxProcs)
 	}
 	runtime.GOMAXPROCS(int(maxProcs))
 
@@ -57,6 +56,7 @@ func main() {
 	bindCommandWithAliases(drive.EmptyTrashKey, drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
 	bindCommandWithAliases(drive.FeaturesKey, drive.DescFeatures, &featuresCmd{}, []string{})
 	bindCommandWithAliases(drive.InitKey, drive.DescInit, &initCmd{}, []string{})
+	bindCommandWithAliases(drive.DeInitKey, drive.DescDeInit, &deInitCmd{}, []string{})
 	bindCommandWithAliases(drive.HelpKey, drive.DescHelp, &helpCmd{}, []string{})
 
 	bindCommandWithAliases(drive.ListKey, drive.DescList, &listCmd{}, []string{})
@@ -78,6 +78,8 @@ func main() {
 	bindCommandWithAliases(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
 	bindCommandWithAliases(drive.NewKey, drive.DescNew, &newCmd{}, []string{})
 	bindCommandWithAliases(drive.IndexKey, drive.DescIndex, &indexCmd{}, []string{})
+	bindCommandWithAliases(drive.UrlKey, drive.DescUrl, &urlCmd{}, []string{})
+	bindCommandWithAliases(drive.OpenKey, drive.DescOpen, &openCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -130,6 +132,25 @@ func (cmd *initCmd) Run(args []string) {
 	exitWithError(drive.New(initContext(args), nil).Init())
 }
 
+type deInitCmd struct {
+	noPrompt *bool
+}
+
+func (cmd *deInitCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
+	return fs
+}
+
+func (cmd *deInitCmd) Run(args []string) {
+	_, context, path := preprocessArgsByToggle(args, true)
+	opts := &drive.Options{
+		NoPrompt: *cmd.noPrompt,
+		Path:     path,
+	}
+
+	exitWithError(drive.New(context, opts).DeInit())
+}
+
 type quotaCmd struct{}
 
 func (cmd *quotaCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -141,6 +162,62 @@ func (cmd *quotaCmd) Run(args []string) {
 	exitWithError(drive.New(context, &drive.Options{
 		Path: path,
 	}).About(drive.AboutQuota))
+}
+
+type openCmd struct {
+	byId    *bool
+	local   *bool
+	browser *bool
+}
+
+func (cmd *openCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "open by id instead of path")
+	cmd.local = fs.Bool(drive.CLIOptionFileBrowser, true, "open file with the local file manager")
+	cmd.browser = fs.Bool(drive.CLIOptionWebBrowser, true, "open file in default browser")
+	return fs
+}
+
+func (cmd *openCmd) Run(args []string) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+
+	opts := drive.Options{
+		Path:    path,
+		Sources: sources,
+	}
+
+	openType := drive.OpenNone
+
+	if *cmd.byId {
+		openType |= drive.IdOpen
+	}
+	if *cmd.browser {
+		openType |= drive.BrowserOpen
+	}
+	if *cmd.local {
+		openType |= drive.FileManagerOpen
+	}
+
+	exitWithError(drive.New(context, &opts).Open(openType))
+}
+
+type urlCmd struct {
+	byId *bool
+}
+
+func (cmd *urlCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "resolve url by id instead of path")
+	return fs
+}
+
+func (cmd *urlCmd) Run(args []string) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+
+	opts := drive.Options{
+		Path:    path,
+		Sources: sources,
+	}
+
+	exitWithError(drive.New(context, &opts).Url(*cmd.byId))
 }
 
 type listCmd struct {
@@ -170,7 +247,7 @@ type listCmd struct {
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
+	cmd.depth = fs.Int(drive.DepthKey, 1, "max traversal depth")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "list all paths even hidden ones")
 	cmd.files = fs.Bool("f", false, "list only files")
 	cmd.directories = fs.Bool("d", false, "list all directories")
@@ -269,7 +346,7 @@ type md5SumCmd struct {
 }
 
 func (cmd *md5SumCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
+	cmd.depth = fs.Int(drive.DepthKey, 1, "max traversal depth")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "discover hidden paths")
 	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
@@ -312,7 +389,7 @@ type statCmd struct {
 }
 
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
+	cmd.depth = fs.Int(drive.DepthKey, 1, "max traversal depth")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "discover hidden paths")
 	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
@@ -446,6 +523,9 @@ type pullCmd struct {
 	ignoreNameClashes *bool
 	skipMimeKey       *string
 	explicitlyExport  *bool
+
+	verbose *bool
+	depth   *int
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -467,6 +547,8 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "pull by id instead of path")
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	cmd.explicitlyExport = fs.Bool(drive.CLIOptionExplicitlyExport, false, drive.DescExplicitylPullExports)
+	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
+	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 
 	return fs
 }
@@ -505,6 +587,8 @@ func (cmd *pullCmd) Run(args []string) {
 		ExcludeCrudMask:   excludeCrudMask,
 		ExplicitlyExport:  *cmd.explicitlyExport,
 		Meta:              &meta,
+		Verbose:           *cmd.verbose,
+		Depth:             *cmd.depth,
 	}
 
 	if *cmd.matches {
@@ -537,6 +621,8 @@ type pushCmd struct {
 	coercedMimeKey    *string
 	excludeOps        *string
 	skipMimeKey       *string
+	verbose           *bool
+	depth             *int
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -556,6 +642,8 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
 	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
+	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
+	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 	return fs
 }
 
@@ -646,6 +734,8 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		TypeMask:          mask,
 		ExcludeCrudMask:   excludeCrudMask,
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
+		Verbose:           *cmd.verbose,
+		Depth:             *cmd.depth,
 	}
 }
 
@@ -672,6 +762,7 @@ func (cmd *pushCmd) pushMounted(args []string) {
 
 	rest = drive.NonEmptyStrings(rest...)
 	context, path := discoverContext(contextArgs)
+
 	contextAbsPath, err := filepath.Abs(path)
 	exitWithError(err)
 
@@ -721,6 +812,11 @@ func (cmd *aboutCmd) Run(args []string) {
 	if *cmd.filesize {
 		mask |= drive.AboutFileSizes
 	}
+
+	if mask == drive.AboutNone { // No option set
+		mask = drive.AboutQuota | drive.AboutFeatures | drive.AboutFileSizes
+	}
+
 	exitWithError(drive.New(context, &drive.Options{
 		Quiet: *cmd.quiet,
 	}).About(mask))
@@ -732,6 +828,7 @@ type diffCmd struct {
 	ignoreChecksum    *bool
 	ignoreNameClashes *bool
 	quiet             *bool
+	depth             *int
 }
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -740,11 +837,13 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 	return fs
 }
 
 func (cmd *diffCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
+
 	exitWithError(drive.New(context, &drive.Options{
 		Recursive:         true,
 		Path:              path,
@@ -754,6 +853,7 @@ func (cmd *diffCmd) Run(args []string) {
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
 		IgnoreConflict:    *cmd.ignoreConflict,
 		Quiet:             *cmd.quiet,
+		Depth:             *cmd.depth,
 	}).Diff())
 }
 
@@ -852,6 +952,7 @@ func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *trashCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.matches || *cmd.byId)
+
 	opts := drive.Options{
 		Path:    path,
 		Sources: sources,
@@ -878,6 +979,7 @@ func (cmd *newCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *newCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
+
 	opts := drive.Options{
 		Path:    path,
 		Sources: sources,
@@ -922,6 +1024,7 @@ func (cmd *copyCmd) Run(args []string) {
 	dest := args[end]
 
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+
 	// Unshift by the end path
 	sources = sources[:len(sources)-1]
 	destRels, err := relativePaths(context.AbsPathOf(""), dest)
@@ -1023,7 +1126,7 @@ type moveCmd struct {
 
 func (cmd *moveCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
-	cmd.byId = fs.Bool(drive.CLIOptionId, false, "unshare by id instead of path")
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "move by id instead of path")
 	return fs
 }
 
@@ -1033,6 +1136,7 @@ func (cmd *moveCmd) Run(args []string) {
 		exitWithError(fmt.Errorf("move: expecting a path or more"))
 	}
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+
 	// Unshift by the end path
 	sources = sources[:len(sources)-1]
 

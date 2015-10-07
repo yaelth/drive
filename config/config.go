@@ -23,6 +23,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/boltdb/bolt"
 )
 
 var (
@@ -31,7 +33,19 @@ var (
 
 	ErrNoDriveContext      = errors.New("no drive context found; run `drive init` or go into one of the directories (sub directories) that you performed `drive init`")
 	ErrDerefNilIndex       = errors.New("cannot dereference a nil index")
+	ErrDerefNilDB          = errors.New("cannot dereference a nil db")
 	ErrEmptyFileIdForIndex = errors.New("fileId for index must be non-empty")
+	ErrNoSuchDbKey         = errors.New("no such db key exists")
+	ErrNoSuchDbBucket      = errors.New("no such bucket exists")
+)
+
+const (
+	IndicesKey = "indices"
+	DriveDb    = "drivedb"
+)
+
+const (
+	O_RWForAll = 0666
 )
 
 type Context struct {
@@ -64,6 +78,10 @@ type Mount struct {
 	Points            []*MountPoint
 }
 
+func byteify(s string) []byte {
+	return []byte(s)
+}
+
 func (mpt *MountPoint) mounted() bool {
 	// TODO: Find proper scheme for resolving symlinks
 	return mpt.CanClean
@@ -88,16 +106,103 @@ func (c *Context) Read() (err error) {
 	return json.Unmarshal(data, c)
 }
 
-func (c *Context) DeserializeIndex(dir, path string) (*Index, error) {
+func (c *Context) DeserializeIndex(key string) (*Index, error) {
+	if creationErr := c.CreateIndicesBucket(); creationErr != nil {
+		return nil, creationErr
+	}
+
+	db, err := c.OpenDB()
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
 	var data []byte
-	var err error
-	if data, err = ioutil.ReadFile(IndicesAbsPath(dir, path)); err != nil {
+
+	err = db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(byteify(IndicesKey))
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+
+		retr := bucket.Get(byteify(key))
+		if len(retr) < 1 {
+			return ErrNoSuchDbKey
+		}
+		data = retr
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
 	index := Index{}
 	err = json.Unmarshal(data, &index)
 	return &index, err
+}
+
+func (c *Context) ListKeys(dir, bucketName string) (chan string, error) {
+	keysChan := make(chan string)
+	if creationErr := c.CreateIndicesBucket(); creationErr != nil {
+		close(keysChan)
+		return keysChan, creationErr
+	}
+
+	db, err := c.OpenDB()
+	if err != nil {
+		close(keysChan)
+		return keysChan, err
+	}
+
+	go func() {
+		defer func() {
+			db.Close()
+			close(keysChan)
+		}()
+
+		db.View(func(tx *bolt.Tx) error {
+			bucket := tx.Bucket(byteify(bucketName))
+			if bucket == nil {
+				return ErrNoSuchDbBucket
+			}
+
+			cur := bucket.Cursor()
+
+			for key, _ := cur.First(); key != nil; key, _ = cur.Next() {
+				keysChan <- string(key)
+			}
+
+			return nil
+		})
+	}()
+
+	return keysChan, nil
+}
+
+func (c *Context) PopIndicesKey(key string) error {
+	return c.popDbKey(IndicesKey, key)
+}
+
+func (c *Context) popDbKey(bucketName, key string) error {
+	db, err := c.OpenDB()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
+		if err != nil {
+			return err
+		}
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+
+		return bucket.Delete(byteify(key))
+	})
 }
 
 func (c *Context) RemoveIndex(index *Index, p string) error {
@@ -107,15 +212,68 @@ func (c *Context) RemoveIndex(index *Index, p string) error {
 	if empty(index.FileId) {
 		return ErrEmptyFileIdForIndex
 	}
-	return os.Remove(IndicesAbsPath(p, index.FileId))
+
+	db, err := c.OpenDB()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
+		if err != nil {
+			return err
+		}
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+		return bucket.Delete(byteify(index.FileId))
+	})
 }
 
-func (c *Context) SerializeIndex(index *Index, p string) (err error) {
+func (c *Context) CreateIndicesBucket() error {
+	db, err := c.OpenDB()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
+		if err != nil {
+			return err
+		}
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+		return nil
+	})
+}
+
+func (c *Context) SerializeIndex(index *Index) (err error) {
 	var data []byte
+	var db *bolt.DB
+
 	if data, err = json.Marshal(index); err != nil {
 		return
 	}
-	return ioutil.WriteFile(IndicesAbsPath(p, index.FileId), data, 0600)
+
+	db, err = c.OpenDB()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists(byteify(IndicesKey))
+		if err != nil {
+			return err
+		}
+		if bucket == nil {
+			return ErrNoSuchDbBucket
+		}
+		return bucket.Put(byteify(index.FileId), data)
+	})
 }
 
 func (c *Context) Write() (err error) {
@@ -124,6 +282,45 @@ func (c *Context) Write() (err error) {
 		return
 	}
 	return ioutil.WriteFile(credentialsPath(c.AbsPath), data, 0600)
+}
+
+func (c *Context) DeInitialize(prompter func(...interface{}) bool, returnOnAnyError bool) (err error) {
+	rootDir := c.AbsPathOf("")
+	pathsToRemove := []string{
+		credentialsPath(rootDir),
+		DbSuffixedPath(rootDir),
+	}
+
+	for _, p := range pathsToRemove {
+		if !prompter("remove: ", p, ". This operation is permanent (Y/N) ") {
+			continue
+		}
+
+		rmErr := os.RemoveAll(p)
+		if rmErr != nil {
+			if returnOnAnyError {
+				return rmErr
+			}
+			fmt.Fprintf(os.Stderr, "deinit.removeAll: %s %v\n", p, rmErr)
+		}
+	}
+
+	return nil
+}
+
+func (c *Context) OpenDB() (db *bolt.DB, err error) {
+	dbPath := DbSuffixedPath(c.AbsPathOf(""))
+	db, err = bolt.Open(dbPath, O_RWForAll, nil)
+
+	if err != nil {
+		return db, err
+	}
+
+	if db == nil {
+		return db, ErrDerefNilDB
+	}
+
+	return db, nil
 }
 
 // Discovers the gd directory, if no gd directory or credentials
@@ -137,7 +334,7 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 			found = true
 			break
 		}
-		newPath := path.Join(p, "..")
+		newPath := filepath.Join(p, "..")
 		if p == newPath {
 			break
 		}
@@ -151,8 +348,6 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 	if err = context.Read(); err != nil {
 		return nil, err
 	}
-	indicesPath := IndicesAbsPath(context.AbsPath, "")
-	err = os.MkdirAll(indicesPath, 0755)
 	return
 }
 
@@ -162,7 +357,8 @@ func Initialize(absPath string) (pathGD string, firstInit bool, c *Context, err 
 	if sErr != nil {
 		if os.IsNotExist(sErr) {
 			firstInit = true
-		} else if !os.IsExist(sErr) { // An err not related to path existance
+		} else { // An err not related to path existance
+			err = sErr
 			return
 		}
 	}
@@ -186,8 +382,8 @@ func credentialsPath(absPath string) string {
 	return path.Join(gdPath(absPath), "credentials.json")
 }
 
-func IndicesAbsPath(dir, child string) string {
-	return path.Join(gdPath(dir), "indices", child)
+func DbSuffixedPath(dir string) string {
+	return path.Join(gdPath(dir), DriveDb)
 }
 
 func LeastNonExistantRoot(contextAbsPath string) string {

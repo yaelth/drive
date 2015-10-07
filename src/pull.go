@@ -22,13 +22,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"sync"
 
+	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/statos"
 )
 
-const (
-	maxNumOfConcPullTasks = 4
+var (
+	maxConcPulls = DefaultMaxProcs
 )
 
 type urlMimeTypeExt struct {
@@ -51,9 +51,8 @@ func (g *Commands) Pull(byId bool) error {
 	cl, clashes, err := pullLikeResolve(g, byId)
 
 	if len(clashes) >= 1 {
-		for _, clash := range clashes {
-			g.log.LogErrf("\033[91mX\033[00m %v \"%v\"\n", clash.Path, clash.Src.Id)
-		}
+		warnClashesPersist(g.log, clashes)
+		return ErrClashesDetected
 	}
 
 	if err != nil {
@@ -117,8 +116,8 @@ func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 		p = ""
 	}
 
-	combiner := func(from []*Change, to *[]*Change, done chan bool) {
-		*to = append(*to, from...)
+	combiner := func(from, to *[]*Change, done chan bool) {
+		*to = append(*to, *from...)
 		done <- true
 	}
 
@@ -135,26 +134,43 @@ func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 			return
 		}
 
-		done := make(chan bool, 2)
-		go combiner(ccl, &cl, done)
-		go combiner(cclashes, &clashes, done)
+		combines := []struct {
+			from, to *[]*Change
+		}{
+			{from: &ccl, to: &cl},
+			{from: &cclashes, to: &clashes},
+		}
 
-		<-done
-		<-done
+		nCombines := len(combines)
+		done := make(chan bool, nCombines)
+
+		for i := 0; i < nCombines; i++ {
+			curCombine := combines[i]
+			go combiner(curCombine.from, curCombine.to, done)
+		}
+
+		for i := 0; i < nCombines; i++ {
+			<-done
+		}
 	}
 
 	return
 }
 
 func (g *Commands) PullMatches() (err error) {
-	cl, _, err := pullLikeMatchesResolver(g)
+	cl, clashes, err := pullLikeMatchesResolver(g)
+
+	if len(clashes) >= 1 {
+		warnClashesPersist(g.log, clashes)
+		return ErrClashesDetected
+	}
 
 	if err != nil {
 		return err
 	}
 
 	if len(cl) < 1 {
-		return fmt.Errorf("no changes detected!")
+		return nil
 	}
 
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl, false)
@@ -224,27 +240,43 @@ func (g *Commands) pullById() (cl, clashes []*Change, err error) {
 
 		ccl, cclashes, clErr := g.doChangeListRecv(relToRootPath, curAbsPath, local, rem, false)
 		if clErr != nil {
-			return cl, cclashes, clErr
+			if clErr != ErrClashesDetected {
+				return cl, clashes, clErr
+			} else {
+				clashes = append(clashes, cclashes...)
+			}
 		}
 		cl = append(cl, ccl...)
 	}
 
-	return cl, clashes, nil
+	if len(clashes) >= 1 {
+		err = ErrClashesDetected
+	}
+
+	return cl, clashes, err
 }
 
 func (g *Commands) pullByPath() (cl, clashes []*Change, err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
-		ccl, clashes, cErr := g.changeListResolve(relToRootPath, fsPath, false)
+		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, false)
 		if cErr != nil {
-			return cl, clashes, cErr
+			if cErr != ErrClashesDetected {
+				return cl, clashes, cErr
+			} else {
+				clashes = append(clashes, cclashes...)
+			}
 		}
 		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
 	}
 
-	return cl, clashes, nil
+	if len(clashes) >= 1 {
+		err = ErrClashesDetected
+	}
+
+	return cl, clashes, err
 }
 
 func (g *Commands) pullAndDownload(relToRootPath string, fh io.Writer, rem *File, piped bool) (err error) {
@@ -265,8 +297,6 @@ func (g *Commands) pullAndDownload(relToRootPath string, fh io.Writer, rem *File
 }
 
 func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Operation]sizeCounter) (err error) {
-	var next []*Change
-
 	if opMap == nil {
 		result := opChangeCount(cl)
 		opMap = &result
@@ -293,45 +323,87 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 		}
 	}()
 
-	for {
-		if len(cl) > maxNumOfConcPullTasks {
-			next, cl = cl[:maxNumOfConcPullTasks], cl[maxNumOfConcPullTasks:len(cl)]
-		} else {
-			next, cl = cl, []*Change{}
-		}
-		if len(next) == 0 {
-			break
-		}
-		var wg sync.WaitGroup
-		wg.Add(len(next))
+	nMax := len(cl)
+	doneAck := make(chan bool)
 
-		// play the changes
-		// TODO: add timeouts
+	maxConcPulls := maxProcs()
 
-		for _, c := range next {
-			switch c.Op() {
-			case OpMod:
-				go g.localMod(&wg, c, exports)
-			case OpModConflict:
-				go g.localMod(&wg, c, exports)
-			case OpAdd:
-				go g.localAdd(&wg, c, exports)
-			case OpDelete:
-				go g.localDelete(&wg, c)
-			case OpIndexAddition:
-				go g.localAddIndex(&wg, c)
+	loader := make(chan *Change, maxConcPulls)
+	waiter := make(chan bool, maxConcPulls)
+
+	for i := 0; i < maxConcPulls; i++ {
+		waiter <- true
+	}
+
+	go func() {
+		defer close(loader)
+
+		for _, c := range cl {
+			if c == nil {
+				doneAck <- true
+				continue
 			}
+
+			<-waiter
+			loader <- c
 		}
+	}()
 
-		wg.Wait()
+	canPrintSteps := g.opts.Verbose && g.opts.canPrompt()
 
+	go func() {
+		for ch := range loader {
+			var fn func(*Change, []string) error = nil
+
+			op := ch.Op()
+			switch op {
+			case OpMod:
+				fn = g.localMod
+			case OpModConflict:
+				fn = g.localMod
+			case OpAdd:
+				fn = g.localAdd
+			case OpDelete:
+				fn = g.localDelete
+			case OpIndexAddition:
+				fn = g.localAddIndex
+			}
+
+			if fn == nil {
+				g.log.LogErrf("pull: cannot find operator for %v", op)
+				doneAck <- true
+				waiter <- true
+				continue
+			}
+
+			go func(c *Change, f func(*Change, []string) error) {
+				if canPrintSteps {
+					g.log.Logln("\033[01mPull::Started", c.Path, "\033[00m")
+				}
+
+				if err := f(c, exports); err != nil {
+					g.log.LogErrf("pull: %s err: %v\n", c.Path, err)
+				}
+
+				if canPrintSteps {
+					g.log.Logln("\033[04mPull::Done", c.Path, "\033[00m")
+				}
+
+				doneAck <- true
+				waiter <- true
+			}(ch, fn)
+		}
+	}()
+
+	for i := 0; i < nMax; i++ {
+		<-doneAck
 	}
 
 	g.taskFinish()
 	return err
 }
 
-func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change) (err error) {
+func (g *Commands) localAddIndex(change *Change, conform []string) (err error) {
 	f := change.Src
 	defer func() {
 		if f != nil {
@@ -340,23 +412,21 @@ func (g *Commands) localAddIndex(wg *sync.WaitGroup, change *Change) (err error)
 				g.rem.progressChan <- n
 			}
 		}
-		wg.Done()
 	}()
 
-	return g.createIndexLocally(f)
+	return g.createIndex(f)
 }
 
-func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
+func (g *Commands) localMod(change *Change, exports []string) (err error) {
 	defer func() {
 		if err == nil {
 			src := change.Src
-			indexErr := g.createIndexLocally(src)
+			indexErr := g.createIndex(src)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
-				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, indexErr)
+				g.log.LogErrf("localMod:createIndex %s: %v\n", src.Name, indexErr)
 			}
 		}
-		wg.Done()
 	}()
 
 	destAbsPath := g.context.AbsPathOf(change.Path)
@@ -387,18 +457,17 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 	return
 }
 
-func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
+func (g *Commands) localAdd(change *Change, exports []string) (err error) {
 	defer func() {
 		if err == nil && change.Src != nil {
 			fileToSerialize := change.Src
 
-			indexErr := g.createIndexLocally(fileToSerialize)
+			indexErr := g.createIndex(fileToSerialize)
 			// TODO: Should indexing errors be reported?
 			if indexErr != nil {
-				g.log.LogErrf("serializeIndex %s: %v\n", fileToSerialize.Name, indexErr)
+				g.log.LogErrf("localAdd:createIndex %s: %v\n", fileToSerialize.Name, indexErr)
 			}
 		}
-		wg.Done()
 	}()
 
 	destAbsPath := g.context.AbsPathOf(change.Path)
@@ -414,7 +483,11 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	}
 
 	if change.Src.IsDir {
-		return os.Mkdir(destAbsPath, os.ModeDir|0755)
+		err = os.Mkdir(destAbsPath, os.ModeDir|0755)
+		if os.IsExist(err) {
+			err = nil
+		}
+		return err
 	}
 
 	// download and create
@@ -426,7 +499,7 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	return
 }
 
-func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
+func (g *Commands) localDelete(change *Change, conform []string) (err error) {
 	defer func() {
 		if err == nil {
 			chunks := chunkInt64(change.Dest.Size)
@@ -437,11 +510,11 @@ func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 			dest := change.Dest
 			index := dest.ToIndex()
 			rmErr := g.context.RemoveIndex(index, g.context.AbsPathOf(""))
-			if rmErr != nil {
+			// For the sake of files missing remotely yet present locally and might not have a FileId
+			if rmErr != nil && rmErr != config.ErrEmptyFileIdForIndex {
 				g.log.LogErrf("localDelete removing index for: \"%s\" at \"%s\" %v\n", dest.Name, dest.BlobAt, rmErr)
 			}
 		}
-		wg.Done()
 	}()
 
 	err = os.RemoveAll(change.Dest.BlobAt)
@@ -492,16 +565,16 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 		})
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(len(waitables))
+	n := len(waitables)
+	doneAck := make(chan bool, n)
 
 	basePath := filepath.Base(f.Name)
 	baseDir := path.Join(dirPath, basePath)
 
 	for _, exportee := range waitables {
-		go func(wg *sync.WaitGroup, baseDirPath, id string, urlMExt *urlMimeTypeExt) error {
+		go func(baseDirPath, id string, urlMExt *urlMimeTypeExt) error {
 			defer func() {
-				wg.Done()
+				doneAck <- true
 			}()
 
 			exportPath := sepJoin(".", baseDirPath, urlMExt.ext)
@@ -527,10 +600,15 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 			if err == nil {
 				manifest = append(manifest, exportPath)
 			}
+
 			return err
-		}(&wg, baseDir, f.Id, exportee)
+		}(baseDir, f.Id, exportee)
 	}
-	wg.Wait()
+
+	for i := 0; i < n; i++ {
+		<-doneAck
+	}
+
 	return
 }
 
@@ -557,18 +635,12 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 	// We need to touch the empty file to
 	// ensure consistency during a push.
-	if runtime.GOOS != OSLinuxKey {
-		err = touchFile(destAbsPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		// For those our Linux kin that need .desktop files
-		dirPath := g.opts.ExportsDir
-		if dirPath == "" {
-			dirPath = filepath.Dir(destAbsPath)
-		}
+	if err = touchFile(destAbsPath); err != nil {
+		return err
+	}
 
+	// For our Linux kin that need .desktop files
+	if runtime.GOOS == OSLinuxKey {
 		f := change.Src
 
 		urlMExt := urlMimeTypeExt{
@@ -577,8 +649,7 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 			mimeType: f.MimeType,
 		}
 
-		dirPath = filepath.Join(dirPath, f.Name)
-		desktopEntryPath := sepJoin(".", dirPath, DesktopExtension)
+		desktopEntryPath := sepJoin(".", destAbsPath, DesktopExtension)
 
 		_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
 		if dentErr != nil {
@@ -586,21 +657,25 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 		}
 	}
 
-	if len(exports) >= 1 && hasExportLinks(change.Src) {
-		exportDirPath := destAbsPath
-		if g.opts.ExportsDir != "" {
-			exportDirPath = path.Join(g.opts.ExportsDir, change.Src.Name)
-		}
-
-		manifest, exportErr := g.export(change.Src, exportDirPath, exports)
-		if exportErr == nil {
-			for _, exportPath := range manifest {
-				g.log.Logf("Exported '%s' to '%s'\n", destAbsPath, exportPath)
-			}
-		}
-		return exportErr
+	canExport := len(exports) >= 1 && hasExportLinks(change.Src)
+	if !canExport {
+		return nil
 	}
-	return
+
+	exportDirPath := destAbsPath
+	if g.opts.ExportsDir != "" {
+		exportDirPath = path.Join(g.opts.ExportsDir, change.Src.Name)
+	}
+
+	manifest, exportErr := g.export(change.Src, exportDirPath, exports)
+
+	if exportErr == nil {
+		for _, exportPath := range manifest {
+			g.log.Logf("Exported '%s' to '%s'\n", destAbsPath, exportPath)
+		}
+	}
+
+	return exportErr
 }
 
 func (g *Commands) singleDownload(dlArg *downloadArg) (err error) {

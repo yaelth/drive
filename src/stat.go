@@ -16,8 +16,8 @@ package drive
 
 import (
 	"fmt"
-	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"github.com/odeke-em/log"
+	drive "google.golang.org/api/drive/v2"
 	"path/filepath"
 	"strings"
 )
@@ -99,6 +99,10 @@ func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 		&keyValue{"Shared", fmt.Sprintf("%v", file.Shared)},
 		&keyValue{"Owners", sepJoin(" & ", file.OwnerNames...)},
 		&keyValue{"LastModifyingUsername", file.LastModifyingUsername},
+	}
+
+	if file.Description != "" {
+		kvList = append(kvList, &keyValue{"Description", fmt.Sprintf("%q", file.Description)})
 	}
 
 	if file.Name != file.OriginalFilename {

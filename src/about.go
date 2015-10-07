@@ -17,11 +17,11 @@ package drive
 import (
 	"fmt"
 
-	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"github.com/odeke-em/log"
+	drive "google.golang.org/api/drive/v2"
 )
 
-const Version = "0.2.5"
+const Version = "0.3.0"
 
 const (
 	Barely = iota

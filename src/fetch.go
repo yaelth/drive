@@ -16,7 +16,6 @@ package drive
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -42,14 +41,11 @@ func (g *Commands) Prune() (err error) {
 		return delErr
 	}
 
-	for del := range deletions {
-		if del == nil {
-			continue
-		}
-		delErr = os.Remove(del.BlobAt)
+	for staleFileId := range deletions {
+		delErr := g.context.PopIndicesKey(staleFileId)
 
 		if delErr != nil {
-			g.log.LogErrf("fetch removing index for: \"%s\" at \"%s\" %v\n", del.Name, del.BlobAt, delErr)
+			g.log.LogErrf("fetch removing index for: \"%s\" %v\n", staleFileId, delErr)
 		}
 	}
 
@@ -70,6 +66,12 @@ func (g *Commands) FetchMatches() (err error) {
 
 func (g *Commands) fetch(fetchOp int) (err error) {
 	setIndexingOnlyOption(g)
+
+	err = g.context.CreateIndicesBucket()
+	if err != nil {
+		return err
+	}
+
 	var cl []*Change
 	switch fetchOp {
 	case FetchById:
@@ -149,7 +151,7 @@ func (g *Commands) playFetchChanges(cl []*Change, opMap *map[Operation]sizeCount
 func (g *Commands) addIndex(wg *sync.WaitGroup, f *File) (err error) {
 	defer loneCountRegister(wg, g.rem.progressChan)
 
-	indexErr := g.createIndexLocally(f)
+	indexErr := g.createIndex(f)
 	// TODO: Should indexing errors be reported?
 	if indexErr != nil {
 		g.log.LogErrf("addIndex %s: %v\n", f.Name, indexErr)
@@ -159,6 +161,11 @@ func (g *Commands) addIndex(wg *sync.WaitGroup, f *File) (err error) {
 }
 
 func (g *Commands) removeIndex(wg *sync.WaitGroup, f *File) (err error) {
+	err = g.context.CreateIndicesBucket()
+	if err != nil {
+		return err
+	}
+
 	defer loneCountRegister(wg, g.rem.progressChan)
 	if f.Id == "" {
 		return
@@ -185,7 +192,7 @@ func queryIdify(ids map[string]*File) string {
 	return sepJoin(" or ", idified...)
 }
 
-func mapifyFiles(g *Commands, ids map[string]*File) (map[string]*File, error) {
+func mapifyFiles(g *Commands, ids map[string]bool) (map[string]*File, error) {
 	delivery := make(chan *File)
 	mapping := make(map[string]*File)
 
@@ -212,12 +219,15 @@ func mapifyFiles(g *Commands, ids map[string]*File) (map[string]*File, error) {
 	return mapping, nil
 }
 
-func (g *Commands) pruneStaleIndices() (deletions chan *File, err error) {
-	var listing chan *File
-	indicesDir := config.IndicesAbsPath("", "")
-	listing, err = list(g.context, indicesDir, true, nil)
+func (g *Commands) listIndicesKeys() (chan string, error) {
+	return g.context.ListKeys(g.context.AbsPathOf(""), config.IndicesKey)
+}
 
-	deletions = make(chan *File)
+func (g *Commands) pruneStaleIndices() (deletions chan string, err error) {
+	var listing chan string
+	listing, err = g.listIndicesKeys()
+
+	deletions = make(chan string)
 
 	if err != nil {
 		close(deletions)
@@ -244,17 +254,17 @@ func (g *Commands) pruneStaleIndices() (deletions chan *File, err error) {
 		for iterating {
 			spin.play()
 
-			localIds := map[string]*File{}
+			localIds := map[string]bool{}
 			i := 0
 			for i < queriesPerRequest {
 				i += 1
-				f, ok := <-listing
+				fileId, ok := <-listing
 				if !ok {
 					iterating = false
 					break
 				}
 
-				localIds[f.Name] = f
+				localIds[fileId] = true
 			}
 
 			if len(localIds) < 1 {
@@ -268,11 +278,11 @@ func (g *Commands) pruneStaleIndices() (deletions chan *File, err error) {
 			}
 
 			delCount := 0
-			for localId, localFile := range localIds {
+			for localId, _ := range localIds {
 				_, ok := mapping[localId]
 				if !ok {
 					delCount += 1
-					deletions <- localFile
+					deletions <- localId
 				}
 			}
 
@@ -297,12 +307,12 @@ func (g *Commands) pruneStaleIndices() (deletions chan *File, err error) {
 	return
 }
 
-func (g *Commands) createIndexLocally(f *File) (err error) {
+func (g *Commands) createIndex(f *File) (err error) {
 	if f == nil {
 		return config.ErrDerefNilIndex
 	}
 	index := f.ToIndex()
-	return g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+	return g.context.SerializeIndex(index)
 }
 
 func printFetchChangeList(clArg *changeListArg) (bool, *map[Operation]sizeCounter) {

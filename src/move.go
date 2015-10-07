@@ -25,13 +25,15 @@ type moveOpt struct {
 	byId bool
 }
 
-func (g *Commands) Move(byId bool) (err error) {
+func (g *Commands) Move(byId bool) error {
 	argc := len(g.opts.Sources)
 	if argc < 2 {
 		return fmt.Errorf("move: expected <src> [src...] <dest>, instead got: %v", g.opts.Sources)
 	}
 
 	rest, dest := g.opts.Sources[:argc-1], g.opts.Sources[argc-1]
+
+	var composedError error = nil
 
 	for _, src := range rest {
 		prefix := commonPrefix(src, dest)
@@ -47,14 +49,13 @@ func (g *Commands) Move(byId bool) (err error) {
 			byId: byId,
 		}
 
-		err = g.move(&opt)
-		if err != nil {
-			// TODO: Actually throw the error? Impact on UX if thrown?
-			fmt.Printf("move: %s: %v\n", src, err)
+		if err := g.move(&opt); err != nil {
+			message := fmt.Sprintf("move: %s: %v", src, err)
+			composedError = reComposeError(composedError, message)
 		}
 	}
 
-	return nil
+	return composedError
 }
 
 func (g *Commands) move(opt *moveOpt) (err error) {
@@ -90,7 +91,8 @@ func (g *Commands) move(opt *moveOpt) (err error) {
 
 		// TODO: If oldParent is not found, retry since it may have been moved temporarily at least
 		if oldParent != nil && oldParent.Id == newParent.Id {
-			return nil
+			return fmt.Errorf("src and dest are the same srcParentId %s destParentId %s",
+				customQuote(oldParent.Id), customQuote(newParent.Id))
 		}
 	}
 
@@ -105,7 +107,7 @@ func (g *Commands) move(opt *moveOpt) (err error) {
 
 	if dupCheck != nil {
 		if dupCheck.Id == remSrc.Id { // Trying to move to self
-			return nil
+			return fmt.Errorf("move: trying to move fileId:%s to self fileId:%s", customQuote(dupCheck.Id), customQuote(remSrc.Id))
 		}
 		if !g.opts.Force {
 			return fmt.Errorf("%s already exists. Use `%s` flag to override this behaviour", newFullPath, ForceKey)

@@ -24,7 +24,12 @@ import (
 	"github.com/odeke-em/drive/src"
 	"github.com/odeke-em/ripper/src"
 	"github.com/odeke-em/xon/pkger/src"
+
+	_ "github.com/odeke-em/command"
+	_ "github.com/odeke-em/drive/config"
 )
+
+var AliasBinaryDir = "drive-google"
 
 func logErr(err error) {
 	fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -55,6 +60,7 @@ func main() {
 		{"CommitHash", pkgInfo.CommitHash},
 		{"GoVersion", pkgInfo.GoVersion},
 		{"OsInfo", pkgInfo.OsInfo},
+		{"BuildTime", pkgInfo.BuildTime},
 	}
 
 	importsClause := "import \"github.com/odeke-em/xon/pkger/src\"\n\n"
@@ -70,6 +76,10 @@ func main() {
 	exitIfError(err)
 
 	generatedInfoPath := filepath.Join(generatedDir, "generated.go")
+
+	originalContent, origReadErr := drive.ReadFullFile(generatedInfoPath)
+	exitIfError(origReadErr)
+
 	f, fErr := os.Create(generatedInfoPath)
 	exitIfError(fErr)
 
@@ -90,7 +100,7 @@ func main() {
 	for _, clause := range clauses {
 		_, wErr := f.Write([]byte(clause))
 		if wErr != nil {
-			logErr(err)
+			logErr(wErr)
 		}
 	}
 
@@ -98,7 +108,18 @@ func main() {
 	goBinaryPath, lookUpErr := exec.LookPath("go")
 	exitIfError(lookUpErr)
 
-	driveMainPath := filepath.Join(drive.DriveRepoRelPath, "cmd", "drive")
+	argc := len(os.Args)
+
+	srcDirSegments := []string{"cmd", "drive"}
+
+	if argc >= 2 {
+		if os.Args[1] == AliasBinaryDir {
+			srcDirSegments = []string{AliasBinaryDir}
+		}
+	}
+
+	allCombined := append([]string{drive.DriveRepoRelPath}, srcDirSegments...)
+	driveMainPath := filepath.Join(allCombined...)
 	generateCmd := exec.Cmd{
 		Args:   []string{goBinaryPath, "get", driveMainPath},
 		Dir:    ".",
@@ -109,5 +130,19 @@ func main() {
 	}
 
 	err = generateCmd.Run()
+
+	// Now revert the original content
+	revertHandle, revertOpenErr := os.Create(generatedInfoPath)
+	exitIfError(revertOpenErr)
+
+	for _, revertedClause := range originalContent {
+		fullClause := fmt.Sprintf("%s\n", revertedClause)
+		_, wErr := revertHandle.Write([]byte(fullClause))
+		if wErr != nil {
+			logErr(wErr)
+		}
+	}
+	revertHandle.Close()
+
 	exitIfError(err)
 }

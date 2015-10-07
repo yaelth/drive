@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 var prettyGitHashGetArgs = []string{"log", "-n", "1", "--pretty=format:'%H'"}
@@ -15,11 +16,12 @@ type PkgInfo struct {
 	CommitHash string
 	GoVersion  string
 	OsInfo     string
+	BuildTime  string
 }
 
 func (p *PkgInfo) String() string {
-	return fmt.Sprintf("Commit Hash: %s\nGo Version: %s\nOS: %s",
-		p.CommitHash, p.GoVersion, p.OsInfo)
+	return fmt.Sprintf("Commit Hash: %s\nGo Version: %s\nOS: %s\nBuildTime: %v",
+		p.CommitHash, p.GoVersion, p.OsInfo, p.BuildTime)
 }
 
 func goSrcify(p string) string {
@@ -58,6 +60,7 @@ func Recon(pkgPath string) (pkgInfo *PkgInfo, err error) {
 		CommitHash: string(output),
 		OsInfo:     strings.Join([]string{runtime.GOOS, runtime.GOARCH}, "/"),
 		GoVersion:  runtime.Version(),
+		BuildTime:  time.Now().String(),
 	}
 
 	return

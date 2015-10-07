@@ -32,6 +32,7 @@ const (
 	FeaturesKey   = "features"
 	HelpKey       = "help"
 	InitKey       = "init"
+	DeInitKey     = "deinit"
 	LinkKey       = "Link"
 	ListKey       = "list"
 	MoveKey       = "move"
@@ -69,6 +70,7 @@ const (
 	NoPromptKey           = "no-prompt"
 	SizeKey               = "size"
 	NameKey               = "name"
+	OpenKey               = "open"
 	OriginalNameKey       = "oname"
 	ModTimeKey            = "modt"
 	LastViewedByMeTimeKey = "lvt"
@@ -85,6 +87,7 @@ const (
 	FolderKey             = "folder"
 	MimeKey               = "mime-key"
 	DriveRepoRelPath      = "github.com/odeke-em/drive"
+	UrlKey                = "url"
 )
 
 const (
@@ -99,6 +102,7 @@ const (
 	DescIndex                 = "fetch indices from remote"
 	DescHelp                  = "Get help for a topic"
 	DescInit                  = "initializes a directory and authenticates user"
+	DescDeInit                = "removes the user's credentials and initialized files"
 	DescList                  = "lists the contents of remote path"
 	DescMove                  = "move files/folders"
 	DescQuota                 = "prints out information related to your quota space"
@@ -134,6 +138,9 @@ const (
 	DescNotOwner           = "ignore elements owned by these users"
 	DescNew                = "create a new file/folder"
 	DescAllIndexOperations = "perform all the index related operations"
+	DescOpen               = "open a file in the appropriate filemanager or default browser"
+	DescUrl                = "returns the url of each file"
+	DescVerbose            = "show step by step information verbosely"
 )
 
 const (
@@ -154,6 +161,22 @@ const (
 	CLIOptionNotOwner           = "skip-owner"
 	CLIOptionPruneIndices       = "prune"
 	CLIOptionAllIndexOperations = "all-ops"
+	CLIOptionVerboseKey         = "verbose"
+	CLIOptionVerboseShortKey    = "v"
+	CLIOptionOpen               = "open"
+	CLIOptionWebBrowser         = "web-browser"
+	CLIOptionFileBrowser        = "file-browser"
+)
+
+const (
+	DefaultMaxTraversalDepth = -1
+)
+
+const (
+	GoogleApiClientIdEnvKey     = "GOOGLE_API_CLIENT_ID"
+	GoogleApiClientSecretEnvKey = "GOOGLE_API_CLIENT_SECRET"
+	DriveGoMaxProcsKey          = "DRIVE_GOMAXPROCS"
+	GoMaxProcsKey               = "GOMAXPROCS"
 )
 
 const (
