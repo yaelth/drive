@@ -86,6 +86,7 @@ type Options struct {
 	Md5sum            bool
 	indexingOnly      bool
 	Verbose           bool
+	FixClashes        bool
 }
 
 type Commands struct {

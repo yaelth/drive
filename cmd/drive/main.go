@@ -523,6 +523,7 @@ type pullCmd struct {
 	ignoreNameClashes *bool
 	skipMimeKey       *string
 	explicitlyExport  *bool
+	fixClashes        *bool
 
 	verbose *bool
 	depth   *int
@@ -549,6 +550,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.explicitlyExport = fs.Bool(drive.CLIOptionExplicitlyExport, false, drive.DescExplicitylPullExports)
 	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
 	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
+	cmd.fixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 
 	return fs
 }
@@ -589,6 +591,7 @@ func (cmd *pullCmd) Run(args []string) {
 		Meta:              &meta,
 		Verbose:           *cmd.verbose,
 		Depth:             *cmd.depth,
+		FixClashes:        *cmd.fixClashes,
 	}
 
 	if *cmd.matches {
@@ -623,6 +626,7 @@ type pushCmd struct {
 	skipMimeKey       *string
 	verbose           *bool
 	depth             *int
+	fixClashes        *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -644,6 +648,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
 	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
+	cmd.fixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 	return fs
 }
 
@@ -656,6 +661,7 @@ func (cmd *pushCmd) Run(args []string) {
 		options := cmd.createPushOptions()
 		options.Path = path
 		options.Sources = sources
+		options.FixClashes = *cmd.fixClashes
 
 		if *cmd.piped {
 			exitWithError(drive.New(context, options).PushPiped())
