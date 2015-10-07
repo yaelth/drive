@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	prettywords "github.com/odeke-em/pretty-words"
 )
@@ -344,6 +345,7 @@ func PrintfShadow(fmt_ string, args ...interface{}) {
 func FprintfShadow(f io.Writer, fmt_ string, args ...interface{}) {
 	sprinted := fmt.Sprintf(fmt_, args...)
 	splits := formatText(sprinted)
-	joined := strings.Join(splits, "\n")
-	fmt.Fprintf(f, joined)
+	for _, split := range splits {
+		fmt.Fprintf(f, "%s\n", split)
+	}
 }
