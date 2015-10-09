@@ -142,6 +142,7 @@ const (
 	DescOpen               = "open a file in the appropriate filemanager or default browser"
 	DescUrl                = "returns the url of each file"
 	DescVerbose            = "show step by step information verbosely"
+	DescFixClashes         = "fix clashes by renaming files"
 )
 
 const (
@@ -167,6 +168,7 @@ const (
 	CLIOptionOpen               = "open"
 	CLIOptionWebBrowser         = "web-browser"
 	CLIOptionFileBrowser        = "file-browser"
+	CLIOptionFixClashesKey      = "fix-clashes"
 )
 
 const (
