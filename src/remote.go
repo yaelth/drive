@@ -64,10 +64,10 @@ const (
 )
 
 var (
-	ErrPathNotExists                  = errors.New("remote path doesn't exist")
-	ErrNetLookup                      = errors.New("net lookup failed")
-	ErrClashesDetected                = fmt.Errorf("clashes detected. Use `%s` to override this behavior or `%s` to try fixing this",
-										CLIOptionIgnoreNameClashes, CLIOptionFixClashesKey)
+	ErrPathNotExists   = errors.New("remote path doesn't exist")
+	ErrNetLookup       = errors.New("net lookup failed")
+	ErrClashesDetected = fmt.Errorf("clashes detected. Use `%s` to override this behavior or `%s` to try fixing this",
+		CLIOptionIgnoreNameClashes, CLIOptionFixClashesKey)
 	ErrGoogleApiInvalidQueryHardCoded = errors.New("googleapi: Error 400: Invalid query, invalid")
 )
 

@@ -118,7 +118,7 @@ func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *versionCmd) Run(args []string) {
-	drive.PrintfShadow("drive version: %s\n%s\n", drive.Version, generated.PkgInfo)
+	drive.StdoutPrintf("drive version: %s\n%s\n", drive.Version, generated.PkgInfo)
 	exitWithError(nil)
 }
 
@@ -1370,6 +1370,7 @@ func preprocessArgsByToggle(args []string, skipArgPreprocess bool) (sources []st
 
 	cwd, err := os.Getwd()
 	exitWithError(err)
+
 	_, context, path = preprocessArgs([]string{cwd})
 	sources = uniqOrderedStr(args)
 	return sources, context, path
