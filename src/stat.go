@@ -131,6 +131,9 @@ func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 }
 
 func (g *Commands) stat(relToRootPath string, file *File, depth int) error {
+	if depth == 0 {
+		return nil
+	}
 
 	if g.opts.Md5sum {
 		if file.Md5Checksum != "" {
@@ -148,7 +151,7 @@ func (g *Commands) stat(relToRootPath string, file *File, depth int) error {
 		}
 	}
 
-	if depth == 0 || !file.IsDir {
+	if !file.IsDir {
 		return nil
 	}
 
