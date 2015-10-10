@@ -25,37 +25,40 @@ import (
 )
 
 const (
-	AboutKey      = "about"
-	AllKey        = "all"
-	CopyKey       = "copy"
-	DeleteKey     = "delete"
-	DiffKey       = "diff"
-	EmptyTrashKey = "emptytrash"
-	FeaturesKey   = "features"
-	HelpKey       = "help"
-	InitKey       = "init"
-	DeInitKey     = "deinit"
-	LinkKey       = "Link"
-	ListKey       = "list"
-	MoveKey       = "move"
-	OSLinuxKey    = "linux"
-	PullKey       = "pull"
-	PushKey       = "push"
-	PubKey        = "pub"
-	RenameKey     = "rename"
-	QuotaKey      = "quota"
-	ShareKey      = "share"
-	StatKey       = "stat"
-	TouchKey      = "touch"
-	TrashKey      = "trash"
-	UnshareKey    = "unshare"
-	UntrashKey    = "untrash"
-	UnpubKey      = "unpub"
-	VersionKey    = "version"
-	Md5sumKey     = "md5sum"
-	NewKey        = "new"
-	IndexKey      = "index"
-	PruneKey      = "prune"
+	AboutKey                = "about"
+	AllKey                  = "all"
+	CopyKey                 = "copy"
+	DeleteKey               = "delete"
+	EditDescriptionKey      = "edit-description"
+	EditDescriptionShortKey = "edit-desc"
+	DiffKey                 = "diff"
+	EmptyTrashKey           = "emptytrash"
+	FeaturesKey             = "features"
+	HelpKey                 = "help"
+	InitKey                 = "init"
+	DeInitKey               = "deinit"
+	LinkKey                 = "Link"
+	ListKey                 = "list"
+	MoveKey                 = "move"
+	OSLinuxKey              = "linux"
+	PipedKey                = "piped"
+	PullKey                 = "pull"
+	PushKey                 = "push"
+	PubKey                  = "pub"
+	RenameKey               = "rename"
+	QuotaKey                = "quota"
+	ShareKey                = "share"
+	StatKey                 = "stat"
+	TouchKey                = "touch"
+	TrashKey                = "trash"
+	UnshareKey              = "unshare"
+	UntrashKey              = "untrash"
+	UnpubKey                = "unpub"
+	VersionKey              = "version"
+	Md5sumKey               = "md5sum"
+	NewKey                  = "new"
+	IndexKey                = "index"
+	PruneKey                = "prune"
 
 	CoercedMimeKeyKey     = "coerced-mime"
 	DepthKey              = "depth"
@@ -98,6 +101,7 @@ const (
 	DescCopy                  = "copy remote paths to a destination"
 	DescDelete                = "deletes the items permanently. This operation is irreversible"
 	DescDiff                  = "compares local files with their remote equivalent"
+	DescEdit                  = "edit the attributes of a file"
 	DescEmptyTrash            = "permanently cleans out your trash"
 	DescExcludeOps            = "exclude operations"
 	DescFeatures              = "returns information about the features of your drive"
@@ -107,6 +111,7 @@ const (
 	DescDeInit                = "removes the user's credentials and initialized files"
 	DescList                  = "lists the contents of remote path"
 	DescMove                  = "move files/folders"
+	DescPiped                 = "get content in from standard input (stdin)"
 	DescQuota                 = "prints out information related to your quota space"
 	DescPublish               = "publishes a file and prints its publicly available url"
 	DescRename                = "renames a file/folder"
@@ -144,9 +149,11 @@ const (
 	DescUrl                = "returns the remote URL of each file"
 	DescVerbose            = "show step by step information verbosely"
 	DescFixClashes         = "fix clashes by renaming files"
+	DescDescription        = "set the description"
 )
 
 const (
+	CLIOptionDescription        = "description"
 	CLIOptionExplicitlyExport   = "explicitly-export"
 	CLIOptionIgnoreChecksum     = "ignore-checksum"
 	CLIOptionIgnoreConflict     = "ignore-conflict"
@@ -170,6 +177,7 @@ const (
 	CLIOptionWebBrowser         = "web-browser"
 	CLIOptionFileBrowser        = "file-browser"
 	CLIOptionFixClashesKey      = "fix-clashes"
+	CLIOptionPiped              = "piped"
 )
 
 const (
@@ -207,6 +215,9 @@ var docMap = map[string][]string{
 	DiffKey: []string{
 		DescDiff, "Accepts multiple remote paths for line by line comparison",
 		skipChecksumNote,
+	},
+	EditDescriptionShortKey: []string{
+		DescEdit, "Accepts multiple remote paths as well as ids",
 	},
 	EmptyTrashKey: []string{
 		DescEmptyTrash,
@@ -291,10 +302,11 @@ var docMap = map[string][]string{
 
 func createAndRegisterAliases() map[string][]string {
 	aliases := map[string][]string{
-		CopyKey:   []string{"cp"},
-		ListKey:   []string{"ls"},
-		MoveKey:   []string{"mv"},
-		DeleteKey: []string{"del"},
+		CopyKey:            []string{"cp"},
+		ListKey:            []string{"ls"},
+		MoveKey:            []string{"mv"},
+		DeleteKey:          []string{"del"},
+		EditDescriptionKey: []string{EditDescriptionShortKey},
 	}
 
 	for originalKey, aliasList := range aliases {

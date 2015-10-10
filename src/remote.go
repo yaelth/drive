@@ -522,11 +522,7 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 	return
 }
 
-func (r *Remote) rename(fileId, newTitle string) (*File, error) {
-	f := &drive.File{
-		Title: newTitle,
-	}
-
+func (r *Remote) byFileIdUpdater(fileId string, f *drive.File) (*File, error) {
 	req := r.service.Files.Update(fileId, f)
 	uploaded, err := req.Do()
 	if err != nil {
@@ -534,6 +530,22 @@ func (r *Remote) rename(fileId, newTitle string) (*File, error) {
 	}
 
 	return NewRemoteFile(uploaded), nil
+}
+
+func (r *Remote) rename(fileId, newTitle string) (*File, error) {
+	f := &drive.File{
+		Title: newTitle,
+	}
+
+	return r.byFileIdUpdater(fileId, f)
+}
+
+func (r *Remote) updateDescription(fileId, newDescription string) (*File, error) {
+	f := &drive.File{
+		Description: newDescription,
+	}
+
+	return r.byFileIdUpdater(fileId, f)
 }
 
 func (r *Remote) removeParent(fileId, parentId string) error {

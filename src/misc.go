@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -355,20 +356,10 @@ func ReadFullFile(p string) (clauses []string, err error) {
 	return readFile_(p, nil)
 }
 
-func readFile_(p string, ignorer func(string) bool) (clauses []string, err error) {
-	f, fErr := os.Open(p)
-	if fErr != nil || f == nil {
-		err = fErr
-		return
-	}
-
-	defer f.Close()
+func fReadFile_(f io.Reader, ignorer func(string) bool) (clauses []string, err error) {
 	scanner := bufio.NewScanner(f)
 
-	for {
-		if !scanner.Scan() {
-			break
-		}
+	for scanner.Scan() {
 		line := scanner.Text()
 		line = strings.Trim(line, " ")
 		line = strings.Trim(line, "\n")
@@ -377,6 +368,25 @@ func readFile_(p string, ignorer func(string) bool) (clauses []string, err error
 		}
 		clauses = append(clauses, line)
 	}
+
+	return
+}
+
+func readFileFromStdin(ignorer func(string) bool) (clauses []string, err error) {
+	return fReadFile_(os.Stdin, ignorer)
+}
+
+func readFile_(p string, ignorer func(string) bool) (clauses []string, err error) {
+	f, fErr := os.Open(p)
+	if fErr != nil || f == nil {
+		err = fErr
+		return
+	}
+
+	defer f.Close()
+
+	clauses, err = fReadFile_(f, ignorer)
+
 	return
 }
 
@@ -750,4 +760,30 @@ func list(flArg *fsListingArg) (fileChan chan *File, err error) {
 		}
 	}()
 	return
+}
+
+func resolver(g *Commands, byId bool, sources []string, fileOp func(*File) interface{}) (kvChan chan *keyValue) {
+	resolve := g.rem.FindByPath
+	if byId {
+		resolve = g.rem.FindById
+	}
+
+	kvChan = make(chan *keyValue)
+
+	go func() {
+		defer close(kvChan)
+
+		for _, source := range sources {
+			f, err := resolve(source)
+
+			kv := keyValue{key: source, value: err}
+			if err == nil {
+				kv.value = fileOp(f)
+			}
+
+			kvChan <- &kv
+		}
+	}()
+
+	return kvChan
 }

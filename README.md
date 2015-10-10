@@ -32,6 +32,7 @@
   - [Listing Files](#listing-files)
   - [Stating Files](#stating-files)
   - [Retrieving md5 checksums](#retrieving-md5-checksums)
+  - [Editing Description](#editing-description)
   - [New File](#new-file)
   - [Quota](#quota)
   - [Features](#features)
@@ -707,6 +708,21 @@ $ drive new --mime-key presentation ProjectsPresentation
 $ drive new --mime-key sheet Hours2015Sept
 $ drive new --mime-key form taxForm2016 taxFormCounty
 $ drive new flux.txt oxen.pdf # Allow auto type resolution from the extension
+```
+
+### Editing Description
+
+You can edit the description of a file like this
+
+```shell
+$ drive edit-desc --description "This is a new file description" freshFolders/1.txt commonCore/
+$ drive edit-description --description "This is a new file description" freshFolders/1.txt commonCore/
+```
+
+Even more conveniently by piping content
+
+```shell
+$ cat fileDescriptions | drive edit-desc --piped  targetFile influx/1.txt
 ```
 
 ### Quota
