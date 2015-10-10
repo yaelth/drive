@@ -16,12 +16,10 @@ package drive
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	gopath "path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -77,6 +75,14 @@ func (g *Commands) Push() (err error) {
 	}
 
 	if len(clashes) >= 1 {
+		if g.opts.FixClashes {
+			err := autoRenameClashes(g, clashes)
+			if err == nil {
+				g.log.Logln("Clashes were fixed, try pulling again.")
+			}
+			return err
+		}
+
 		warnClashesPersist(g.log, clashes)
 		return ErrClashesDetected
 	}
@@ -381,6 +387,7 @@ func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change,
 		base:   absPath,
 		remote: r,
 		local:  l,
+		depth:  g.opts.Depth,
 	}
 
 	return g.resolveChangeListRecv(clr)
@@ -444,6 +451,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		dest:           change.Dest,
 		mask:           g.opts.TypeMask,
 		ignoreChecksum: g.opts.IgnoreChecksum,
+		debug:          g.opts.Verbose && g.opts.canPrompt(),
 	}
 
 	coercedMimeKey, ok := g.coercedMimeKey()
@@ -589,6 +597,7 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	args := upsertOpt{
 		parentId: parent.Id,
 		src:      remoteFile,
+		debug:    g.opts.Verbose && g.opts.canPrompt(),
 	}
 
 	cur, curErr := g.rem.UpsertByComparison(&args)
@@ -618,66 +627,4 @@ func namedPipe(mode os.FileMode) bool {
 
 func symlink(mode os.FileMode) bool {
 	return (mode & os.ModeSymlink) != 0
-}
-
-func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp) (fileChan chan *File, err error) {
-	absPath := context.AbsPathOf(p)
-	var f []os.FileInfo
-	f, err = ioutil.ReadDir(absPath)
-	fileChan = make(chan *File)
-	if err != nil {
-		close(fileChan)
-		return
-	}
-
-	go func() {
-		for _, file := range f {
-			fileName := file.Name()
-			if fileName == config.GDDirSuffix {
-				continue
-			}
-			if isHidden(fileName, hidden) {
-				continue
-			}
-
-			resPath := gopath.Join(absPath, fileName)
-			if anyMatch(ignore, fileName, resPath) {
-				continue
-			}
-
-			// TODO: (@odeke-em) decide on how to deal with isFifo
-			if namedPipe(file.Mode()) {
-				fmt.Fprintf(os.Stderr, "%s (%s) is a named pipe, not reading from it\n", p, resPath)
-				continue
-			}
-
-			if !symlink(file.Mode()) {
-				fileChan <- NewLocalFile(resPath, file)
-			} else {
-				var symResolvPath string
-				symResolvPath, err = filepath.EvalSymlinks(resPath)
-				if err != nil {
-					continue
-				}
-
-				if anyMatch(ignore, symResolvPath) {
-					continue
-				}
-
-				var symInfo os.FileInfo
-				symInfo, err = os.Stat(symResolvPath)
-				if err != nil {
-					continue
-				}
-
-				lf := NewLocalFile(symResolvPath, symInfo)
-				// Retain the original name as appeared in
-				// the manifest instead of the resolved one
-				lf.Name = fileName
-				fileChan <- lf
-			}
-		}
-		close(fileChan)
-	}()
-	return
 }

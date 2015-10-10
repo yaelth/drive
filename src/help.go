@@ -16,6 +16,12 @@ package drive
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"sort"
+	"strings"
+
+	prettywords "github.com/odeke-em/pretty-words"
 )
 
 const (
@@ -145,8 +151,9 @@ const (
 	DescNew                = "create a new file/folder"
 	DescAllIndexOperations = "perform all the index related operations"
 	DescOpen               = "open a file in the appropriate filemanager or default browser"
-	DescUrl                = "returns the url of each file"
+	DescUrl                = "returns the remote URL of each file"
 	DescVerbose            = "show step by step information verbosely"
+	DescFixClashes         = "fix clashes by renaming files"
 )
 
 const (
@@ -175,6 +182,11 @@ const (
 	CLIOptionDirectories        = "directories"
 	CLIOptionFiles              = "files"
 	CLIOptionLongFmt            = "long"
+	CLIOptionFixClashesKey      = "fix-clashes"
+)
+
+const (
+	DefaultMaxTraversalDepth = -1
 )
 
 const (
@@ -241,6 +253,10 @@ var docMap = map[string][]string{
 		DescMove,
 		"Moves files/folders between folders",
 	},
+	OpenKey: []string{
+		DescOpen, fmt.Sprintf("toggle between %q=bool and %q=bool",
+			CLIOptionWebBrowser, CLIOptionFileBrowser),
+	},
 	PubKey: []string{
 		DescPublish, "Accepts multiple paths",
 	},
@@ -278,21 +294,48 @@ var docMap = map[string][]string{
 	UnpubKey: []string{
 		DescUnpublish, "revokes public access to a list of remote files",
 	},
+	UrlKey: []string{
+		DescUrl, "takes multiple paths or ids",
+	},
 	VersionKey: []string{
 		DescVersion, fmt.Sprintf("current version is: %s", Version),
 	},
 }
 
-var Aliases = map[string][]string{
-	CopyKey: []string{"cp"},
-	ListKey: []string{"ls"},
-	MoveKey: []string{"mv"},
+func createAndRegisterAliases() map[string][]string {
+	aliases := map[string][]string{
+		CopyKey:   []string{"cp"},
+		ListKey:   []string{"ls"},
+		MoveKey:   []string{"mv"},
+		DeleteKey: []string{"del"},
+	}
+
+	for originalKey, aliasList := range aliases {
+		docDetails, ok := docMap[originalKey]
+		if !ok {
+			continue
+		}
+
+		for _, alias := range aliasList {
+			docMap[alias] = docDetails
+		}
+	}
+
+	return aliases
 }
 
+var Aliases = createAndRegisterAliases()
+
 func ShowAllDescriptions() {
+	keys := []string{}
 	for key, _ := range docMap {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	for _, key := range keys {
 		ShowDescription(key)
-		fmt.Println()
 	}
 }
 
@@ -303,7 +346,6 @@ func ShowDescriptions(topics ...string) {
 
 	for _, topic := range topics {
 		ShowDescription(topic)
-		fmt.Println()
 	}
 }
 
@@ -315,19 +357,48 @@ func ShowDescription(topic string) {
 
 	help, ok := docMap[topic]
 	if !ok {
-		fmt.Printf("Unkown command '%s' type `drive help all` for entire usage documentation\n", topic)
-		if false { // Decide in the future whether to show everything
-			ShowAllDescriptions()
-		}
+		PrintfShadow("Unkown command '%s' type `drive help all` for entire usage documentation", topic)
+		ShowAllDescriptions()
 	} else {
 		description, documentation := help[0], help[1:]
-		fmt.Printf("Name\n\t%s - %s\n", topic, description)
+		PrintfShadow("Name\n\t%s - %s\n", topic, description)
 		if len(documentation) >= 1 {
-			fmt.Println("Description")
+			PrintfShadow("Description\n")
 			for _, line := range documentation {
-				fmt.Printf("\t%s\n", line)
+				segments := formatText(line)
+				for _, segment := range segments {
+					PrintfShadow("\t%s", segment)
+				}
 			}
-			fmt.Printf("\n* For usage flags: \033[32m`drive %s -h`\033[00m\n\n", topic)
+			PrintfShadow("\n* For usage flags: \033[32m`drive %s -h`\033[00m\n\n", topic)
 		}
+		fmt.Fprintf(os.Stdout, "\n")
+	}
+}
+
+func formatText(text string) []string {
+	splits := strings.Split(text, "\n")
+
+	pr := prettywords.PrettyRubric{
+		Limit: 80,
+		Body:  splits,
+	}
+
+	return pr.Format()
+}
+
+func PrintfShadow(fmt_ string, args ...interface{}) {
+	FprintfShadow(os.Stdout, fmt_, args...)
+}
+
+func StdoutPrintf(fmt_ string, args ...interface{}) {
+	fmt.Fprintf(os.Stdout, fmt_, args...)
+}
+
+func FprintfShadow(f io.Writer, fmt_ string, args ...interface{}) {
+	sprinted := fmt.Sprintf(fmt_, args...)
+	splits := formatText(sprinted)
+	for _, split := range splits {
+		fmt.Fprintf(f, "%s\n", split)
 	}
 }

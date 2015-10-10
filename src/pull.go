@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/statos"
@@ -51,8 +52,16 @@ func (g *Commands) Pull(byId bool) error {
 	cl, clashes, err := pullLikeResolve(g, byId)
 
 	if len(clashes) >= 1 {
-		warnClashesPersist(g.log, clashes)
-		return ErrClashesDetected
+		if !g.opts.FixClashes {
+			warnClashesPersist(g.log, clashes)
+			return ErrClashesDetected
+		} else {
+			err := autoRenameClashes(g, clashes)
+			if err == nil {
+				g.log.Logln("Clashes were fixed, try pushing again.")
+			}
+			return err
+		}
 	}
 
 	if err != nil {
@@ -80,6 +89,77 @@ func (g *Commands) Pull(byId bool) error {
 	}
 
 	return g.playPullChanges(nonConflicts, g.opts.Exports, opMap)
+}
+
+func autoRenameClashes(g *Commands, clashes []*Change) error {
+	type renameOp struct {
+		newName      string
+		change       *Change
+		originalPath string
+	}
+	clashesMap := map[string][]*Change{}
+
+	for _, clash := range clashes {
+		group := clashesMap[clash.Path]
+		if clash.Src == nil {
+			continue
+		}
+		clashesMap[clash.Path] = append(group, clash)
+	}
+
+	renames := make([]renameOp, 0, len(clashesMap)) // we will have at least len(clashesMap) renames
+
+	for commonPath, group := range clashesMap {
+		ext := filepath.Ext(commonPath)
+		name := strings.TrimSuffix(commonPath, ext)
+		nextIndex := 0
+
+		for i, n := 1, len(group); i < n; i++ { // we can leave first item with original name
+			var newName string
+			for {
+				newName = fmt.Sprintf("%v_%d%v", name, nextIndex, ext)
+				nextIndex++
+
+				dupCheck, err := g.rem.FindByPath(newName)
+				if err != nil && err != ErrPathNotExists {
+					return err
+				}
+
+				if dupCheck == nil {
+					newName = filepath.Base(newName)
+					break
+				}
+			}
+
+			r := renameOp{newName: newName, change: group[i], originalPath: commonPath}
+			renames = append(renames, r)
+		}
+	}
+
+	if g.opts.canPrompt() {
+		g.log.Logln("Some clashes found, we can fix them by following renames:")
+		for _, r := range renames {
+			g.log.Logf("%v %v -> %v\n", r.originalPath, r.change.Src.Id, r.newName)
+		}
+		if !promptForChanges("Proceed with the changes [Y/N] ? ") {
+			return ErrClashesDetected
+		}
+	}
+
+	var composedError error
+
+	for _, r := range renames {
+		message := fmt.Sprintf("Renaming %s %v -> %s\n", r.originalPath, r.change.Src.Id, r.newName)
+		_, err := g.rem.rename(r.change.Src.Id, r.newName)
+		if err == nil {
+			g.log.Log(message)
+			continue
+		}
+
+		composedError = reComposeError(composedError, fmt.Sprintf("%s err: %v", message, err))
+	}
+
+	return composedError
 }
 
 func pullLikeResolve(g *Commands, byId bool) (cl, clashes []*Change, err error) {

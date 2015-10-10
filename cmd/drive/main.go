@@ -16,7 +16,7 @@
 package main
 
 import (
-    "encoding/json"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -133,8 +133,8 @@ func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *versionCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	fmt.Printf("drive version: %s\n%s\n", drive.Version, generated.PkgInfo)
+func (cmd *versionCmd) Run(args []string) {
+	drive.StdoutPrintf("drive version: %s\n%s\n", drive.Version, generated.PkgInfo)
 	exitWithError(nil)
 }
 
@@ -315,12 +315,12 @@ func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}
 
 	jsonStringified := drive.SiftCliTags(&cs)
-    fmt.Println("jsonStringified", jsonStringified)
-    if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
-        exitWithError(err)
-    }
-   
-    fmt.Println(cmd.NotOwner) 
+	fmt.Println("jsonStringified", jsonStringified)
+	if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
+		exitWithError(err)
+	}
+
+	fmt.Println(cmd.NotOwner)
 
 	exitWithError(err)
 	fmt.Println("parsed", parsed, "err", err, "passes", "virginCmd", cmd)
@@ -442,7 +442,7 @@ type md5SumCmd struct {
 }
 
 func (cmd *md5SumCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
+	cmd.depth = fs.Int(drive.DepthKey, 1, "max traversal depth")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "discover hidden paths")
 	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
@@ -485,7 +485,7 @@ type statCmd struct {
 }
 
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
+	cmd.depth = fs.Int(drive.DepthKey, 1, "max traversal depth")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "discover hidden paths")
 	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
@@ -619,8 +619,10 @@ type pullCmd struct {
 	ignoreNameClashes *bool
 	skipMimeKey       *string
 	explicitlyExport  *bool
+	fixClashes        *bool
 
 	verbose *bool
+	depth   *int
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -643,6 +645,8 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	cmd.explicitlyExport = fs.Bool(drive.CLIOptionExplicitlyExport, false, drive.DescExplicitylPullExports)
 	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
+	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
+	cmd.fixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 
 	return fs
 }
@@ -682,6 +686,8 @@ func (cmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		ExplicitlyExport:  *cmd.explicitlyExport,
 		Meta:              &meta,
 		Verbose:           *cmd.verbose,
+		Depth:             *cmd.depth,
+		FixClashes:        *cmd.fixClashes,
 	}
 
 	if *cmd.matches {
@@ -715,6 +721,8 @@ type pushCmd struct {
 	excludeOps        *string
 	skipMimeKey       *string
 	verbose           *bool
+	depth             *int
+	fixClashes        *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -735,6 +743,8 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
 	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
 	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
+	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
+	cmd.fixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 	return fs
 }
 
@@ -748,6 +758,7 @@ func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		options := cmd.createPushOptions()
 		options.Path = path
 		options.Sources = sources
+		options.FixClashes = *cmd.fixClashes
 
 		keysOnly := translateKeyChecks(definedFlags)
 		defaultOpts, err := drive.ResourceConfigurationToOptions(path)
@@ -834,6 +845,7 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		ExcludeCrudMask:   excludeCrudMask,
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
 		Verbose:           *cmd.verbose,
+		Depth:             *cmd.depth,
 	}
 }
 
@@ -933,6 +945,7 @@ type diffCmd struct {
 	ignoreChecksum    *bool
 	ignoreNameClashes *bool
 	quiet             *bool
+	depth             *int
 }
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -941,6 +954,7 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 	return fs
 }
 
@@ -956,6 +970,7 @@ func (cmd *diffCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		IgnoreNameClashes: *cmd.ignoreNameClashes,
 		IgnoreConflict:    *cmd.ignoreConflict,
 		Quiet:             *cmd.quiet,
+		Depth:             *cmd.depth,
 	}).Diff())
 }
 
@@ -1401,7 +1416,7 @@ func uniqOrderedStr(sources []string) []string {
 
 func exitWithError(err error) {
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		drive.FprintfShadow(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 }
@@ -1418,7 +1433,7 @@ func relativePathsOpt(root string, args []string, leastNonExistant bool) ([]stri
 	for _, p := range args {
 		p, err = filepath.Abs(p)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s %v\n", p, err)
+			drive.FprintfShadow(os.Stderr, "%s %v\n", p, err)
 			continue
 		}
 
@@ -1466,6 +1481,7 @@ func preprocessArgsByToggle(args []string, skipArgPreprocess bool) (sources []st
 
 	cwd, err := os.Getwd()
 	exitWithError(err)
+
 	_, context, path = preprocessArgs([]string{cwd})
 	sources = uniqOrderedStr(args)
 	return sources, context, path

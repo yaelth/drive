@@ -16,6 +16,7 @@
 - [Usage](#usage)
   - [Initializing](#initializing)
   - [De Initializing](#de-initializing)
+  - [Traversal Depth](#traversal-depth)
   - [Pulling](#pulling)
     - [Exporting Docs](#exporting-docs)
   - [Pushing](#pushing)
@@ -23,6 +24,7 @@
   - [Unpublishing](#unpublishing)
   - [Sharing and Emailing](#sharing-and-emailing)
   - [Unsharing](#unsharing)
+  - [Diffing](#diffing)
   - [Touching](#touching)
   - [Trashing and Untrashing](#trashing-and-untrashing)
   - [Emptying the Trash](#emptying-the-trash)
@@ -147,6 +149,61 @@ $ drive deinit [--no-prompt]
 For a complete deinit-ialization, don't forget to revoke account access, [please see revoking account access](#revoking-account-access)
 
 
+### Traversal Depth
+
+Before talking about the features of drive, it is useful to know about "Traversal Depth".
+
+Throughout this README the usage of the term "Traversal Depth" refers to the number of
+
+nodes/hops/items that it takes to get from one parent to children. In the options that allow it, you'll have a flag option `--depth <n>` where n is an integer
+
+* Traversal terminates on encountering a zero `0` traversal depth.
+
+* A negative depth indicates infinity, so traverse as deep as you can.
+
+* A positive depth helps control the reach.
+
+Given:
+
+	|- A/
+		|- B/
+		|- C/
+			|- C1
+			|- C2
+				|- C10/
+				|- CTX/
+					| - Music
+					| - Summary.txt
+
++ Items on the first level relative to A/ ie `depth 1`, we'll have:
+
+  B, C
+
++ On the third level relative to C/ ie `depth 3`
+
+  * We'll have:
+  
+    Items: Music, Summary.txt
+
+  * The items encountered in `depth 3` traversal relative to C/ are:
+
+				|- C1
+				|- C2
+					|- C10/
+					|- CTX/
+						| - Music
+						| - Summary.txt
+
+
++ No items are within the reach of  `depth -1` relative to B/ since B/ has no children.
+
++ Items within the reach of `depth -` relative to CTX/ are:
+
+				| - Music
+				| - Summary.txt
+
+
+
 ### Pulling
 
 The `pull` command downloads data that does not exist locally but does remotely on Google drive, and may delete local data that is not present on Google Drive. 
@@ -179,6 +236,20 @@ Pulling by id is also supported
 
 ```shell
 $ drive pull --id 0fM9rt0Yc9RTPaDdsNzg1dXVjM0E 0fM9rt0Yc9RTPaTVGc1pzODN1NjQ 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU
+```
+
+`pull` optionally allows you to pull content upto a desired depth.
+
+Say you would like to get just folder items until the second level
+
+```shell
+$ drive pull --depth 2 heavy-files summaries
+```
+
+Traverse deep to infinity and beyond
+
+```shell
+$ drive pull --depth -1 all-my-files
 ```
 
 
@@ -241,6 +312,12 @@ The `push` command uploads data to Google Drive to mirror data stored locally.
 
 Like `pull`, you can run it without any arguments to push all of the files from the current path, or you can pass in one or more paths to push specific files or directories.
 
+`push` also allows you to push content upto a desired traversal depth e.g
+
+```shell
+$ drive push --depth 1 head-folders
+```
+
 Note: To ignore checksum verification during a push:
 
 ```shell
@@ -254,7 +331,7 @@ $ drive push -piped path
 ```
 
 + Note:
-  * In relation to [#107](https://github.com/odeke-em/drive/issues/107) and numerous other issues related to confusion about clashing paths, drive will abort on trying to deal with clashing names. To turn off this safety, pass in flag `--ignore-name-clashes`.
+  * In response to [#107](https://github.com/odeke-em/drive/issues/107) and numerous other issues related to confusion about clashing paths, drive can now auto-rename clashing files. Use flag `--fix-clashes` during a `pull` or `push`, and drive will try to rename clashing files by adding a unique suffix at the end of the name, but right before the extension of a file (if the extension exists). If you haven't passed in the above `--fix-clashes` flag, drive will abort on trying to deal with clashing names. If you'd like to turn off this safety, pass in flag `--ignore-name-clashes`
   * In relation to [#57](https://github.com/odeke-em/drive/issues/57) and [@rakyll's #49](https://github.com/rakyll/drive/issues/49).
    A couple of scenarios in which data was getting totally clobbered and unrecoverable, drive now tries to play it safe and warn you if your data could potentially be lost e.g during a to-disk clobber for which you have no backup. At least with a push you have the luxury of untrashing content. To disable this safety, run drive with flag `-ignore-conflict` e.g:
 
@@ -405,6 +482,22 @@ $ drive unshare -type group mnt/drive
 ```shell
 $ drive unshare --type group --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
+
+### Diffing
+
+The `diff` command compares local files with their remote equivalents. It allows for multiple paths to be passed in e.g
+
+```shell
+$ drive diff changeLogs.log notes sub-folders/
+```
+
+You can diff to a desired depth
+
+```shell
+$ drive diff --depth 2 sub-folders/ contacts/ listings.txt
+```
+
+
 ### Touching
 
 Files that exist remotely can be touched i.e their modification time updated to that on the remote server using the `touch` command:
@@ -599,7 +692,7 @@ Compare across two different Drive accounts, including subfolders
 ~$ diff <(drive md5sum -r MyDrive/folder) <(drive md5sum -r OtherDrive/otherfolder)
 ```
 
-_Note: Running the 'drive md5sum' command retrieves pre-computed md5 sums from Drive; its speed is proportional to the number of files on Drive. Running the shell 'md5sum' command on local files requires reading through the files; its speed is proportional to the size of the files._
+* Note: Running the 'drive md5sum' command retrieves pre-computed md5 sums from Drive; its speed is proportional to the number of files on Drive. Running the shell 'md5sum' command on local files requires reading through the files; its speed is proportional to the size of the files._
 
 
 ### New File
