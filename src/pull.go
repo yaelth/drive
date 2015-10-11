@@ -205,7 +205,7 @@ func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 		if match == nil {
 			continue
 		}
-		relToRoot := "/" + match.Name
+		relToRoot := filepath.Join(g.opts.Path, match.Name)
 		fsPath := g.context.AbsPathOf(relToRoot)
 
 		ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
