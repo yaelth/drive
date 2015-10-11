@@ -47,6 +47,13 @@ func (g *Commands) EditDescription(byId bool) (composedErr error) {
 		description = strings.Join(clauses, "\n")
 	}
 
+	if description == "" && g.opts.canPrompt() {
+		g.log.Logln("Using an empty description will clear out the previous one")
+		if !promptForChanges() {
+			return
+		}
+	}
+
 	kvChan := resolver(g, byId, g.opts.Sources, noopOnFile)
 
 	for kv := range kvChan {
