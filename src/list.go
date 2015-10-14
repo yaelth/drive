@@ -16,7 +16,6 @@ package drive
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/odeke-em/log"
@@ -193,7 +192,7 @@ func (g *Commands) List(byId bool) error {
 		}
 
 		if r == nil {
-			g.log.LogErrf("remote: %s is nil\n", strconv.Quote(relPath))
+			g.log.LogErrf("%s cannot be found remotely\n", customQuote(relPath))
 			continue
 		}
 

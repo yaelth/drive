@@ -133,7 +133,7 @@ func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *versionCmd) Run(args []string) {
+func (cmd *versionCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	drive.StdoutPrintf("drive version: %s\n%s\n", drive.Version, generated.PkgInfo)
 	exitWithError(nil)
 }
@@ -259,7 +259,7 @@ type listCmd struct {
 	Version      *bool   `json:"version"`
 	Matches      *bool   `json:"matches"`
 	Owners       *bool   `json:"owners"`
-	Quiet        *bool   `json:"quiet"`
+	Quiet        *bool   `json:"list-quiet"`
 	SkipMimeKey  *string `json:"skip-mime"`
 	MatchMimeKey *string `json:"match-mime"`
 	ExactTitle   *string `json:"exact-title"`
@@ -297,33 +297,23 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	fmt.Println("pk", definedFlags, args)
-
-	for key, _ := range definedFlags {
-		fmt.Println("key", key)
-	}
-
 	sources, context, path := preprocessArgsByToggle(args, (*lCmd.ById || *lCmd.Matches))
-	parsed, err := drive.ResourceMappings(path)
+	rcMappings, err := drive.ResourceMappings(path)
 
 	cmd := listCmd{}
 
 	cs := drive.CliSifter{
 		From:           *lCmd,
-		Defaults:       parsed,
+		Defaults:       rcMappings,
 		AlreadyDefined: translateKeyChecks(definedFlags),
 	}
 
 	jsonStringified := drive.SiftCliTags(&cs)
-	fmt.Println("jsonStringified", jsonStringified)
 	if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
 		exitWithError(err)
 	}
 
-	fmt.Println(cmd.NotOwner)
-
 	exitWithError(err)
-	fmt.Println("parsed", parsed, "err", err, "passes", "virginCmd", cmd)
 
 	typeMask := 0
 	if *cmd.Directories {
@@ -348,12 +338,6 @@ func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		typeMask |= drive.Minimal
 	}
 
-	opts, _ := drive.ResourceConfigurationToOptions(path)
-	// TODO: Log resource config errors if being verbose
-	if opts == nil {
-		opts = &drive.Options{}
-	}
-
 	depth := *cmd.Depth
 	if *cmd.Recursive {
 		depth = drive.InfiniteDepth
@@ -369,59 +353,18 @@ func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		drive.NotOwnerKey:     drive.NonEmptyTrimmedStrings(strings.Split(*cmd.NotOwner, ",")...),
 	}
 
-	opts.Path = path
-	if cmd.Hidden != nil {
-		opts.Hidden = *cmd.Hidden
-	}
-
-	if cmd.Depth != nil {
-		opts.Depth = *cmd.Depth
-	}
-
-	if cmd.InTrash != nil {
-		opts.InTrash = *cmd.InTrash
-	}
-
-	if cmd.PageSize != nil {
-		opts.PageSize = *cmd.PageSize
-	}
-
-	if cmd.NoPrompt != nil {
-		opts.NoPrompt = *cmd.NoPrompt
-	}
-
-	if cmd.Recursive != nil {
-		opts.Recursive = *cmd.Recursive
-	}
-
-	if cmd.Quiet != nil {
-		opts.Quiet = *cmd.Quiet
-	}
-
-	options := drive.Options{
+	opts := &drive.Options{
+		Path:      path,
+		Sources:   sources,
 		Depth:     depth,
 		Hidden:    *cmd.Hidden,
 		InTrash:   *cmd.InTrash,
 		PageSize:  *cmd.PageSize,
-		Path:      path,
 		NoPrompt:  *cmd.NoPrompt,
 		Recursive: *cmd.Recursive,
-		Sources:   sources,
 		TypeMask:  typeMask,
 		Quiet:     *cmd.Quiet,
 		Meta:      &meta,
-	}
-
-	fmt.Println("options", options)
-
-	opts.Sources = sources
-	opts.TypeMask = typeMask
-
-	keysOnly := translateKeyChecks(definedFlags)
-	defaultOpts, err := drive.ResourceConfigurationToOptions(path)
-
-	if err == nil && defaultOpts != nil {
-		drive.CopyOptionsFromKeysIfNotSet(defaultOpts, opts, keysOnly)
 	}
 
 	if *cmd.Shared {
@@ -749,7 +692,6 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	fmt.Println("definedFlags", definedFlags)
 	if *cmd.mountedPush {
 		cmd.pushMounted(args, definedFlags)
 	} else {
@@ -759,13 +701,6 @@ func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		options.Path = path
 		options.Sources = sources
 		options.FixClashes = *cmd.fixClashes
-
-		keysOnly := translateKeyChecks(definedFlags)
-		defaultOpts, err := drive.ResourceConfigurationToOptions(path)
-
-		if err == nil && defaultOpts != nil {
-			drive.CopyOptionsFromKeysIfNotSet(defaultOpts, options, keysOnly)
-		}
 
 		if *cmd.piped {
 			exitWithError(drive.New(context, options).PushPiped())
@@ -890,13 +825,6 @@ func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Fla
 	options := cmd.createPushOptions()
 	options.Mount = mount
 	options.Sources = sources
-
-	keysOnly := translateKeyChecks(definedFlags)
-	defaultOpts, err := drive.ResourceConfigurationToOptions(path)
-
-	if err == nil && defaultOpts != nil {
-		drive.CopyOptionsFromKeysIfNotSet(defaultOpts, options, keysOnly)
-	}
 
 	exitWithError(drive.New(context, options).Push())
 }

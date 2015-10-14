@@ -114,9 +114,6 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 			key: IgnoreConflictKey, resolver: _boolfer,
 		},
 		{
-			key: CLIOptionExactTitle, resolver: _boolfer,
-		},
-		{
 			key: RecursiveKey, resolver: _boolfer,
 		},
 		{
@@ -138,6 +135,10 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 			key: ExportsDirKey, resolver: _stringfer,
 		},
 		{
+			key: CLIOptionExactTitle, resolver: _stringfer,
+		},
+
+		{
 			key: ExportsKey, resolver: _stringArrayfer,
 		},
 		{
@@ -149,7 +150,7 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 	for _, stK := range targetKeys {
 		lowerKey := strings.ToLower(stK.key)
 		retr, ok := rcMap[lowerKey]
-		fmt.Println("lowerKey", lowerKey, retr, ok)
+		// fmt.Println("lowerKey", lowerKey, retr, ok)
 		if !ok {
 			continue
 		}
