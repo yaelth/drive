@@ -91,6 +91,7 @@ func main() {
 	bindCommandWithAliases(drive.IndexKey, drive.DescIndex, &indexCmd{}, []string{})
 	bindCommandWithAliases(drive.UrlKey, drive.DescUrl, &urlCmd{}, []string{})
 	bindCommandWithAliases(drive.OpenKey, drive.DescOpen, &openCmd{}, []string{})
+	bindCommandWithAliases(drive.EditDescriptionKey, drive.DescEdit, &editDescriptionCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -221,6 +222,39 @@ func (cmd *openCmd) Run(args []string, definedArgs map[string]*flag.Flag) {
 	}
 
 	exitWithError(drive.New(context, &opts).Open(openType))
+}
+
+type editDescriptionCmd struct {
+	byId        *bool
+	description *string
+	piped       *bool
+}
+
+func (cmd *editDescriptionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "open by id instead of path")
+	cmd.description = fs.String(drive.CLIOptionDescription, "", drive.DescDescription)
+	cmd.piped = fs.Bool(drive.CLIOptionPiped, false, drive.DescPiped)
+	return fs
+}
+
+func (cmd *editDescriptionCmd) Run(args []string) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+
+	meta := map[string][]string{
+		drive.EditDescriptionKey: []string{*cmd.description},
+	}
+
+	if *cmd.piped {
+		meta[drive.PipedKey] = []string{fmt.Sprintf("%v", *cmd.piped)}
+	}
+
+	opts := drive.Options{
+		Meta:    &meta,
+		Path:    path,
+		Sources: sources,
+	}
+
+	exitWithError(drive.New(context, &opts).EditDescription(*cmd.byId))
 }
 
 type urlCmd struct {

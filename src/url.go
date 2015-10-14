@@ -22,7 +22,7 @@ func (g *Commands) Url(byId bool) error {
 		case error:
 			g.log.LogErrf("%s: %s\n", kv.key, kv.value)
 		default:
-			g.log.Logf("%s: %s\n", kv.key, kv.value)
+			g.log.Logf("%s: %v\n", kv.key, kv.value)
 		}
 	}
 
@@ -30,27 +30,12 @@ func (g *Commands) Url(byId bool) error {
 }
 
 func (g *Commands) urler(byId bool, sources []string) (kvChan chan *keyValue) {
-	resolver := g.rem.FindByPath
-	if byId {
-		resolver = g.rem.FindById
+	fileUrler := func(f *File) interface{} {
+		if f == nil {
+			return ""
+		}
+		return f.Url()
 	}
 
-	kvChan = make(chan *keyValue)
-
-	go func() {
-		defer close(kvChan)
-
-		for _, source := range sources {
-			f, err := resolver(source)
-
-			kv := keyValue{key: source, value: err}
-			if err == nil {
-				kv.value = f.Url()
-			}
-
-			kvChan <- &kv
-		}
-	}()
-
-	return kvChan
+	return resolver(g, byId, g.opts.Sources, fileUrler)
 }

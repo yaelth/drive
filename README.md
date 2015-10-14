@@ -32,6 +32,7 @@
   - [Listing Files](#listing-files)
   - [Stating Files](#stating-files)
   - [Retrieving md5 checksums](#retrieving-md5-checksums)
+  - [Editing Description](#editing-description)
   - [New File](#new-file)
   - [Quota](#quota)
   - [Features](#features)
@@ -238,7 +239,7 @@ Pulling by id is also supported
 $ drive pull --id 0fM9rt0Yc9RTPaDdsNzg1dXVjM0E 0fM9rt0Yc9RTPaTVGc1pzODN1NjQ 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU
 ```
 
-`pull` optionally allows you to pull content upto a desired depth.
+`pull` optionally allows you to pull content up to a desired depth.
 
 Say you would like to get just folder items until the second level
 
@@ -312,7 +313,7 @@ The `push` command uploads data to Google Drive to mirror data stored locally.
 
 Like `pull`, you can run it without any arguments to push all of the files from the current path, or you can pass in one or more paths to push specific files or directories.
 
-`push` also allows you to push content upto a desired traversal depth e.g
+`push` also allows you to push content up to a desired traversal depth e.g
 
 ```shell
 $ drive push --depth 1 head-folders
@@ -328,6 +329,12 @@ drive also supports pushing content piped from stdin which can be accomplished b
 
 ```shell
 $ drive push -piped path
+```
+
+Here is an example using drive to backup the current working directory. It pushes a tar.gz archive created on the fly. No archive file is made on the machine running the command, so it doesn't waste disk space.
+
+```shell
+$ tar czf - . | drive push -piped backup-$(date +"%m-%d-%Y-"%T"").tar.gz
 ```
 
 + Note:
@@ -708,6 +715,21 @@ $ drive new --mime-key presentation ProjectsPresentation
 $ drive new --mime-key sheet Hours2015Sept
 $ drive new --mime-key form taxForm2016 taxFormCounty
 $ drive new flux.txt oxen.pdf # Allow auto type resolution from the extension
+```
+
+### Editing Description
+
+You can edit the description of a file like this
+
+```shell
+$ drive edit-desc --description "This is a new file description" freshFolders/1.txt commonCore/
+$ drive edit-description --description "This is a new file description" freshFolders/1.txt commonCore/
+```
+
+Even more conveniently by piping content
+
+```shell
+$ cat fileDescriptions | drive edit-desc --piped  targetFile influx/1.txt
 ```
 
 ### Quota
