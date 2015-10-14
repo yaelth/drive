@@ -125,9 +125,15 @@ func rcPathChecker(absDir string) (string, error) {
 }
 
 func (opts *Options) rcPath() (string, error) {
-	localRCPath, lRCErr := rcPathChecker(opts.Path)
-	if lRCErr == nil || !os.IsNotExist(lRCErr) {
-		return localRCPath, lRCErr
+	for curPath := opts.Path; curPath != ""; curPath = path.Dir(curPath) {
+		localRCP, err := rcPathChecker(curPath)
+		if err == nil && localRCP != "" {
+			return localRCP, nil
+		}
+
+		if err != nil && !os.IsNotExist(err) {
+			return "", err
+		}
 	}
 
 	return rcPathChecker(FsHomeDir)

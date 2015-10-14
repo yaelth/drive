@@ -78,6 +78,7 @@ func ResourceConfigurationToOptions(path string) (*Options, error) {
 func ResourceMappings(rcPath string) (parsed map[string]interface{}, err error) {
 	beginOpts := Options{Path: rcPath}
 	rcPath, rcErr := beginOpts.rcPath()
+	fmt.Println("rcPath", rcPath, rcErr)
 	if rcErr != nil {
 		err = rcErr
 		return

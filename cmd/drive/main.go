@@ -237,7 +237,7 @@ func (cmd *editDescriptionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *editDescriptionCmd) Run(args []string) {
+func (cmd *editDescriptionCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 
 	meta := map[string][]string{
@@ -293,7 +293,7 @@ type listCmd struct {
 	Version      *bool   `json:"version"`
 	Matches      *bool   `json:"matches"`
 	Owners       *bool   `json:"owners"`
-	Quiet        *bool   `json:"list-quiet"`
+	Quiet        *bool   `json:"quiet"`
 	SkipMimeKey  *string `json:"skip-mime"`
 	MatchMimeKey *string `json:"match-mime"`
 	ExactTitle   *string `json:"exact-title"`
@@ -315,7 +315,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Version = fs.Bool("version", false, "show the number of times that the file has been modified on \n\t\tthe server even with changes not visible to the user")
 	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before pagination")
 	cmd.Owners = fs.Bool("owners", false, "shows the owner names per file")
-	cmd.Recursive = fs.Bool("r", false, "recursively list subdirectories")
+	cmd.Recursive = fs.Bool("recursive", false, "recursively list subdirectories")
 	cmd.Sort = fs.String(drive.SortKey, "", drive.DescSort)
 	cmd.Matches = fs.Bool(drive.MatchesKey, false, "list by prefix")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
@@ -421,7 +421,7 @@ type md5SumCmd struct {
 func (cmd *md5SumCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.depth = fs.Int(drive.DepthKey, 1, "max traversal depth")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "discover hidden paths")
-	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
+	cmd.recursive = fs.Bool("recursive", false, "recursively discover folders")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "stat by id instead of path")
 	return fs
@@ -464,7 +464,7 @@ type statCmd struct {
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.depth = fs.Int(drive.DepthKey, 1, "max traversal depth")
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "discover hidden paths")
-	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
+	cmd.recursive = fs.Bool("recursive", false, "recursively discover folders")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "stat by id instead of path")
 	cmd.md5sum = fs.Bool(drive.Md5sumKey, false, "produce output compatible with md5sum(1)")
@@ -517,7 +517,7 @@ type indexCmd struct {
 func (cmd *indexCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "fetch by id instead of path")
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, true, drive.DescIgnoreConflict)
-	cmd.recursive = fs.Bool("r", true, "fetch recursively for children")
+	cmd.recursive = fs.Bool("recursive", true, "fetch recursively for children")
 	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the fetch action")
 	cmd.hidden = fs.Bool(drive.HiddenKey, true, "allows fetching of hidden paths")
 	cmd.force = fs.Bool(drive.ForceKey, false, "forces a fetch even if no changes present")
@@ -579,164 +579,186 @@ func (cmd *indexCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 }
 
 type pullCmd struct {
-	byId              *bool
-	exportsDir        *string
-	export            *string
-	excludeOps        *string
-	force             *bool
-	hidden            *bool
-	matches           *bool
-	noPrompt          *bool
-	noClobber         *bool
-	recursive         *bool
-	ignoreChecksum    *bool
-	ignoreConflict    *bool
-	piped             *bool
-	quiet             *bool
-	ignoreNameClashes *bool
-	skipMimeKey       *string
-	explicitlyExport  *bool
-	fixClashes        *bool
+	ById              *bool   `json:"by-id"`
+	ExportsDir        *string `json:"exports-dir"`
+	Export            *string `json:"export"`
+	ExcludeOps        *string `json:"exclude-ops"`
+	Force             *bool   `json:"force"`
+	Hidden            *bool   `json:"hidden"`
+	Matches           *bool   `json:"matches"`
+	NoPrompt          *bool   `json:"no-prompt"`
+	NoClobber         *bool   `json:"no-clobber"`
+	Recursive         *bool   `json:"recursive"`
+	IgnoreChecksum    *bool   `json:"ignore-checksum"`
+	IgnoreConflict    *bool   `json:"ignore-conflict"`
+	Piped             *bool   `json:"piped"`
+	Quiet             *bool   `json:"quiet"`
+	IgnoreNameClashes *bool   `json:"ignore-name-clashes"`
+	SkipMimeKey       *string `json:"skip-mime"`
+	ExplicitlyExport  *bool   `json:"explicitly-export"`
+	FixClashes        *bool   `json:"fix-clashes"`
 
-	verbose *bool
-	depth   *int
+	Verbose *bool `json:"verbose"`
+	Depth   *int  `json:"depth"`
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.noClobber = fs.Bool(drive.CLIOptionNoClobber, false, "prevents overwriting of old content")
-	cmd.export = fs.String(
+	cmd.NoClobber = fs.Bool(drive.CLIOptionNoClobber, false, "prevents overwriting of old content")
+	cmd.Export = fs.String(
 		"export", "", "comma separated list of formats to export your docs + sheets files")
-	cmd.recursive = fs.Bool("r", true, "performs the pull action recursively")
-	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the pull action")
-	cmd.hidden = fs.Bool(drive.HiddenKey, false, "allows pulling of hidden paths")
-	cmd.force = fs.Bool(drive.ForceKey, false, "forces a pull even if no changes present")
-	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
-	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
-	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
-	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
-	cmd.matches = fs.Bool(drive.MatchesKey, false, "search by prefix")
-	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
-	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
-	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
-	cmd.byId = fs.Bool(drive.CLIOptionId, false, "pull by id instead of path")
-	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
-	cmd.explicitlyExport = fs.Bool(drive.CLIOptionExplicitlyExport, false, drive.DescExplicitylPullExports)
-	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
-	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
-	cmd.fixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
+	cmd.Recursive = fs.Bool("recursive", true, "performs the pull action recursively")
+	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the pull action")
+	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "allows pulling of hidden paths")
+	cmd.Force = fs.Bool(drive.ForceKey, false, "forces a pull even if no changes present")
+	cmd.IgnoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
+	cmd.IgnoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
+	cmd.IgnoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
+	cmd.ExportsDir = fs.String("export-dir", "", "directory to place exports")
+	cmd.Matches = fs.Bool(drive.MatchesKey, false, "search by prefix")
+	cmd.Piped = fs.Bool("piped", false, "if true, read content from stdin")
+	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.ExcludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
+	cmd.ById = fs.Bool(drive.CLIOptionId, false, "pull by id instead of path")
+	cmd.SkipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
+	cmd.ExplicitlyExport = fs.Bool(drive.CLIOptionExplicitlyExport, false, drive.DescExplicitylPullExports)
+	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
+	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
+	cmd.FixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 
 	return fs
 }
 
-func (cmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	sources, context, path := preprocessArgsByToggle(args, (*cmd.byId || *cmd.matches))
+func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, (*pCmd.ById || *pCmd.Matches))
 
-	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.excludeOps, ",")...)
+	rcMappings, err := drive.ResourceMappings(context.AbsPathOf(path))
+	if err != nil {
+		exitWithError(err)
+	}
+
+	cmd := pullCmd{}
+
+	cs := drive.CliSifter{
+		From:           *pCmd,
+		Defaults:       rcMappings,
+		AlreadyDefined: translateKeyChecks(definedFlags),
+	}
+
+	jsonStringified := drive.SiftCliTags(&cs)
+	if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
+		exitWithError(err)
+	}
+
+	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.ExcludeOps, ",")...)
 	excludeCrudMask := drive.CrudAtoi(excludes...)
 	if excludeCrudMask == drive.AllCrudOperations {
 		exitWithError(fmt.Errorf("all CRUD operations forbidden"))
 	}
 
 	meta := map[string][]string{
-		drive.SkipMimeKeyKey: drive.NonEmptyTrimmedStrings(strings.Split(*cmd.skipMimeKey, ",")...),
+		drive.SkipMimeKeyKey: drive.NonEmptyTrimmedStrings(strings.Split(*cmd.SkipMimeKey, ",")...),
 	}
 
 	// Filter out empty strings.
-	exports := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.export, ",")...)
+	exports := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.Export, ",")...)
 
 	options := &drive.Options{
-		Exports:           uniqOrderedStr(exports),
-		ExportsDir:        strings.Trim(*cmd.exportsDir, " "),
-		Force:             *cmd.force,
-		Hidden:            *cmd.hidden,
-		IgnoreChecksum:    *cmd.ignoreChecksum,
-		IgnoreConflict:    *cmd.ignoreConflict,
-		NoPrompt:          *cmd.noPrompt,
-		NoClobber:         *cmd.noClobber,
 		Path:              path,
-		Recursive:         *cmd.recursive,
 		Sources:           sources,
-		Piped:             *cmd.piped,
-		Quiet:             *cmd.quiet,
-		IgnoreNameClashes: *cmd.ignoreNameClashes,
+		Exports:           uniqOrderedStr(exports),
+		ExportsDir:        strings.Trim(*cmd.ExportsDir, " "),
+		Force:             *cmd.Force,
+		Hidden:            *cmd.Hidden,
+		IgnoreChecksum:    *cmd.IgnoreChecksum,
+		IgnoreConflict:    *cmd.IgnoreConflict,
+		NoPrompt:          *cmd.NoPrompt,
+		NoClobber:         *cmd.NoClobber,
+		Recursive:         *cmd.Recursive,
+		Piped:             *cmd.Piped,
+		Quiet:             *cmd.Quiet,
+		IgnoreNameClashes: *cmd.IgnoreNameClashes,
 		ExcludeCrudMask:   excludeCrudMask,
-		ExplicitlyExport:  *cmd.explicitlyExport,
+		ExplicitlyExport:  *cmd.ExplicitlyExport,
 		Meta:              &meta,
-		Verbose:           *cmd.verbose,
-		Depth:             *cmd.depth,
-		FixClashes:        *cmd.fixClashes,
+		Verbose:           *cmd.Verbose,
+		Depth:             *cmd.Depth,
+		FixClashes:        *cmd.FixClashes,
 	}
 
-	if *cmd.matches {
+	if *cmd.Matches {
 		exitWithError(drive.New(context, options).PullMatches())
-	} else if *cmd.piped {
-		exitWithError(drive.New(context, options).PullPiped(*cmd.byId))
+	} else if *cmd.Piped {
+		exitWithError(drive.New(context, options).PullPiped(*cmd.ById))
 	} else {
-		exitWithError(drive.New(context, options).Pull(*cmd.byId))
+		exitWithError(drive.New(context, options).Pull(*cmd.ById))
 	}
 }
 
 type pushCmd struct {
-	noClobber   *bool
-	hidden      *bool
-	force       *bool
-	noPrompt    *bool
-	recursive   *bool
-	piped       *bool
-	mountedPush *bool
+	NoClobber   *bool `json:"no-clobber"`
+	Hidden      *bool `json:"hidden"`
+	Force       *bool `json:"force"`
+	NoPrompt    *bool `json:"no-prompt"`
+	Recursive   *bool `json:"recursive"`
+	Piped       *bool `json:"piped"`
+	MountedPush *bool `json:"m"`
 	// convert when set tells Google drive to convert the document into
 	// its appropriate Google Docs format
-	convert *bool
+	Convert *bool `json:"convert"`
 	// ocr when set indicates that Optical Character Recognition should be
 	// attempted on .[gif, jpg, pdf, png] uploads
-	ocr               *bool
-	ignoreChecksum    *bool
-	ignoreConflict    *bool
-	ignoreNameClashes *bool
-	quiet             *bool
-	coercedMimeKey    *string
-	excludeOps        *string
-	skipMimeKey       *string
-	verbose           *bool
-	depth             *int
-	fixClashes        *bool
+	Ocr               *bool   `json:"ocr"`
+	IgnoreChecksum    *bool   `json:"ignore-checksum"`
+	IgnoreConflict    *bool   `json:"ignore-conflict"`
+	IgnoreNameClashes *bool   `json:"ignore-name-clashes"`
+	Quiet             *bool   `json:"quiet"`
+	CoercedMimeKey    *string `json:"coerced-mime"`
+	ExcludeOps        *string `json:"exclude-ops"`
+	SkipMimeKey       *string `json:"skip-mime"`
+	Verbose           *bool   `json:"verbose"`
+	Depth             *int    `json:"depth"`
+	FixClashes        *bool   `json:"fix-clashes"`
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.noClobber = fs.Bool(drive.CLIOptionNoClobber, false, "allows overwriting of old content")
-	cmd.hidden = fs.Bool(drive.HiddenKey, false, "allows pushing of hidden paths")
-	cmd.recursive = fs.Bool("r", true, "performs the push action recursively")
-	cmd.noPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the push action")
-	cmd.force = fs.Bool(drive.ForceKey, false, "forces a push even if no changes present")
-	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
-	cmd.convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
-	cmd.ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
-	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
-	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
-	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
-	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
-	cmd.coercedMimeKey = fs.String(drive.CoercedMimeKeyKey, "", "the mimeType you are trying to coerce this file to be")
-	cmd.ignoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
-	cmd.excludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
-	cmd.skipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
-	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
-	cmd.depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
-	cmd.fixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
+	cmd.NoClobber = fs.Bool(drive.CLIOptionNoClobber, false, "allows overwriting of old content")
+	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "allows pushing of hidden paths")
+	cmd.Recursive = fs.Bool("recursive", true, "performs the push action recursively")
+	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the push action")
+	cmd.Force = fs.Bool(drive.ForceKey, false, "forces a push even if no changes present")
+	cmd.MountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
+	cmd.Convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
+	cmd.Ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
+	cmd.Piped = fs.Bool("piped", false, "if true, read content from stdin")
+	cmd.IgnoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
+	cmd.IgnoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
+	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.CoercedMimeKey = fs.String(drive.CoercedMimeKeyKey, "", "the mimeType you are trying to coerce this file to be")
+	cmd.IgnoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
+	cmd.ExcludeOps = fs.String(drive.CLIOptionExcludeOperations, "", drive.DescExcludeOps)
+	cmd.SkipMimeKey = fs.String(drive.CLIOptionSkipMime, "", drive.DescSkipMime)
+	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
+	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
+	cmd.FixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 	return fs
 }
 
 func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	if *cmd.mountedPush {
+	if *cmd.MountedPush {
 		cmd.pushMounted(args, definedFlags)
 	} else {
 		sources, context, path := preprocessArgs(args)
 
-		options := cmd.createPushOptions()
+		options, err := cmd.createPushOptions(context.AbsPathOf(path), definedFlags)
+		if err != nil {
+			exitWithError(err)
+		}
+		fmt.Println("options", options)
+
 		options.Path = path
 		options.Sources = sources
-		options.FixClashes = *cmd.fixClashes
 
-		if *cmd.piped {
+		if *cmd.Piped {
 			exitWithError(drive.New(context, options).PushPiped())
 		} else {
 			exitWithError(drive.New(context, options).Push())
@@ -754,7 +776,7 @@ type touchCmd struct {
 
 func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool(drive.HiddenKey, false, "allows pushing of hidden paths")
-	cmd.recursive = fs.Bool("r", false, "toggles recursive touching")
+	cmd.recursive = fs.Bool("recursive", false, "toggles recursive touching")
 	cmd.matches = fs.Bool(drive.MatchesKey, false, "search by prefix and touch")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
@@ -779,43 +801,63 @@ func (cmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}
 }
 
-func (cmd *pushCmd) createPushOptions() *drive.Options {
+func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[string]*flag.Flag) (*drive.Options, error) {
+	rcMappings, err := drive.ResourceMappings(absEntryPath)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := pushCmd{}
+
+	cs := drive.CliSifter{
+		From:           *pCmd,
+		Defaults:       rcMappings,
+		AlreadyDefined: translateKeyChecks(definedFlags),
+	}
+
+	jsonStringified := drive.SiftCliTags(&cs)
+	if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
+		exitWithError(err)
+	}
 	mask := drive.OptNone
-	if *cmd.convert {
+	if *cmd.Convert {
 		mask |= drive.OptConvert
 	}
-	if *cmd.ocr {
+	if *cmd.Ocr {
 		mask |= drive.OptOCR
 	}
 
 	meta := map[string][]string{
-		drive.CoercedMimeKeyKey: drive.NonEmptyTrimmedStrings(*cmd.coercedMimeKey),
-		drive.SkipMimeKeyKey:    drive.NonEmptyTrimmedStrings(strings.Split(*cmd.skipMimeKey, ",")...),
+		drive.CoercedMimeKeyKey: drive.NonEmptyTrimmedStrings(*cmd.CoercedMimeKey),
+		drive.SkipMimeKeyKey:    drive.NonEmptyTrimmedStrings(strings.Split(*cmd.SkipMimeKey, ",")...),
 	}
 
-	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.excludeOps, ",")...)
+	excludes := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.ExcludeOps, ",")...)
 	excludeCrudMask := drive.CrudAtoi(excludes...)
 	if excludeCrudMask == drive.AllCrudOperations {
 		exitWithError(fmt.Errorf("all CRUD operations forbidden yet asking to push"))
 	}
 
-	return &drive.Options{
-		Force:             *cmd.force,
-		Hidden:            *cmd.hidden,
-		IgnoreChecksum:    *cmd.ignoreChecksum,
-		IgnoreConflict:    *cmd.ignoreConflict,
-		NoClobber:         *cmd.noClobber,
-		NoPrompt:          *cmd.noPrompt,
-		Recursive:         *cmd.recursive,
-		Piped:             *cmd.piped,
-		Quiet:             *cmd.quiet,
+	opts := &drive.Options{
+		Force:             *cmd.Force,
+		Hidden:            *cmd.Hidden,
+		IgnoreChecksum:    *cmd.IgnoreChecksum,
+		IgnoreConflict:    *cmd.IgnoreConflict,
+		NoClobber:         *cmd.NoClobber,
+		NoPrompt:          *cmd.NoPrompt,
+		Recursive:         *cmd.Recursive,
+		Piped:             *cmd.Piped,
+		Quiet:             *cmd.Quiet,
 		Meta:              &meta,
 		TypeMask:          mask,
 		ExcludeCrudMask:   excludeCrudMask,
-		IgnoreNameClashes: *cmd.ignoreNameClashes,
-		Verbose:           *cmd.verbose,
-		Depth:             *cmd.depth,
+		IgnoreNameClashes: *cmd.IgnoreNameClashes,
+		Verbose:           *cmd.Verbose,
+		Depth:             *cmd.Depth,
+		FixClashes:        *cmd.FixClashes,
 	}
+
+	return opts, nil
 }
 
 func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Flag) {
@@ -823,7 +865,7 @@ func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Fla
 
 	var contextArgs, rest, sources []string
 
-	if !*cmd.mountedPush {
+	if !*cmd.MountedPush {
 		contextArgs = args
 	} else {
 		// Expectation is that at least one path has to be passed in
@@ -849,14 +891,19 @@ func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Fla
 		path = ""
 	}
 
-	mount, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)
+	mount, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.Hidden)
 
 	root := context.AbsPathOf("")
 
 	sources, err = relativePathsOpt(root, auxSrcs, true)
 	exitWithError(err)
 
-	options := cmd.createPushOptions()
+	options, err := cmd.createPushOptions(path, definedFlags)
+	if err != nil {
+		exitWithError(err)
+	}
+
+	options.Path = path
 	options.Mount = mount
 	options.Sources = sources
 
@@ -1084,7 +1131,7 @@ type copyCmd struct {
 }
 
 func (cmd *copyCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.recursive = fs.Bool("r", false, "recursive copying")
+	cmd.recursive = fs.Bool("recursive", false, "recursive copying")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "copy by id instead of path")
 	return fs
