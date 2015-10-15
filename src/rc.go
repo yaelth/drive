@@ -15,10 +15,15 @@
 package drive
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"strings"
+)
+
+var (
+	ErrRcNoKeysMatched = errors.New("rcMapping: no keys matched")
 )
 
 const (
@@ -161,7 +166,7 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 	}
 
 	if len(accepted) < 1 {
-		err = fmt.Errorf("rcMapping: no keys matched")
+		err = ErrRcNoKeysMatched
 		return
 	}
 
@@ -228,4 +233,21 @@ func splitAndStrip(line string, resolveFromEnv bool) (kv keyValue, err error) {
 	kv.value = joinedValue
 
 	return
+}
+
+func JSONStringifySiftedCLITags(from interface{}, rcSourcePath string, defined map[string]bool) (repr string, err error) {
+	rcMappings, rErr := ResourceMappings(rcSourcePath)
+
+	if rErr != nil && !NotExist(rErr) {
+		err = rErr
+		return
+	}
+
+	cs := CliSifter{
+		From:           from,
+		Defaults:       rcMappings,
+		AlreadyDefined: defined,
+	}
+
+	return SiftCliTags(&cs), err
 }

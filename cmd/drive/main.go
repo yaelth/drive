@@ -119,13 +119,9 @@ func (cmd *featuresCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *featuresCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	context, path := discoverContext(args)
 
-	opts, _ := drive.ResourceConfigurationToOptions(path)
-	// TODO: Log resource config errors if being verbose
-	if opts == nil {
-		opts = &drive.Options{Path: path}
-	}
-
-	exitWithError(drive.New(context, opts).About(drive.AboutFeatures))
+	exitWithError(drive.New(context, &drive.Options{
+		Path: path,
+	}).About(drive.AboutFeatures))
 }
 
 type versionCmd struct{}
@@ -177,15 +173,9 @@ func (cmd *quotaCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *quotaCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	context, path := discoverContext(args)
 
-	opts, _ := drive.ResourceConfigurationToOptions(path)
-	// TODO: Log resource config errors if being verbose
-	if opts == nil {
-		opts = &drive.Options{}
-	}
-
-	opts.Path = path
-
-	exitWithError(drive.New(context, opts).About(drive.AboutQuota))
+	exitWithError(drive.New(context, &drive.Options{
+		Path: path,
+	}).About(drive.AboutQuota))
 }
 
 type openCmd struct {
@@ -330,24 +320,37 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
+type defaultsFiller struct {
+	from, to     interface{}
+	rcSourcePath string
+	definedFlags map[string]*flag.Flag
+}
+
+func fillWithDefaults(df defaultsFiller) error {
+	alreadyDefined := translateKeyChecks(df.definedFlags)
+	fmt.Println("alreadyDefined", alreadyDefined, df)
+	jsonStringified, err := drive.JSONStringifySiftedCLITags(df.from, df.rcSourcePath, alreadyDefined)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("jsonStringified", jsonStringified)
+	return json.Unmarshal([]byte(jsonStringified), df.to)
+}
+
 func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, (*lCmd.ById || *lCmd.Matches))
-	rcMappings, err := drive.ResourceMappings(path)
-
 	cmd := listCmd{}
-
-	cs := drive.CliSifter{
-		From:           *lCmd,
-		Defaults:       rcMappings,
-		AlreadyDefined: translateKeyChecks(definedFlags),
+	df := defaultsFiller{
+		from: *lCmd, to: cmd,
+		rcSourcePath: context.AbsPathOf(path),
+		definedFlags: definedFlags,
 	}
 
-	jsonStringified := drive.SiftCliTags(&cs)
-	if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
+	if err := fillWithDefaults(df); err != nil {
 		exitWithError(err)
 	}
-
-	exitWithError(err)
 
 	typeMask := 0
 	if *cmd.Directories {
@@ -630,22 +633,14 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, (*pCmd.ById || *pCmd.Matches))
-
-	rcMappings, err := drive.ResourceMappings(context.AbsPathOf(path))
-	if err != nil {
-		exitWithError(err)
-	}
-
 	cmd := pullCmd{}
-
-	cs := drive.CliSifter{
-		From:           *pCmd,
-		Defaults:       rcMappings,
-		AlreadyDefined: translateKeyChecks(definedFlags),
+	df := defaultsFiller{
+		from: *pCmd, to: &cmd,
+		rcSourcePath: context.AbsPathOf(path),
+		definedFlags: definedFlags,
 	}
 
-	jsonStringified := drive.SiftCliTags(&cs)
-	if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
+	if err := fillWithDefaults(df); err != nil {
 		exitWithError(err)
 	}
 
@@ -802,23 +797,17 @@ func (cmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 }
 
 func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[string]*flag.Flag) (*drive.Options, error) {
-	rcMappings, err := drive.ResourceMappings(absEntryPath)
-	if err != nil {
-		return nil, err
-	}
-
 	cmd := pushCmd{}
-
-	cs := drive.CliSifter{
-		From:           *pCmd,
-		Defaults:       rcMappings,
-		AlreadyDefined: translateKeyChecks(definedFlags),
+	df := defaultsFiller{
+		from: *pCmd, to: &cmd,
+		rcSourcePath: absEntryPath,
+		definedFlags: definedFlags,
 	}
 
-	jsonStringified := drive.SiftCliTags(&cs)
-	if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
+	if err := fillWithDefaults(df); err != nil {
 		exitWithError(err)
 	}
+
 	mask := drive.OptNone
 	if *cmd.Convert {
 		mask |= drive.OptConvert
@@ -990,25 +979,38 @@ type publishCmd struct {
 }
 
 type unpublishCmd struct {
-	hidden *bool
-	quiet  *bool
-	byId   *bool
+	Hidden *bool `json:"hidden"`
+	Quiet  *bool `json:"quiet"`
+	ById   *bool `json:"by-id"`
 }
 
 func (cmd *unpublishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.hidden = fs.Bool(drive.HiddenKey, false, "allows pulling of hidden paths")
-	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
-	cmd.byId = fs.Bool(drive.CLIOptionId, false, "unpublish by id instead of path")
+	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "allows pulling of hidden paths")
+	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.ById = fs.Bool(drive.CLIOptionId, false, "unpublish by id instead of path")
 	return fs
 }
 
-func (cmd *unpublishCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+func (uCmd *unpublishCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *uCmd.ById)
+	rcMappings, err := drive.ResourceMappings(path)
+	exitWithError(err)
+
+	cmd := unpublishCmd{}
+	cs := drive.CliSifter{
+		From:           *uCmd,
+		Defaults:       rcMappings,
+		AlreadyDefined: translateKeyChecks(definedFlags),
+	}
+	jsonStringified := drive.SiftCliTags(&cs)
+	if err := json.Unmarshal([]byte(jsonStringified), &cmd); err != nil {
+		exitWithError(err)
+	}
 	exitWithError(drive.New(context, &drive.Options{
 		Path:    path,
 		Sources: sources,
-		Quiet:   *cmd.quiet,
-	}).Unpublish(*cmd.byId))
+		Quiet:   *cmd.Quiet,
+	}).Unpublish(*cmd.ById))
 }
 
 type emptyTrashCmd struct {

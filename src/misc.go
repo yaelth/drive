@@ -871,3 +871,7 @@ func resolver(g *Commands, byId bool, sources []string, fileOp func(*File) inter
 
 	return kvChan
 }
+
+func NotExist(err error) bool {
+	return os.IsNotExist(err) || err == ErrPathNotExists
+}
