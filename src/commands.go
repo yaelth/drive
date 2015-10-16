@@ -128,7 +128,6 @@ func (opts *Options) rcPath() (string, error) {
 	lastCurPath := ""
 	for curPath := opts.Path; curPath != ""; curPath = path.Dir(curPath) {
 		localRCP, err := rcPathChecker(curPath)
-		fmt.Printf("localRCP %s %v errPath %s\n", localRCP, err, curPath)
 		if err == nil && localRCP != "" {
 			return localRCP, nil
 		}
@@ -137,7 +136,7 @@ func (opts *Options) rcPath() (string, error) {
 			return "", err
 		}
 
-		if lastCurPath == curPath {
+		if lastCurPath == curPath { // Avoid getting a stalemate incase path.Dir cannot progress
 			break
 		}
 

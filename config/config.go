@@ -98,6 +98,11 @@ func (c *Context) AbsPathOf(fileOrDirPath string) string {
 	return path.Join(c.AbsPath, fileOrDirPath)
 }
 
+func (c *Context) Cwd() string {
+	cwd, _ := os.Getwd()
+	return cwd
+}
+
 func (c *Context) Read() (err error) {
 	var data []byte
 	if data, err = ioutil.ReadFile(credentialsPath(c.AbsPath)); err != nil {

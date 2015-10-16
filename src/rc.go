@@ -170,10 +170,6 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 		return
 	}
 
-	if false {
-		fmt.Println("rcMap", rcMap, "accepted", accepted)
-	}
-
 	for lowerKey, stK := range accepted {
 		if value, err := stK.resolver(lowerKey, stK.value); err == nil {
 			valueMappings[lowerKey] = value
