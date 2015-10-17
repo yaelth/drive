@@ -132,7 +132,7 @@ func (opts *Options) rcPath() (string, error) {
 			return localRCP, nil
 		}
 
-		if err != nil && !os.IsNotExist(err) {
+		if false && err != nil && !os.IsNotExist(err) {
 			return "", err
 		}
 
