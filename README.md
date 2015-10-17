@@ -45,6 +45,7 @@
   - [Command Aliases](#command-aliases)
   - [Index Prune](#index-prune)
   - [Url](#url)
+  - [QR Code Share](#qr-code-share)
 - [Revoking Account Access](#revoking-account-access)
 - [Uninstalling](#uninstalling)
 - [Applying patches](#applying-patches)
@@ -912,6 +913,23 @@ The open command allows for files to be opened by the default file browser, defa
 $ drive open --file-browser=false --web-browser f1/f2/f3 jamaican.mp4
 $ drive open --file-browser --id 0Bz8qQkpZAeV9T1PObvs2Y3BMQEj 0Y9jtQkpXAeV9M1PObvs4Y3BNRFk
 ```
+
+## QR Code Share
+
+Instead of traditionally copying long links, drive can now allow you to share a link to a file by means of a QR code that is generated on your computer
+and then you can use your mobile device or any other QR code reader to get to that file. In order for this to run, you have to have the `drive-server`
+running
+
+```shell
+$ go get github.com/odeke-em/drive/drive-server && drive-server
+```
+
+Once the server is running in one terminal, then you can start the qr-link getting ie
+
+```shell
+$ drive qr-link vines/kevin-hart.mp4 notes/caches.pdf
+```
+
 
 ### Revoking Account Access
 

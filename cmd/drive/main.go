@@ -81,6 +81,7 @@ func main() {
 	bindCommandWithAliases(drive.UrlKey, drive.DescUrl, &urlCmd{}, []string{})
 	bindCommandWithAliases(drive.OpenKey, drive.DescOpen, &openCmd{}, []string{})
 	bindCommandWithAliases(drive.EditDescriptionKey, drive.DescEdit, &editDescriptionCmd{}, []string{})
+	bindCommandWithAliases(drive.QRLinkKey, drive.DescQR, &qrLinkCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -703,6 +704,32 @@ func (cmd *pushCmd) Run(args []string) {
 			exitWithError(drive.New(context, options).Push())
 		}
 	}
+}
+
+type qrLinkCmd struct {
+	domain *string
+	byId   *bool
+}
+
+func (cmd *qrLinkCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.domain = fs.String(drive.DomainKey, "http://localhost:3000", "domain on which to retrieve the QR code")
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
+	return fs
+}
+
+func (cmd *qrLinkCmd) Run(args []string) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+	meta := map[string][]string{
+		drive.DomainKey: []string{*cmd.domain},
+	}
+
+	opts := drive.Options{
+		Path:    path,
+		Sources: sources,
+		Meta:    &meta,
+	}
+
+	exitWithError(drive.New(context, &opts).QR(*cmd.byId))
 }
 
 type touchCmd struct {
