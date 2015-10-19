@@ -36,15 +36,15 @@ func (g *Commands) QR(byId bool) error {
 
 	kvChan := g.urler(byId, g.opts.Sources)
 
-	domain := "http://localhost:3000"
+	address := "http://localhost:3000"
 	if g.opts.Meta != nil {
 		meta := *(g.opts.Meta)
-		if retrDomain, ok := meta[DomainKey]; ok && len(retrDomain) >= 1 {
-			domain = retrDomain[0]
+		if retrAddress, ok := meta[AddressKey]; ok && len(retrAddress) >= 1 {
+			address = retrAddress[0]
 		}
 	}
 
-	domain = strings.TrimRight(domain, "/")
+	address = strings.TrimRight(address, "/")
 
 	for kv := range kvChan {
 		switch kv.value.(type) {
@@ -58,12 +58,13 @@ func (g *Commands) QR(byId bool) error {
 			continue
 		}
 
-		curTime := time.Now().Unix()
+		curTime := time.Now()
 		pl := meddler.Payload{
 			URI:         fileURI,
-			RequestTime: curTime,
+			RequestTime: curTime.Unix(),
 			Payload:     fmt.Sprintf("%v%v", rand.Float64(), curTime),
 			PublicKey:   envKeySet.PublicKey,
+			ExpiryTime:  curTime.Add(time.Hour).Unix(),
 		}
 
 		plainTextToSign := pl.RawTextForSigning()
@@ -73,7 +74,10 @@ func (g *Commands) QR(byId bool) error {
 		uv := pl.ToUrlValues()
 		encodedValues := uv.Encode()
 
-		fullUrl := fmt.Sprintf("%s/qr?%s", domain, encodedValues)
+		fullUrl := fmt.Sprintf("%s/qr?%s", address, encodedValues)
+		if g.opts.Verbose {
+			g.log.Logf("%q => %q\n", kv.key, fullUrl)
+		}
 		open.Start(fullUrl)
 	}
 

@@ -707,26 +707,29 @@ func (cmd *pushCmd) Run(args []string) {
 }
 
 type qrLinkCmd struct {
-	domain *string
-	byId   *bool
+	address *string
+	byId    *bool
+	verbose *bool
 }
 
 func (cmd *qrLinkCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.domain = fs.String(drive.DomainKey, "http://localhost:3000", "domain on which to retrieve the QR code")
+	cmd.address = fs.String(drive.AddressKey, "http://localhost:3000", "address on which the QR code generator is running")
 	cmd.byId = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
+	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, true, drive.DescVerbose)
 	return fs
 }
 
 func (cmd *qrLinkCmd) Run(args []string) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
 	meta := map[string][]string{
-		drive.DomainKey: []string{*cmd.domain},
+		drive.AddressKey: []string{*cmd.address},
 	}
 
 	opts := drive.Options{
 		Path:    path,
 		Sources: sources,
 		Meta:    &meta,
+		Verbose: *cmd.verbose,
 	}
 
 	exitWithError(drive.New(context, &opts).QR(*cmd.byId))
