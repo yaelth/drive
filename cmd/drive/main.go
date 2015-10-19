@@ -81,6 +81,7 @@ func main() {
 	bindCommandWithAliases(drive.UrlKey, drive.DescUrl, &urlCmd{}, []string{})
 	bindCommandWithAliases(drive.OpenKey, drive.DescOpen, &openCmd{}, []string{})
 	bindCommandWithAliases(drive.EditDescriptionKey, drive.DescEdit, &editDescriptionCmd{}, []string{})
+	bindCommandWithAliases(drive.QRLinkKey, drive.DescQR, &qrLinkCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -703,6 +704,35 @@ func (cmd *pushCmd) Run(args []string) {
 			exitWithError(drive.New(context, options).Push())
 		}
 	}
+}
+
+type qrLinkCmd struct {
+	address *string
+	byId    *bool
+	verbose *bool
+}
+
+func (cmd *qrLinkCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.address = fs.String(drive.AddressKey, "http://localhost:3000", "address on which the QR code generator is running")
+	cmd.byId = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
+	cmd.verbose = fs.Bool(drive.CLIOptionVerboseKey, true, drive.DescVerbose)
+	return fs
+}
+
+func (cmd *qrLinkCmd) Run(args []string) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.byId)
+	meta := map[string][]string{
+		drive.AddressKey: []string{*cmd.address},
+	}
+
+	opts := drive.Options{
+		Path:    path,
+		Sources: sources,
+		Meta:    &meta,
+		Verbose: *cmd.verbose,
+	}
+
+	exitWithError(drive.New(context, &opts).QR(*cmd.byId))
 }
 
 type touchCmd struct {

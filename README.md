@@ -45,6 +45,9 @@
   - [Command Aliases](#command-aliases)
   - [Index Prune](#index-prune)
   - [Url](#url)
+  - [Open](#open)
+  - [Drive Server](#drive-server)
+  - [QR Code Share](#qr-code-share)
 - [Revoking Account Access](#revoking-account-access)
 - [Uninstalling](#uninstalling)
 - [Applying patches](#applying-patches)
@@ -912,6 +915,47 @@ The open command allows for files to be opened by the default file browser, defa
 $ drive open --file-browser=false --web-browser f1/f2/f3 jamaican.mp4
 $ drive open --file-browser --id 0Bz8qQkpZAeV9T1PObvs2Y3BMQEj 0Y9jtQkpXAeV9M1PObvs4Y3BNRFk
 ```
+
+## Drive server
+
+To enable services like qr-code sharing, you'll need to have the server running that will serve content once invoked in a web browser to allow for resources to be accessed on another device e.g your mobile phone
+
+```shell
+$ go get github.com/odeke-em/drive/drive-server && drive-server
+$ drive-server
+```
+
+Pre-requisites:
+  + DRIVE\_SERVER\_PUB\_KEY
+  + DRIVE\_SERVER\_PRIV\_KEY
+
+Optionally
+  + DRIVE\_SERVER\_PORT : default is 8010
+  + DRIVE\_SERVER\_HOST : default is localhost
+
+If the above keys are not set in your env, you can do this
+
+```shell
+$ DRIVE_SERVER_PUB_KEY=<pub_key> DRIVE_SERVER_PRIV_KEY=<priv_key> [DRIVE...] drive-server
+```
+
+## QR Code Share
+
+Instead of traditionally copying long links, drive can now allow you to share a link to a file by means of a QR code that is generated after a redirect through your web browser. 
+
+From then on, you can use your mobile device or any other QR code reader to get to that file.
+In order for this to run, you have to have the `drive-server` running
+
+As long as the server is running on a known domain, then you can start the qr-link getting ie
+
+```shell
+$ drive qr vines/kevin-hart.mp4 notes/caches.pdf
+$ drive qr --address http://192.168.1.113:8010 books/newest.pdf maps/infoGraphic.png
+$ drive qr --address https://my.server books/newest.pdf maps/infoGraphic.png
+```
+
+That should open up a browser with the QR code that when scanned will open up the desired file.
+
 
 ### Revoking Account Access
 
