@@ -856,16 +856,37 @@ Note: Pattern matching and suffixes are done by regular expression matching so m
 
 ### DriveRC
 
-drive supports resource configuration files (.driverc) that you can place both globally(in your home directory) and locally(in the mounted drive dir):
+drive supports resource configuration files (.driverc) that you can place both globally(in your home directory)
+and locally(in the mounted drive dir) or in the directory that you are running an operation from, relative to the root.
+The entries for a .driverc file is in the form a key-value pair where the key is any of the arguments that you'd get
+from running
+```shell
+$ drive <command> -h
+$ # e.g
+$ drive push -h
+```
+
+and the value is the argument that you'd ordinarily supply on the commandline
+
+For example:
 
 ```shell
 $ cat << ! >> ~/.driverc
-> # My local .driverc file
+> # My global .driverc file
 > exports=doc,pdf
 > depth=100
+> no-prompt=true
 > !
 $
-$ cat << $ >> ~/emm.odeke-drive/.driverc
+$ cat << ! >> ~/emm.odeke-drive/.driverc
+> # The root main .driverc
+> depth=-1
+> hidden=false
+> no-clobber=true
+> exports-dir=$HOME/exports
+> !
+$
+$ cat << $ >> ~/emm.odeke-drive/fall2015Classes/.driverc
 > # My global .driverc file
 > exports-dir=$HOME/Desktop/exports
 > exports=pdf,csv,txt
