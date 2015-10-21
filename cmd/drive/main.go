@@ -325,7 +325,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Version = fs.Bool("version", false, "show the number of times that the file has been modified on \n\t\tthe server even with changes not visible to the user")
 	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before pagination")
 	cmd.Owners = fs.Bool("owners", false, "shows the owner names per file")
-	cmd.Recursive = fs.Bool("recursive", false, "recursively list subdirectories")
+	cmd.Recursive = fs.Bool(drive.RecursiveKey, false, "recursively list subdirectories")
 	cmd.Sort = fs.String(drive.SortKey, "", drive.DescSort)
 	cmd.Matches = fs.Bool(drive.MatchesKey, false, "list by prefix")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
@@ -425,7 +425,7 @@ type md5SumCmd struct {
 func (cmd *md5SumCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Depth = fs.Int(drive.DepthKey, 1, "max traversal depth")
 	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "discover hidden paths")
-	cmd.Recursive = fs.Bool("recursive", false, "recursively discover folders")
+	cmd.Recursive = fs.Bool(drive.RecursiveKey, false, "recursively discover folders")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "stat by id instead of path")
 	return fs
@@ -468,7 +468,7 @@ type statCmd struct {
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Depth = fs.Int(drive.DepthKey, 1, "max traversal depth")
 	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "discover hidden paths")
-	cmd.Recursive = fs.Bool("recursive", false, "recursively discover folders")
+	cmd.Recursive = fs.Bool(drive.RecursiveKey, false, "recursively discover folders")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "stat by id instead of path")
 	cmd.Md5sum = fs.Bool(drive.Md5sumKey, false, "produce output compatible with md5sum(1)")
@@ -521,7 +521,7 @@ type indexCmd struct {
 func (cmd *indexCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "fetch by id instead of path")
 	cmd.IgnoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, true, drive.DescIgnoreConflict)
-	cmd.Recursive = fs.Bool("recursive", true, "fetch recursively for children")
+	cmd.Recursive = fs.Bool(drive.RecursiveKey, true, "fetch recursively for children")
 	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the fetch action")
 	cmd.Hidden = fs.Bool(drive.HiddenKey, true, "allows fetching of hidden paths")
 	cmd.Force = fs.Bool(drive.ForceKey, false, "forces a fetch even if no changes present")
@@ -607,15 +607,15 @@ type pullCmd struct {
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.NoClobber = fs.Bool(drive.CLIOptionNoClobber, false, "prevents overwriting of old content")
 	cmd.Export = fs.String(
-		"export", "", "comma separated list of formats to export your docs + sheets files")
-	cmd.Recursive = fs.Bool("recursive", true, "performs the pull action recursively")
+		drive.ExportsKey, "", "comma separated list of formats to export your docs + sheets files")
+	cmd.Recursive = fs.Bool(drive.RecursiveKey, true, "performs the pull action recursively")
 	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the pull action")
 	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "allows pulling of hidden paths")
 	cmd.Force = fs.Bool(drive.ForceKey, false, "forces a pull even if no changes present")
 	cmd.IgnoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
 	cmd.IgnoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.IgnoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
-	cmd.ExportsDir = fs.String("export-dir", "", "directory to place exports")
+	cmd.ExportsDir = fs.String(drive.ExportsDirKey, "", "directory to place exports")
 	cmd.Matches = fs.Bool(drive.MatchesKey, false, "search by prefix")
 	cmd.Piped = fs.Bool("piped", false, "if true, read content from stdin")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
@@ -717,7 +717,7 @@ type pushCmd struct {
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.NoClobber = fs.Bool(drive.CLIOptionNoClobber, false, "allows overwriting of old content")
 	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "allows pushing of hidden paths")
-	cmd.Recursive = fs.Bool("recursive", true, "performs the push action recursively")
+	cmd.Recursive = fs.Bool(drive.RecursiveKey, true, "performs the push action recursively")
 	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the push action")
 	cmd.Force = fs.Bool(drive.ForceKey, false, "forces a push even if no changes present")
 	cmd.MountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
@@ -811,7 +811,7 @@ type touchCmd struct {
 
 func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "allows pushing of hidden paths")
-	cmd.Recursive = fs.Bool("recursive", false, "toggles recursive touching")
+	cmd.Recursive = fs.Bool(drive.RecursiveKey, false, "toggles recursive touching")
 	cmd.Matches = fs.Bool(drive.MatchesKey, false, "search by prefix and touch")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
@@ -994,7 +994,7 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.IgnoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
-	cmd.Recursive = fs.Bool("recursive", true, "recursively diff")
+	cmd.Recursive = fs.Bool(drive.RecursiveKey, true, "recursively diff")
 
 	return fs
 }
@@ -1171,7 +1171,7 @@ type copyCmd struct {
 }
 
 func (cmd *copyCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.Recursive = fs.Bool("recursive", false, "recursive copying")
+	cmd.Recursive = fs.Bool(drive.RecursiveKey, false, "recursive copying")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "copy by id instead of path")
 	return fs

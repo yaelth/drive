@@ -120,6 +120,18 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 			key: IgnoreConflictKey, resolver: _boolfer,
 		},
 		{
+			key: CLIOptionIgnoreNameClashes, resolver: _boolfer,
+		},
+		{
+			key: CLIOptionIgnoreChecksum, resolver: _boolfer,
+		},
+		{
+			key: CLIOptionFixClashesKey, resolver: _boolfer,
+		},
+		{
+			key: CLIOptionVerboseKey, resolver: _boolfer,
+		},
+		{
 			key: RecursiveKey, resolver: _boolfer,
 		},
 		{
@@ -143,7 +155,9 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 		{
 			key: CLIOptionExactTitle, resolver: _stringfer,
 		},
-
+		{
+			key: AddressKey, resolver: _stringfer,
+		},
 		{
 			key: ExportsKey, resolver: _stringArrayfer,
 		},
@@ -164,7 +178,7 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 		accepted[lowerKey] = stK
 	}
 
-	if len(accepted) < 1 {
+	if false && len(accepted) < 1 {
 		err = ErrRcNoKeysMatched
 		return
 	}

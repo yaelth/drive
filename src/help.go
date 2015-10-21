@@ -63,7 +63,7 @@ const (
 	PruneKey                = "prune"
 
 	CoercedMimeKeyKey     = "coerced-mime"
-	ExportsKey            = "exports"
+	ExportsKey            = "export"
 	ExportsDirKey         = "exports-dir"
 	NoClobberKey          = "no-clobber"
 	RecursiveKey          = "recursive"
