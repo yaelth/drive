@@ -30,9 +30,10 @@ const (
 	CopyKey                 = "copy"
 	DeleteKey               = "delete"
 	DeInitKey               = "deinit"
-	DiffKey                 = "diff"
 	EditDescriptionKey      = "edit-description"
 	EditDescriptionShortKey = "edit-desc"
+	DiffKey                 = "diff"
+	AddressKey              = "address"
 	EmptyTrashKey           = "emptytrash"
 	FeaturesKey             = "features"
 	HelpKey                 = "help"
@@ -46,6 +47,7 @@ const (
 	PipedKey                = "piped"
 	PushKey                 = "push"
 	PubKey                  = "pub"
+	QRLinkKey               = "qr"
 	RenameKey               = "rename"
 	QuotaKey                = "quota"
 	ShareKey                = "share"
@@ -160,6 +162,7 @@ const (
 	DescVerbose            = "show step by step information verbosely"
 	DescFixClashes         = "fix clashes by renaming files"
 	DescDescription        = "set the description"
+	DescQR                 = "open up the QR code for specified files"
 )
 
 const (

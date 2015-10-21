@@ -56,6 +56,23 @@ func translateKeyChecks(definedFlags map[string]*flag.Flag) map[string]bool {
 	return keysOnly
 }
 
+type defaultsFiller struct {
+	from, to     interface{}
+	rcSourcePath string
+	definedFlags map[string]*flag.Flag
+}
+
+func fillWithDefaults(df defaultsFiller) error {
+	alreadyDefined := translateKeyChecks(df.definedFlags)
+	jsonStringified, err := drive.JSONStringifySiftedCLITags(df.from, df.rcSourcePath, alreadyDefined)
+
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal([]byte(jsonStringified), df.to)
+}
+
 func main() {
 	maxProcs, err := strconv.ParseInt(os.Getenv(drive.GoMaxProcsKey), 10, 0)
 	if err != nil || maxProcs < 1 {
@@ -94,6 +111,7 @@ func main() {
 	bindCommandWithAliases(drive.UrlKey, drive.DescUrl, &urlCmd{}, []string{})
 	bindCommandWithAliases(drive.OpenKey, drive.DescOpen, &openCmd{}, []string{})
 	bindCommandWithAliases(drive.EditDescriptionKey, drive.DescEdit, &editDescriptionCmd{}, []string{})
+	bindCommandWithAliases(drive.QRLinkKey, drive.DescQR, &qrLinkCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -320,25 +338,6 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "list by id instead of path")
 
 	return fs
-}
-
-type defaultsFiller struct {
-	from, to     interface{}
-	rcSourcePath string
-	definedFlags map[string]*flag.Flag
-}
-
-func fillWithDefaults(df defaultsFiller) error {
-	alreadyDefined := translateKeyChecks(df.definedFlags)
-	fmt.Println("alreadyDefined", alreadyDefined, df)
-	jsonStringified, err := drive.JSONStringifySiftedCLITags(df.from, df.rcSourcePath, alreadyDefined)
-
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("jsonStringified", jsonStringified)
-	return json.Unmarshal([]byte(jsonStringified), df.to)
 }
 
 func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
@@ -759,6 +758,47 @@ func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 			exitWithError(drive.New(context, options).Push())
 		}
 	}
+}
+
+type qrLinkCmd struct {
+	Address *string `json:"address"`
+	ById    *bool   `json:"by-id"`
+	Verbose *bool   `json:"verbose"`
+}
+
+func (cmd *qrLinkCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.Address = fs.String(drive.AddressKey, "http://localhost:3000", "address on which the QR code generator is running")
+	cmd.ById = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
+	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, true, drive.DescVerbose)
+	return fs
+}
+
+func (qCmd *qrLinkCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *qCmd.ById)
+
+	cmd := qrLinkCmd{}
+	df := defaultsFiller{
+		from: *qCmd, to: &cmd,
+		rcSourcePath: path,
+		definedFlags: definedFlags,
+	}
+
+	if err := fillWithDefaults(df); err != nil {
+		exitWithError(err)
+	}
+
+	meta := map[string][]string{
+		drive.AddressKey: []string{*cmd.Address},
+	}
+
+	opts := drive.Options{
+		Path:    path,
+		Sources: sources,
+		Meta:    &meta,
+		Verbose: *cmd.Verbose,
+	}
+
+	exitWithError(drive.New(context, &opts).QR(*cmd.ById))
 }
 
 type touchCmd struct {

@@ -83,7 +83,7 @@ func ResourceConfigurationToOptions(path string) (*Options, error) {
 func ResourceMappings(rcPath string) (parsed map[string]interface{}, err error) {
 	beginOpts := Options{Path: rcPath}
 	rcPath, rcErr := beginOpts.rcPath()
-	fmt.Println("rcPath", rcPath, rcErr)
+
 	if rcErr != nil {
 		err = rcErr
 		return
@@ -156,7 +156,6 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 	for _, stK := range targetKeys {
 		lowerKey := strings.ToLower(stK.key)
 		retr, ok := rcMap[lowerKey]
-		// fmt.Println("lowerKey", lowerKey, retr, ok)
 		if !ok {
 			continue
 		}

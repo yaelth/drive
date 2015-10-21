@@ -16,7 +16,6 @@ package drive
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -157,15 +156,6 @@ func New(context *config.Context, opts *Options) *Commands {
 	logger := log.New(stdin, stdout, stderr)
 
 	if opts != nil {
-
-		rcP, rcErr := opts.rcPath()
-		if rcErr == nil {
-			rcOpt, err := rcFileToOptions(rcP)
-			if true { // DEBUG
-				fmt.Println("kvmap", rcOpt, "err", err)
-			}
-		}
-
 		// should always start with /
 		opts.Path = path.Clean(path.Join("/", opts.Path))
 
