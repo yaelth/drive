@@ -56,7 +56,9 @@ func (g *Commands) Open(ot OpenType) error {
 		}
 
 		for _, arg := range openArgs {
-			open.Start(arg)
+			if err := open.Start(arg); err != nil {
+				g.log.LogErrf("err: %v %q\n", err, arg)
+			}
 		}
 	}
 
