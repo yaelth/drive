@@ -737,7 +737,7 @@ func SiftCliTags(cs *CliSifter) string {
 		case reflect.String:
 			stringified = fmt.Sprintf("%q", elem)
 		default:
-			stringified = fmt.Sprintf("%v", elem)
+			stringified = fmt.Sprintf("%v", elem.Interface())
 		}
 
 		mapping[fromTag] = stringified
