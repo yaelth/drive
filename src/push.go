@@ -140,10 +140,11 @@ func (g *Commands) Push() (err error) {
 	}
 
 	clArg := changeListArg{
-		logy:      g.log,
-		changes:   nonConflicts,
-		noPrompt:  !g.opts.canPrompt(),
-		noClobber: g.opts.NoClobber,
+		logy:       g.log,
+		changes:    nonConflicts,
+		noPrompt:   !g.opts.canPrompt(),
+		noClobber:  g.opts.NoClobber,
+		canPreview: g.opts.canPreview(),
 	}
 
 	ok, opMap := printChangeList(&clArg)
@@ -307,7 +308,7 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 	}
 
 	throttle := time.Tick(time.Duration(1e9 / n))
-	canPrintSteps := g.opts.Verbose && g.opts.canPrompt()
+	canPrintSteps := g.opts.Verbose && g.opts.canPreview()
 
 	sort.Sort(ByPrecedence(cl))
 
@@ -451,7 +452,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		dest:           change.Dest,
 		mask:           g.opts.TypeMask,
 		ignoreChecksum: g.opts.IgnoreChecksum,
-		debug:          g.opts.Verbose && g.opts.canPrompt(),
+		debug:          g.opts.Verbose && g.opts.canPreview(),
 	}
 
 	coercedMimeKey, ok := g.coercedMimeKey()
@@ -597,7 +598,7 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	args := upsertOpt{
 		parentId: parent.Id,
 		src:      remoteFile,
-		debug:    g.opts.Verbose && g.opts.canPrompt(),
+		debug:    g.opts.Verbose && g.opts.canPreview(),
 	}
 
 	cur, curErr := g.rem.UpsertByComparison(&args)

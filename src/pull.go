@@ -77,10 +77,11 @@ func (g *Commands) Pull(byId bool) error {
 	nonConflicts := *nonConflictsPtr
 
 	clArg := changeListArg{
-		logy:      g.log,
-		changes:   nonConflicts,
-		noPrompt:  !g.opts.canPrompt(),
-		noClobber: g.opts.NoClobber,
+		logy:       g.log,
+		changes:    nonConflicts,
+		noPrompt:   !g.opts.canPrompt(),
+		noClobber:  g.opts.NoClobber,
+		canPreview: g.opts.canPreview(),
 	}
 
 	ok, opMap := printChangeList(&clArg)
@@ -262,10 +263,11 @@ func (g *Commands) PullMatches() (err error) {
 	nonConflicts := *nonConflictsPtr
 
 	clArg := changeListArg{
-		logy:      g.log,
-		changes:   nonConflicts,
-		noPrompt:  !g.opts.canPrompt(),
-		noClobber: g.opts.NoClobber,
+		logy:       g.log,
+		changes:    nonConflicts,
+		noPrompt:   !g.opts.canPrompt(),
+		noClobber:  g.opts.NoClobber,
+		canPreview: g.opts.canPreview(),
 	}
 
 	ok, opMap := printChangeList(&clArg)
@@ -429,7 +431,7 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 		}
 	}()
 
-	canPrintSteps := g.opts.Verbose && g.opts.canPrompt()
+	canPrintSteps := g.opts.Verbose && g.opts.canPreview()
 
 	go func() {
 		for ch := range loader {

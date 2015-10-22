@@ -110,6 +110,16 @@ func (opts *Options) canPrompt() bool {
 	return !opts.NoPrompt
 }
 
+func (opts *Options) canPreview() bool {
+	if opts == nil || !opts.StdoutIsTty {
+		return false
+	}
+	if opts.Quiet {
+		return false
+	}
+	return true
+}
+
 func rcPathChecker(absDir string) (string, error) {
 	p := rcPath(absDir)
 	statInfo, err := os.Stat(p)

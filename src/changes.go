@@ -630,10 +630,11 @@ func opChangeCount(changes []*Change) map[Operation]sizeCounter {
 }
 
 type changeListArg struct {
-	logy      *log.Logger
-	changes   []*Change
-	noPrompt  bool
-	noClobber bool
+	logy       *log.Logger
+	changes    []*Change
+	noPrompt   bool
+	noClobber  bool
+	canPreview bool
 }
 
 func previewChanges(clArgs *changeListArg, reduce bool, opMap map[Operation]sizeCounter) {
@@ -663,12 +664,17 @@ func printChangeList(clArg *changeListArg) (bool, *map[Operation]sizeCounter) {
 		clArg.logy.Logln("Everything is up-to-date.")
 		return false, nil
 	}
-	if clArg.noPrompt {
+	if !clArg.canPreview {
 		return true, nil
 	}
 
 	opMap := opChangeCount(clArg.changes)
 	previewChanges(clArg, true, opMap)
 
-	return promptForChanges(), &opMap
+	accepted := clArg.noPrompt
+	if !accepted {
+		accepted = promptForChanges()
+	}
+
+	return accepted, &opMap
 }
