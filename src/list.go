@@ -25,16 +25,18 @@ const (
 	InTrash = 1 << iota
 	Folder
 	NonFolder
-	Minimal
 	Shared
 	Owners
 	CurrentVersion
+	Minimal
+	DiskUsageOnly
 )
 
 type attribute struct {
-	minimal bool
-	mask    int
-	parent  string
+	minimal       bool
+	mask          int
+	parent        string
+	diskUsageOnly bool
 }
 
 type traversalSt struct {
@@ -301,6 +303,11 @@ func (g *Commands) ListShared() (err error) {
 func (f *File) pretty(logy *log.Logger, opt attribute) {
 	fmtdPath := sepJoin("/", opt.parent, f.Name)
 
+	if opt.diskUsageOnly {
+		logy.Logf("%-12v %s\n", f.Size, fmtdPath)
+		return
+	}
+
 	if opt.minimal {
 		logy.Logf("%s ", fmtdPath)
 	} else {
@@ -338,8 +345,9 @@ func (f *File) pretty(logy *log.Logger, opt attribute) {
 func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 
 	opt := attribute{
-		minimal: isMinimal(g.opts.TypeMask),
-		mask:    travSt.mask,
+		minimal:       isMinimal(g.opts.TypeMask),
+		diskUsageOnly: diskUsageOnly(g.opts.TypeMask),
+		mask:          travSt.mask,
 	}
 
 	opt.parent = ""
@@ -448,6 +456,10 @@ func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 	}
 
 	return iterCount >= 1
+}
+
+func diskUsageOnly(mask int) bool {
+	return (mask & DiskUsageOnly) != 0
 }
 
 func isMinimal(mask int) bool {

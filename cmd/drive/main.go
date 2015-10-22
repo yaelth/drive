@@ -112,6 +112,7 @@ func main() {
 	bindCommandWithAliases(drive.OpenKey, drive.DescOpen, &openCmd{}, []string{})
 	bindCommandWithAliases(drive.EditDescriptionKey, drive.DescEdit, &editDescriptionCmd{}, []string{})
 	bindCommandWithAliases(drive.QRLinkKey, drive.DescQR, &qrLinkCmd{}, []string{})
+	bindCommandWithAliases(drive.DuKey, drive.DescDu, &duCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -340,7 +341,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+func (lCmd *listCmd) _run(args []string, definedFlags map[string]*flag.Flag, diskUsageSubset bool) error {
 	sources, context, path := preprocessArgsByToggle(args, (*lCmd.ById || *lCmd.Matches))
 	cmd := listCmd{}
 	df := defaultsFiller{
@@ -372,6 +373,11 @@ func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	if *cmd.InTrash {
 		typeMask |= drive.InTrash
 	}
+
+	if diskUsageSubset {
+		typeMask |= drive.DiskUsageOnly
+	}
+
 	if !*cmd.LongFmt {
 		typeMask |= drive.Minimal
 	}
@@ -406,12 +412,26 @@ func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}
 
 	if *cmd.Shared {
-		exitWithError(drive.New(context, opts).ListShared())
+		return drive.New(context, opts).ListShared()
 	} else if *cmd.Matches {
-		exitWithError(drive.New(context, opts).ListMatches())
+		return drive.New(context, opts).ListMatches()
 	} else {
-		exitWithError(drive.New(context, opts).List(*cmd.ById))
+		return drive.New(context, opts).List(*cmd.ById)
 	}
+
+	return nil
+}
+
+type duCmd struct {
+	listCmd
+}
+
+func (lCmd *listCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	exitWithError(lCmd._run(args, definedFlags, false))
+}
+
+func (dCmd *duCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	exitWithError(dCmd._run(args, definedFlags, true))
 }
 
 type md5SumCmd struct {
@@ -747,7 +767,6 @@ func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		if err != nil {
 			exitWithError(err)
 		}
-		fmt.Println("options", options)
 
 		options.Path = path
 		options.Sources = sources
