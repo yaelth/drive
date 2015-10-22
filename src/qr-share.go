@@ -78,7 +78,10 @@ func (g *Commands) QR(byId bool) error {
 		if g.opts.Verbose {
 			g.log.Logf("%q => %q\n", kv.key, fullUrl)
 		}
-		open.Start(fullUrl)
+
+		if err := open.Start(fullUrl); err != nil {
+			g.log.Logf("qr: err %v %q\n", err, fullUrl)
+		}
 	}
 
 	return nil
