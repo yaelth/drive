@@ -62,24 +62,6 @@ func kvifyCommentedFile(p, comment string) (kvMap map[string]string, err error) 
 	return
 }
 
-func rcFileToOptions(rcPath string) (*Options, error) {
-	rcMap, err := kvifyCommentedFile(rcPath, CommentStr)
-	if err != nil {
-		return nil, err
-	}
-	return rcMapToOptions(rcMap)
-}
-
-func ResourceConfigurationToOptions(path string) (*Options, error) {
-	beginOpts := Options{Path: path}
-	rcP, rcErr := beginOpts.rcPath()
-	if rcErr != nil {
-		return nil, rcErr
-	}
-
-	return rcFileToOptions(rcP)
-}
-
 func ResourceMappings(rcPath string) (parsed map[string]interface{}, err error) {
 	beginOpts := Options{Path: rcPath}
 	rcPath, rcErr := beginOpts.rcPath()
@@ -100,82 +82,50 @@ func ResourceMappings(rcPath string) (parsed map[string]interface{}, err error) 
 func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{}, err error) {
 	valueMappings = make(map[string]interface{})
 
-	targetKeys := []typeResolver{
+	targetKeys := []struct {
+		resolver resolverEmitter
+		keys     []string
+	}{
 		{
-			key: ForceKey, resolver: _boolfer,
+			resolver: _boolfer, keys: []string{
+				OcrKey, ConvertKey,
+				CLIOptionVerboseKey, RecursiveKey, CLIOptionFiles, CLIOptionLongFmt,
+				ForceKey, QuietKey, HiddenKey, NoPromptKey, NoClobberKey, IgnoreConflictKey,
+				CLIOptionIgnoreNameClashes, CLIOptionIgnoreChecksum, CLIOptionFixClashesKey,
+			},
 		},
 		{
-			key: QuietKey, resolver: _boolfer,
+			resolver: _intfer, keys: []string{
+				PageSizeKey,
+				DepthKey,
+			},
 		},
 		{
-			key: HiddenKey, resolver: _boolfer,
+			resolver: _stringfer, keys: []string{
+				CLIOptionNotOwner, ExportsDirKey, CLIOptionExactTitle, AddressKey,
+			},
 		},
 		{
-			key: NoPromptKey, resolver: _boolfer,
-		},
-		{
-			key: NoClobberKey, resolver: _boolfer,
-		},
-		{
-			key: IgnoreConflictKey, resolver: _boolfer,
-		},
-		{
-			key: CLIOptionIgnoreNameClashes, resolver: _boolfer,
-		},
-		{
-			key: CLIOptionIgnoreChecksum, resolver: _boolfer,
-		},
-		{
-			key: CLIOptionFixClashesKey, resolver: _boolfer,
-		},
-		{
-			key: CLIOptionVerboseKey, resolver: _boolfer,
-		},
-		{
-			key: RecursiveKey, resolver: _boolfer,
-		},
-		{
-			key: PageSizeKey, resolver: _intfer,
-		},
-		{
-			key: DepthKey, resolver: _intfer,
-		},
-		{
-			key: CLIOptionFiles, resolver: _boolfer,
-		},
-		{
-			key: CLIOptionLongFmt, resolver: _boolfer,
-		},
-		{
-			key: CLIOptionNotOwner, resolver: _stringfer,
-		},
-		{
-			key: ExportsDirKey, resolver: _stringfer,
-		},
-		{
-			key: CLIOptionExactTitle, resolver: _stringfer,
-		},
-		{
-			key: AddressKey, resolver: _stringfer,
-		},
-		{
-			key: ExportsKey, resolver: _stringArrayfer,
-		},
-		{
-			key: ExcludeOpsKey, resolver: _stringArrayfer,
+			resolver: _stringArrayfer, keys: []string{
+				ExportsKey, ExcludeOpsKey,
+			},
 		},
 	}
 
 	accepted := make(map[string]typeResolver)
-	for _, stK := range targetKeys {
-		lowerKey := strings.ToLower(stK.key)
-		retr, ok := rcMap[lowerKey]
-		if !ok {
-			continue
-		}
+	for _, item := range targetKeys {
+		resolver := item.resolver
+		keys := item.keys
+		for _, key := range keys {
+			lowerKey := strings.ToLower(key)
+			retr, ok := rcMap[lowerKey]
+			if !ok {
+				continue
+			}
 
-		stK.value = retr
-		accepted[lowerKey] = stK
+			tr := typeResolver{key: key, value: retr, resolver: resolver}
+			accepted[lowerKey] = tr
+		}
 	}
 
 	if false && len(accepted) < 1 {
@@ -183,8 +133,8 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 		return
 	}
 
-	for lowerKey, stK := range accepted {
-		if value, err := stK.resolver(lowerKey, stK.value); err == nil {
+	for lowerKey, tResolver := range accepted {
+		if value, err := tResolver.resolver(lowerKey, tResolver.value); err == nil {
 			valueMappings[lowerKey] = value
 		} else {
 			fmt.Fprintf(os.Stderr, "rc: %s err %v\n", lowerKey, err)

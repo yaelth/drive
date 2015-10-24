@@ -31,6 +31,8 @@ const (
 	TUInt64
 )
 
+type resolverEmitter func(varname, v string) (interface{}, error)
+
 type typeEmitterPair struct {
 	value        string
 	valueEmitter func(v string) interface{}
@@ -39,7 +41,7 @@ type typeEmitterPair struct {
 type typeResolver struct {
 	key      string
 	value    string
-	resolver func(varname, v string) (interface{}, error)
+	resolver resolverEmitter
 }
 
 type tParsed int

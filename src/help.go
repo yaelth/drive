@@ -43,6 +43,8 @@ const (
 	DuKey                   = "du"
 	Md5sumKey               = "md5sum"
 	MoveKey                 = "move"
+	OcrKey                  = "ocr"
+	ConvertKey              = "convert"
 	OSLinuxKey              = "linux"
 	PullKey                 = "pull"
 	PipedKey                = "piped"
