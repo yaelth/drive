@@ -88,7 +88,7 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 	}{
 		{
 			resolver: _boolfer, keys: []string{
-				OcrKey, ConvertKey,
+				OcrKey, ConvertKey, CLIOptionFileBrowser, CLIOptionWebBrowser,
 				CLIOptionVerboseKey, RecursiveKey, CLIOptionFiles, CLIOptionLongFmt,
 				ForceKey, QuietKey, HiddenKey, NoPromptKey, NoClobberKey, IgnoreConflictKey,
 				CLIOptionIgnoreNameClashes, CLIOptionIgnoreChecksum, CLIOptionFixClashesKey,

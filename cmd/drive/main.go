@@ -200,15 +200,15 @@ func (cmd *quotaCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 }
 
 type openCmd struct {
-	ById    *bool `json:"by-id"`
-	Local   *bool `json:"local"`
-	Browser *bool `json:"browser"`
+	ById        *bool `json:"by-id"`
+	FileBrowser *bool `json:"file-browser"`
+	WebBrowser  *bool `json:"web-browser"`
 }
 
 func (cmd *openCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "open by id instead of path")
-	cmd.Local = fs.Bool(drive.CLIOptionFileBrowser, true, "open file with the local file manager")
-	cmd.Browser = fs.Bool(drive.CLIOptionWebBrowser, true, "open file in default browser")
+	cmd.FileBrowser = fs.Bool(drive.CLIOptionFileBrowser, true, "open file with the local file manager")
+	cmd.WebBrowser = fs.Bool(drive.CLIOptionWebBrowser, true, "open file in default browser")
 	return fs
 }
 
@@ -225,10 +225,10 @@ func (cmd *openCmd) Run(args []string, definedArgs map[string]*flag.Flag) {
 	if *cmd.ById {
 		openType |= drive.IdOpen
 	}
-	if *cmd.Browser {
+	if *cmd.WebBrowser {
 		openType |= drive.BrowserOpen
 	}
-	if *cmd.Local {
+	if *cmd.FileBrowser {
 		openType |= drive.FileManagerOpen
 	}
 
