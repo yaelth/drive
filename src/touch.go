@@ -18,23 +18,10 @@ import (
 	"time"
 )
 
-func (g *Commands) Touch(byId bool) (err error) {
-	// Arbitrary value for rate limiter
-	throttle := time.Tick(1e9 / 10)
-
-	chanMap := map[int]chan *keyValue{}
-
-	for i, relToRootPath := range g.opts.Sources {
-		fileId := ""
-		if byId {
-			fileId = relToRootPath
-		}
-		chanMap[i] = g.touch(relToRootPath, fileId)
-		<-throttle
-	}
-
+func multiplexOnChanMapResults(g *Commands, chanMap map[int]chan *keyValue) {
 	spin := g.playabler()
 	spin.play()
+	defer spin.stop()
 
 	for {
 		if len(chanMap) < 1 {
@@ -55,7 +42,26 @@ func (g *Commands) Touch(byId bool) (err error) {
 			}
 		}
 	}
-	spin.stop()
+
+	return
+}
+
+func (g *Commands) Touch(byId bool) (err error) {
+	// Arbitrary value for rate limiter
+	throttle := time.Tick(1e9 / 10)
+
+	chanMap := map[int]chan *keyValue{}
+
+	for i, relToRootPath := range g.opts.Sources {
+		fileId := ""
+		if byId {
+			fileId = relToRootPath
+		}
+		chanMap[i] = g.touch(relToRootPath, fileId)
+		<-throttle
+	}
+
+	multiplexOnChanMapResults(g, chanMap)
 	return
 }
 
@@ -87,42 +93,21 @@ func (g *Commands) TouchByMatch() (err error) {
 		i += 1
 	}
 
-	spin := g.playabler()
-	spin.play()
-
-	for {
-		if len(chanMap) < 1 {
-			break
-		}
-		// Find the channel that has results
-		for key, kvChan := range chanMap {
-			select {
-			case kv := <-kvChan:
-				if kv == nil { // Sentinel emitted
-					delete(chanMap, key)
-					continue
-				}
-				if kv.value != nil {
-					g.log.LogErrf("touch: %s %v\n", kv.key, kv.value.(error))
-				}
-			default:
-			}
-		}
-	}
-	spin.stop()
+	multiplexOnChanMapResults(g, chanMap)
 	return
 }
 
 func (g *Commands) touch(relToRootPath, fileId string) chan *keyValue {
 	fileChan := make(chan *keyValue)
+
 	go func() {
 		kv := &keyValue{
-			key: relToRootPath,
+			key:   relToRootPath,
+			value: nil,
 		}
 
 		defer func() {
 			fileChan <- kv
-			fileChan <- nil
 			close(fileChan)
 		}()
 
@@ -140,17 +125,19 @@ func (g *Commands) touch(relToRootPath, fileId string) chan *keyValue {
 		if true { // TODO: Print this out if verbosity is set
 			g.log.Logf("%s: %v\n", relToRootPath, file.ModTime)
 		}
+
 		if g.opts.Recursive && file.IsDir {
 			childResults := make(chan chan *keyValue)
+			// Arbitrary value for rate limiter
+			throttle := time.Tick(1e9 * 2)
+			childrenChan := g.rem.FindByParentId(file.Id, g.opts.Hidden)
+
 			go func() {
-				// Arbitrary value for rate limiter
-				throttle := time.Tick(1e9 * 2)
-				childrenChan := g.rem.findByParentIdRaw(file.Id, false, g.opts.Hidden)
+				defer close(childResults)
 				for child := range childrenChan {
 					childResults <- g.touch(relToRootPath+"/"+child.Name, child.Id)
 					<-throttle
 				}
-				close(childResults)
 			}()
 
 			for childChan := range childResults {
@@ -160,6 +147,7 @@ func (g *Commands) touch(relToRootPath, fileId string) chan *keyValue {
 			}
 		}
 	}()
+
 	return fileChan
 }
 

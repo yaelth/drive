@@ -215,6 +215,8 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 	throttle := time.Tick(1e7)
 
 	go func() {
+		defer close(fileChan)
+
 		pageToken := ""
 		for {
 			if pageToken != "" {
@@ -249,9 +251,8 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 				break
 			}
 		}
-
-		close(fileChan)
 	}()
+
 	return fileChan
 }
 
