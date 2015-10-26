@@ -320,6 +320,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 		fslArg := fsListingArg{
 			parent:  base,
 			context: g.context,
+			hidden:  g.opts.Hidden,
 			depth:   traversalDepth,
 			ignore:  g.opts.IgnoreRegexp,
 		}
