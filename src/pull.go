@@ -58,7 +58,7 @@ func (g *Commands) Pull(byId bool) error {
 		} else {
 			err := autoRenameClashes(g, clashes)
 			if err == nil {
-				g.log.Logln("Clashes were fixed, try pushing again.")
+				g.log.Logln(MsgClashesFixedNowRetry)
 			}
 			return err
 		}

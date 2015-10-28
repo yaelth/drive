@@ -41,7 +41,8 @@ const (
 	MimeTypeJoiner      = "-"
 	RemoteDriveRootPath = "My Drive"
 
-	FmtTimeString = "2006-01-02T15:04:05.000Z"
+	FmtTimeString           = "2006-01-02T15:04:05.000Z"
+	MsgClashesFixedNowRetry = "Clashes were fixed, please retry the operation"
 )
 
 const (

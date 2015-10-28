@@ -540,9 +540,6 @@ func conflict(src, dest *File, index *config.Index, push bool) bool {
 }
 
 func resolveConflicts(conflicts []*Change, push bool, indexFiler func(string) *config.Index) (resolved, unresolved []*Change) {
-	if len(conflicts) < 1 {
-		return
-	}
 	for _, ch := range conflicts {
 		l, r := ch.Dest, ch.Src
 		if push {
