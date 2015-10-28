@@ -219,8 +219,11 @@ const (
 	InfiniteDepth = -1
 )
 
-var skipChecksumNote = fmt.Sprintf(
-	"\nNote: You can skip checksum verification by passing in flag `-%s`", CLIOptionIgnoreChecksum)
+var (
+	skipChecksumNote = fmt.Sprintf(
+		"\nNote: You can skip checksum verification by passing in flag `-%s`", CLIOptionIgnoreChecksum)
+	PermanentDeletionNoPromptError = fmt.Errorf("%q is set yet performing a permanent deletion. Please see issue https://github.com/odeke-em/drive/issues/448", NoPromptKey)
+)
 
 var docMap = map[string][]string{
 	AboutKey: []string{

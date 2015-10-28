@@ -1088,10 +1088,11 @@ func (cmd *emptyTrashCmd) Run(args []string, definedFlags map[string]*flag.Flag)
 }
 
 type deleteCmd struct {
-	Hidden  *bool `json:"hidden"`
-	Matches *bool `json:"matches"`
-	Quiet   *bool `json:"quiet"`
-	ById    *bool `json:"by-id"`
+	Hidden   *bool `json:"hidden"`
+	Matches  *bool `json:"matches"`
+	Quiet    *bool `json:"quiet"`
+	ById     *bool `json:"by-id"`
+	NoPrompt *bool `json:"no-prompt"`
 }
 
 func (cmd *deleteCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -1099,11 +1100,16 @@ func (cmd *deleteCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Matches = fs.Bool(drive.MatchesKey, false, "search by prefix and delete")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "delete by id instead of path")
+	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
 
 	return fs
 }
 
 func (cmd *deleteCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	if *cmd.NoPrompt {
+		exitWithError(drive.PermanentDeletionNoPromptError)
+	}
+
 	sources, context, path := preprocessArgsByToggle(args, *cmd.Matches || *cmd.ById)
 
 	opts := drive.Options{
