@@ -17,7 +17,7 @@
 
 package generated
 
-import "github.com/odeke-em/xon/pkger/src"
+import "github.com/odeke-em/go-utils/pkger/src"
 
 var PkgInfo = &pkger.PkgInfo{
 	CommitHash: "<CURRENT_COMMIT>",

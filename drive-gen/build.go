@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/odeke-em/drive/src"
+	"github.com/odeke-em/go-utils/pkger/src"
 	"github.com/odeke-em/ripper/src"
-	"github.com/odeke-em/xon/pkger/src"
 
 	_ "github.com/odeke-em/command"
 	_ "github.com/odeke-em/drive/config"
@@ -63,7 +63,7 @@ func main() {
 		{"BuildTime", pkgInfo.BuildTime},
 	}
 
-	importsClause := "import \"github.com/odeke-em/xon/pkger/src\"\n\n"
+	importsClause := "import \"github.com/odeke-em/go-utils/pkger/src\"\n\n"
 	formatted := "var PkgInfo = &pkger.PkgInfo {\n"
 
 	for _, v := range rubric {
