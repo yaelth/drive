@@ -616,6 +616,11 @@ func maxProcs() int {
 }
 
 func customQuote(s string) string {
+	/*
+	   See
+	      + https://github.com/golang/go/issues/11511
+	      + https://github.com/odeke-em/drive/issues/250
+	*/
 	return "\"" + strings.Replace(strings.Replace(s, "\\", "\\\\", -1), "\"", "\\\"", -1) + "\""
 }
 
