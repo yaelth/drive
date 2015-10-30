@@ -911,6 +911,7 @@ func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[str
 func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Flag) {
 	argc := len(args)
 
+	var err error
 	var contextArgs, rest, sources []string
 
 	if !*cmd.MountedPush {
@@ -932,16 +933,14 @@ func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Fla
 	rest = drive.NonEmptyStrings(rest...)
 	context, path := discoverContext(contextArgs)
 
-	contextAbsPath, err := filepath.Abs(path)
-	exitWithError(err)
-
 	if path == "." {
 		path = ""
 	}
 
-	mount, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.Hidden)
-
 	root := context.AbsPathOf("")
+	contextAbsPath := filepath.Join(root, path)
+
+	mount, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.Hidden)
 
 	sources, err = relativePathsOpt(root, auxSrcs, true)
 	exitWithError(err)
