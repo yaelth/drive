@@ -786,7 +786,7 @@ type qrLinkCmd struct {
 }
 
 func (cmd *qrLinkCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.Address = fs.String(drive.AddressKey, "http://localhost:3000", "address on which the QR code generator is running")
+	cmd.Address = fs.String(drive.AddressKey, drive.DefaultQRShareServer, "address on which the QR code generator is running")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
 	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, true, drive.DescVerbose)
 	return fs

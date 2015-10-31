@@ -30,13 +30,17 @@ var envKeyAlias = &extractor.EnvKey{
 	PrivKeyAlias: "DRIVE_SERVER_PRIV_KEY",
 }
 
+const (
+	DefaultQRShareServer = "https://qr-server.herokuapp.com/drive"
+)
+
 var envKeySet = extractor.KeySetFromEnv(envKeyAlias)
 
 func (g *Commands) QR(byId bool) error {
 
 	kvChan := g.urler(byId, g.opts.Sources)
 
-	address := "http://localhost:3000"
+	address := DefaultQRShareServer
 	if g.opts.Meta != nil {
 		meta := *(g.opts.Meta)
 		if retrAddress, ok := meta[AddressKey]; ok && len(retrAddress) >= 1 {
@@ -45,6 +49,12 @@ func (g *Commands) QR(byId bool) error {
 	}
 
 	address = strings.TrimRight(address, "/")
+	if envKeySet.PublicKey == "" {
+		envKeySet.PublicKey = "5160897b3586461e83e7279c10352ac4"
+	}
+	if envKeySet.PrivateKey == "" {
+		envKeySet.PrivateKey = "5a3451dadab74f75b16f754c0a931949"
+	}
 
 	for kv := range kvChan {
 		switch kv.value.(type) {
