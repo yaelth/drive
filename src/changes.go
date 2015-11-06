@@ -305,9 +305,10 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 		return cl, clashes, nil
 	}
 
-	traversalDepth := clr.depth
+	originalDepth := clr.depth
+	remoteTraversalDepth := decrementTraversalDepth(originalDepth)
 
-	if traversalDepth == 0 {
+	if remoteTraversalDepth == 0 {
 		return cl, clashes, nil
 	}
 
@@ -321,7 +322,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 			parent:  base,
 			context: g.context,
 			hidden:  g.opts.Hidden,
-			depth:   traversalDepth,
+			depth:   originalDepth, // local listing needs to start from original depth
 			ignore:  g.opts.IgnoreRegexp,
 		}
 
@@ -372,8 +373,6 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 
 	clashesMap := make(map[int][]*Change)
 
-	traversalDepth = decrementTraversalDepth(traversalDepth)
-
 	for j := 0; j < chunkCount; j += 1 {
 		end := i + chunkSize
 		if end >= srcLen {
@@ -386,7 +385,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 			push:          clr.push,
 			dirList:       dirlist[i:end],
 			parent:        base,
-			depth:         traversalDepth,
+			depth:         remoteTraversalDepth,
 			changeListPtr: &cl,
 			clashesMap:    clashesMap,
 		}
