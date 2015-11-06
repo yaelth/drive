@@ -518,7 +518,7 @@ func (g *Commands) localMod(change *Change, exports []string) (err error) {
 	// Simple heuristic to avoid downloading all the
 	// content yet it could just be a modTime difference
 	mask := fileDifferences(change.Src, change.Dest, change.IgnoreChecksum)
-	if checksumDiffers(mask) {
+	if checksumDiffers(mask) && !change.Dest.IsDir {
 		// download and replace
 		if err = g.download(change, exports); err != nil {
 			return

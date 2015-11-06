@@ -342,6 +342,10 @@ func sizeDiffers(mask int) bool {
 	return (mask & DifferSize) != 0
 }
 
+func fileModTimesDiffer(src, dest *File) bool {
+	return src != nil && dest != nil && !src.ModTime.Equal(dest.ModTime)
+}
+
 func fileDifferences(src, dest *File, ignoreChecksum bool) int {
 	if src == nil || dest == nil {
 		return DifferMd5Checksum | DifferSize | DifferModTime | DifferDirType
@@ -351,9 +355,11 @@ func fileDifferences(src, dest *File, ignoreChecksum bool) int {
 	if src.Size != dest.Size {
 		difference |= DifferSize
 	}
-	if !src.ModTime.Equal(dest.ModTime) {
+
+	if fileModTimesDiffer(src, dest) {
 		difference |= DifferModTime
 	}
+
 	if src.IsDir != dest.IsDir {
 		difference |= DifferDirType
 	}
@@ -409,6 +415,9 @@ func (c *Change) op() Operation {
 		return indexExistanceOrDeferTo(c, OpMod, indexingOnly)
 	}
 	if c.Src.IsDir {
+		if fileModTimesDiffer(c.Src, c.Dest) {
+			return OpMod
+		}
 		return indexExistanceOrDeferTo(c, OpNone, indexingOnly)
 	}
 
