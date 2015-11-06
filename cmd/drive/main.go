@@ -622,6 +622,7 @@ type pullCmd struct {
 
 	Verbose *bool `json:"verbose"`
 	Depth   *int  `json:"depth"`
+	Starred *bool `json:"starred"`
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -646,6 +647,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
 	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 	cmd.FixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
+	cmd.Starred = fs.Bool(drive.CLIOptionStarred, false, drive.DescStarred)
 
 	return fs
 }
@@ -697,6 +699,7 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Verbose:           *cmd.Verbose,
 		Depth:             *cmd.Depth,
 		FixClashes:        *cmd.FixClashes,
+		Starred:	   *cmd.Starred,
 	}
 
 	if *cmd.Matches {

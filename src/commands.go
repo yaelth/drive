@@ -87,6 +87,7 @@ type Options struct {
 	indexingOnly      bool      `cli:"indexingOnly"`
 	Verbose           bool      `cli:"verbose"`
 	FixClashes        bool
+	Starred           bool
 }
 
 type Commands struct {

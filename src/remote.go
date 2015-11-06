@@ -138,10 +138,14 @@ func (r *Remote) changes(startChangeId int64) (chan *drive.Change, error) {
 func buildExpression(parentId string, typeMask int, inTrash bool) string {
 	var exprBuilder []string
 
-	if inTrash || (typeMask&InTrash) != 0 {
+	if inTrash || masked(typeMask) {
 		exprBuilder = append(exprBuilder, "trashed=true")
 	} else {
 		exprBuilder = append(exprBuilder, fmt.Sprintf("'%s' in parents", parentId), "trashed=false")
+	}
+
+	if starred(typeMask) {
+		exprBuilder = append(exprBuilder, "starred=true")
 	}
 
 	// Folder and NonFolder are mutually exclusive.
@@ -189,24 +193,19 @@ func retryableChangeOp(fn func() (interface{}, error), debug bool) *expb.Exponen
 	}
 }
 
-func (r *Remote) findByPath(p string, trashed bool) (*File, error) {
-	if rootLike(p) {
+func (r *Remote) FindByPath(p string) (*File, error) {
+}
+
+func (r *Remote) findByPath(fq *fileFindQuery) (*File, error) {
+	if rootLike(fq.path) {
 		return r.FindById("root")
 	}
-	parts := strings.Split(p, "/")
-	finder := r.findByPathRecv
-	if trashed {
-		finder = r.findByPathTrashed
-	}
-	return finder("root", parts[1:])
-}
+	parts := strings.Split(fq.path, DriveRemoteSep)
+	fqq := fq.copy()
+	fqq.path = "root"
+	fqq.parts = parts[1:]
 
-func (r *Remote) FindByPath(p string) (file *File, err error) {
-	return r.findByPath(p, false)
-}
-
-func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
-	return r.findByPath(p, true)
+	return r.findByPathRecvRaw(fqq)
 }
 
 func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) chan *File {
@@ -702,18 +701,47 @@ func (r *Remote) About() (about *drive.About, err error) {
 	return r.service.About.Get().Do()
 }
 
-func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (file *File, err error) {
+type fileFindQuery struct {
+	byId       bool
+	trashed    bool
+	starred    bool
+	path       string
+	parentId   string
+	byParentId bool
+	parts      []string
+}
+
+func (fq *fileFindQuery) copy() *fileFindQuery {
+	return &fileFindQuery{
+		byId:       fq.byId,
+		path:       fq.path,
+		trashed:    fq.trashed,
+		parts:      fq.parts,
+		parentId:   fq.parentId,
+		byParentid: fq.byParentId,
+	}
+}
+
+func (r *Remote) findByPathRecvRaw(fq *fileFindQuery) (file *File, err error) {
 	// find the file or directory under parentId and titled with p[0]
 	req := r.service.Files.List()
 	// TODO: use field selectors
 	var expr string
+	p := fq.parts
 	head := urlToPath(p[0], false)
-	if trashed {
+	parentId := fq.parentId
+
+	if fq.trashed {
 		expr = fmt.Sprintf("title = %s and trashed=true", customQuote(head))
 	} else {
 		expr = fmt.Sprintf("%s in parents and title = %s and trashed=false",
 			customQuote(parentId), customQuote(head))
 	}
+
+	if fq.starred {
+		expr = fmt.Sprintf("%s and starred=true", expr)
+	}
+
 	req.Q(expr)
 
 	// We only need the head file since we expect only one File to be created
@@ -736,15 +764,15 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	if len(p) == 1 {
 		return NewRemoteFile(first), nil
 	}
-	return r.findByPathRecvRaw(first.Id, p[1:], trashed)
-}
-
-func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err error) {
-	return r.findByPathRecvRaw(parentId, p, false)
+	fqq := fq.copy()
+	fqq.parentId = first.Id
+	fqq.parts = p[1:]
+	return r.findByPathRecvRaw(fqq)
 }
 
 func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err error) {
-	return r.findByPathRecvRaw(parentId, p, true)
+	fq.trashed = true
+	return r.findByPathRecvRaw(fq)
 }
 
 func newAuthConfig(context *config.Context) *oauth2.Config {

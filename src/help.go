@@ -167,6 +167,7 @@ const (
 	DescFixClashes         = "fix clashes by renaming files"
 	DescDescription        = "set the description"
 	DescQR                 = "open up the QR code for specified files"
+	DescStarred            = "operate only on starred files"
 )
 
 const (

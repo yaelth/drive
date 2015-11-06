@@ -24,12 +24,13 @@ import (
 const (
 	InTrash = 1 << iota
 	Folder
-	NonFolder
 	Shared
 	Owners
-	CurrentVersion
 	Minimal
+	Starred
+	NonFolder
 	DiskUsageOnly
+	CurrentVersion
 )
 
 type attribute struct {
@@ -480,4 +481,8 @@ func shared(mask int) bool {
 
 func trashed(mask int) bool {
 	return (mask & InTrash) != 0
+}
+
+func starred(mask int) bool {
+	return (mask & Starred) != 0
 }
