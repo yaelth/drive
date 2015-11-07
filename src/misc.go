@@ -37,6 +37,12 @@ import (
 	"github.com/odeke-em/drive/config"
 )
 
+var (
+	// ErrRejectedTerms is empty "" because messages might be too
+	// verbose to affirm a rejection that a user has already seen
+	ErrRejectedTerms = errors.New("")
+)
+
 const (
 	MimeTypeJoiner      = "-"
 	RemoteDriveRootPath = "My Drive"
@@ -246,7 +252,7 @@ func nextPage() bool {
 	return true
 }
 
-func promptForChanges(args ...interface{}) bool {
+func promptForChanges(args ...interface{}) Agreement {
 	argv := []interface{}{
 		"Proceed with the changes? [Y/n]:",
 	}
@@ -260,7 +266,11 @@ func promptForChanges(args ...interface{}) bool {
 		input = YesShortKey
 	}
 
-	return strings.ToUpper(input) == YesShortKey
+	if strings.ToUpper(input) == YesShortKey {
+		return Accepted
+	}
+
+	return Rejected
 }
 
 func (f *File) toDesktopEntry(urlMExt *urlMimeTypeExt) *desktopEntry {

@@ -93,9 +93,9 @@ func (g *Commands) fetch(fetchOp int) (err error) {
 		noClobber: g.opts.NoClobber,
 	}
 
-	ok, opMap := printFetchChangeList(&clArg)
-	if !ok {
-		return nil
+	status, opMap := printFetchChangeList(&clArg)
+	if !accepted(status) {
+		return status.Error()
 	}
 
 	return g.playFetchChanges(cl, opMap)
@@ -315,13 +315,13 @@ func (g *Commands) createIndex(f *File) (err error) {
 	return g.context.SerializeIndex(index)
 }
 
-func printFetchChangeList(clArg *changeListArg) (bool, *map[Operation]sizeCounter) {
+func printFetchChangeList(clArg *changeListArg) (Agreement, *map[Operation]sizeCounter) {
 	if len(clArg.changes) == 0 {
 		clArg.logy.Logln("Everything is up-to-date.")
-		return false, nil
+		return NotApplicable, nil
 	}
 	if clArg.noPrompt {
-		return true, nil
+		return AcceptedImplicitly, nil
 	}
 
 	logy := clArg.logy

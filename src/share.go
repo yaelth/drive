@@ -175,9 +175,9 @@ func (c *Commands) Share(byId bool) (err error) {
 	return c.share(false, byId)
 }
 
-func showPromptShareChanges(logy *log.Logger, change *shareChange) bool {
+func showPromptShareChanges(logy *log.Logger, change *shareChange) Agreement {
 	if len(change.files) < 1 {
-		return false
+		return NotApplicable
 	}
 	if change.revoke {
 		logy.Logf("Revoke access for accountType: \033[92m%s\033[00m for file(s):\n",
@@ -190,7 +190,7 @@ func showPromptShareChanges(logy *log.Logger, change *shareChange) bool {
 	}
 
 	if len(change.emails) < 1 {
-		return false
+		return NotApplicable
 	}
 
 	if change.notify {
@@ -213,8 +213,10 @@ func showPromptShareChanges(logy *log.Logger, change *shareChange) bool {
 }
 
 func (c *Commands) playShareChanges(change *shareChange) error {
-	if c.opts.canPrompt() && !showPromptShareChanges(c.log, change) {
-		return nil
+	if c.opts.canPrompt() {
+		if status := showPromptShareChanges(c.log, change); !accepted(status) {
+			return status.Error()
+		}
 	}
 
 	for _, file := range change.files {

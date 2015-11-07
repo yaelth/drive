@@ -78,9 +78,9 @@ func (g *Commands) EmptyTrash() error {
 
 		g.log.Logln("This operation is irreversible. Empty trash! ")
 
-		if !promptForChanges() {
+		if status := promptForChanges(); !accepted(status) {
 			g.log.Logln("Aborted emptying trash")
-			return nil
+			return status.Error()
 		}
 	}
 
@@ -168,9 +168,9 @@ func (g *Commands) trashByMatch(inTrash, permanent bool) error {
 		noClobber: false,
 	}
 
-	ok, _ := printChangeList(&clArg)
-	if !ok {
-		return nil
+	status, _ := printChangeList(&clArg)
+	if !accepted(status) {
+		return status.Error()
 	}
 
 	toTrash := !inTrash
@@ -212,14 +212,15 @@ func (g *Commands) reduceForTrash(args []string, opt *trashOpt) error {
 		noClobber: false,
 	}
 
-	ok, _ := printChangeList(&clArg)
-	if !ok {
-		return nil
+	status, _ := printChangeList(&clArg)
+	if !accepted(status) {
+		return status.Error()
 	}
 
 	if opt.permanent && g.opts.canPrompt() {
-		if !promptForChanges("This operation is irreversible. Continue [Y/N] ") {
-			return nil
+		status := promptForChanges("This operation is irreversible. Continue [Y/N] ")
+		if !accepted(status) {
+			return status.Error()
 		}
 	}
 	return g.playTrashChangeList(cl, opt)

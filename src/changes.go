@@ -30,8 +30,17 @@ import (
 type destination int
 
 const (
-	SelectSrc = 1 << iota
+	SelectSrc destination = 1 << iota
 	SelectDest
+)
+
+type Agreement int
+
+const (
+	NotApplicable Agreement = 1 << iota
+	Rejected
+	Accepted
+	AcceptedImplicitly
 )
 
 type dirList struct {
@@ -656,22 +665,46 @@ func previewChanges(clArgs *changeListArg, reduce bool, opMap map[Operation]size
 	}
 }
 
-func printChangeList(clArg *changeListArg) (bool, *map[Operation]sizeCounter) {
+func rejected(status Agreement) bool {
+	return (status & Rejected) != 0
+}
+
+func accepted(status Agreement) bool {
+	return (status&Accepted) != 0 || (status&AcceptedImplicitly) != 0
+}
+
+func notApplicable(status Agreement) bool {
+	return (status & NotApplicable) != 0
+}
+
+func (ag *Agreement) Error() error {
+	switch *ag {
+	case Rejected:
+		return ErrRejectedTerms
+	}
+
+	return nil
+}
+
+func printChangeList(clArg *changeListArg) (Agreement, *map[Operation]sizeCounter) {
 	if len(clArg.changes) == 0 {
 		clArg.logy.Logln("Everything is up-to-date.")
-		return false, nil
+		return NotApplicable, nil
 	}
 	if !clArg.canPreview {
-		return true, nil
+		return AcceptedImplicitly, nil
 	}
 
 	opMap := opChangeCount(clArg.changes)
 	previewChanges(clArg, true, opMap)
 
-	accepted := clArg.noPrompt
-	if !accepted {
-		accepted = promptForChanges()
+	status := Rejected
+	if clArg.noPrompt {
+		status = AcceptedImplicitly
+	}
+	if !accepted(status) {
+		status = promptForChanges()
 	}
 
-	return accepted, &opMap
+	return status, &opMap
 }

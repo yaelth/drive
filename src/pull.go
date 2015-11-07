@@ -84,9 +84,9 @@ func (g *Commands) Pull(byId bool) error {
 		canPreview: g.opts.canPreview(),
 	}
 
-	ok, opMap := printChangeList(&clArg)
-	if !ok {
-		return nil
+	status, opMap := printChangeList(&clArg)
+	if !accepted(status) {
+		return status.Error()
 	}
 
 	return g.playPullChanges(nonConflicts, g.opts.Exports, opMap)
@@ -142,7 +142,8 @@ func autoRenameClashes(g *Commands, clashes []*Change) error {
 		for _, r := range renames {
 			g.log.Logf("%v %v -> %v\n", r.originalPath, r.change.Src.Id, r.newName)
 		}
-		if !promptForChanges("Proceed with the changes [Y/N] ? ") {
+		status := promptForChanges("Proceed with the changes [Y/N] ? ")
+		if !accepted(status) {
 			return ErrClashesDetected
 		}
 	}
@@ -270,8 +271,8 @@ func (g *Commands) PullMatches() (err error) {
 		canPreview: g.opts.canPreview(),
 	}
 
-	ok, opMap := printChangeList(&clArg)
-	if !ok {
+	status, opMap := printChangeList(&clArg)
+	if !accepted(status) {
 		return nil
 	}
 
