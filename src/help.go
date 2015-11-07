@@ -199,6 +199,7 @@ const (
 	CLIOptionLongFmt            = "long"
 	CLIOptionFixClashesKey      = "fix-clashes"
 	CLIOptionPiped              = "piped"
+	CLIOptionStarred            = "starred"
 )
 
 const (

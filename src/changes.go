@@ -132,7 +132,12 @@ func (g *Commands) byRemoteResolve(relToRoot, fsPath string, r *File, push bool)
 
 func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, clashes []*Change, err error) {
 	var r *File
-	r, err = g.rem.FindByPath(relToRoot)
+	resolver := g.rem.FindByPath
+	if g.opts.Starred {
+		resolver = g.rem.FindByPathStarred
+	}
+
+	r, err = resolver(relToRoot)
 	if err != nil && err != ErrPathNotExists {
 		return
 	}

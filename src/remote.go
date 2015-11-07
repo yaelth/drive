@@ -54,6 +54,10 @@ const (
 )
 
 const (
+	DriveRemoteSep = "/"
+)
+
+const (
 	OptNone = 1 << iota
 	OptConvert
 	OptOCR
@@ -138,7 +142,7 @@ func (r *Remote) changes(startChangeId int64) (chan *drive.Change, error) {
 func buildExpression(parentId string, typeMask int, inTrash bool) string {
 	var exprBuilder []string
 
-	if inTrash || masked(typeMask) {
+	if inTrash || trashed(typeMask) {
 		exprBuilder = append(exprBuilder, "trashed=true")
 	} else {
 		exprBuilder = append(exprBuilder, fmt.Sprintf("'%s' in parents", parentId), "trashed=false")
@@ -194,6 +198,11 @@ func retryableChangeOp(fn func() (interface{}, error), debug bool) *expb.Exponen
 }
 
 func (r *Remote) FindByPath(p string) (*File, error) {
+	fq := &fileFindQuery{
+		path:    p,
+		trashed: false,
+	}
+	return r.findByPathRecvRaw(fq)
 }
 
 func (r *Remote) findByPath(fq *fileFindQuery) (*File, error) {
@@ -718,7 +727,7 @@ func (fq *fileFindQuery) copy() *fileFindQuery {
 		trashed:    fq.trashed,
 		parts:      fq.parts,
 		parentId:   fq.parentId,
-		byParentid: fq.byParentId,
+		byParentId: fq.byParentId,
 	}
 }
 
@@ -770,8 +779,25 @@ func (r *Remote) findByPathRecvRaw(fq *fileFindQuery) (file *File, err error) {
 	return r.findByPathRecvRaw(fqq)
 }
 
-func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err error) {
-	fq.trashed = true
+func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
+	fq := &fileFindQuery{
+		path:    p,
+		trashed: true,
+	}
+	return r.findByPathRecvRaw(fq)
+}
+
+func (r *Remote) FindByPathStarred(p string) (file *File, err error) {
+	if rootLike(p) {
+		return r.FindById("root")
+	}
+	parts := strings.Split(p, DriveRemoteSep)
+
+	fq := &fileFindQuery{
+		path:    "root",
+		starred: true,
+		parts:   parts,
+	}
 	return r.findByPathRecvRaw(fq)
 }
 
