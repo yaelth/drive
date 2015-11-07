@@ -33,6 +33,7 @@ import (
 
 	"google.golang.org/api/googleapi"
 
+	expirableCache "github.com/odeke-em/cache"
 	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
 )
@@ -634,36 +635,8 @@ func customQuote(s string) string {
 	return "\"" + strings.Replace(strings.Replace(s, "\\", "\\\\", -1), "\"", "\\\"", -1) + "\""
 }
 
-type expirableCacheValue struct {
-	value     interface{}
-	entryTime time.Time
-}
-
-func (e *expirableCacheValue) Expired(q time.Time) bool {
-	if e == nil {
-		return true
-	}
-
-	return e.entryTime.Before(q)
-}
-
-func (e *expirableCacheValue) Value() interface{} {
-	if e == nil {
-		return nil
-	}
-
-	return e.value
-}
-
-func newExpirableCacheValueWithOffset(v interface{}, offset time.Duration) *expirableCacheValue {
-	return &expirableCacheValue{
-		value:     v,
-		entryTime: time.Now().Add(offset),
-	}
-}
-
-var newExpirableCacheValue = func(v interface{}) *expirableCacheValue {
-	return newExpirableCacheValueWithOffset(v, time.Hour)
+func newExpirableCacheValue(v interface{}) *expirableCache.ExpirableValue {
+	return expirableCache.NewExpirableValueWithOffset(v, uint64(time.Hour))
 }
 
 func reComposeError(prevErr error, messages ...string) error {
