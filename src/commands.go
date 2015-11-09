@@ -24,7 +24,7 @@ import (
 
 	"github.com/cheggaaa/pb"
 	"github.com/mattn/go-isatty"
-	expirable "github.com/odeke-em/cache"
+	expirableCache "github.com/odeke-em/cache"
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/log"
 )
@@ -99,7 +99,7 @@ type Commands struct {
 	log     *log.Logger
 
 	progress      *pb.ProgressBar
-	mkdirAllCache *expirable.OperationCache
+	mkdirAllCache *expirableCache.OperationCache
 }
 
 func (opts *Options) canPrompt() bool {
@@ -194,7 +194,7 @@ func New(context *config.Context, opts *Options) *Commands {
 		rem:           r,
 		opts:          opts,
 		log:           logger,
-		mkdirAllCache: expirable.New(),
+		mkdirAllCache: expirableCache.New(),
 	}
 }
 

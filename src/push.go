@@ -134,8 +134,8 @@ func (g *Commands) Push() (err error) {
 		}
 
 		g.log.LogErrf(" %s", unSafeQuotaMsg)
-		if !promptForChanges() {
-			return
+		if status := promptForChanges(); !accepted(status) {
+			return status.Error()
 		}
 	}
 
@@ -147,9 +147,9 @@ func (g *Commands) Push() (err error) {
 		canPreview: g.opts.canPreview(),
 	}
 
-	ok, opMap := printChangeList(&clArg)
-	if !ok {
-		return
+	status, opMap := printChangeList(&clArg)
+	if !accepted(status) {
+		return status.Error()
 	}
 
 	return g.playPushChanges(nonConflicts, opMap)

@@ -44,7 +44,8 @@ func (g *Commands) DeInit() error {
 			return true
 		}
 
-		return promptForChanges(args...)
+		status := promptForChanges(args...)
+		return accepted(status)
 	}
 
 	return g.context.DeInitialize(prompt, true)

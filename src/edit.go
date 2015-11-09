@@ -49,8 +49,8 @@ func (g *Commands) EditDescription(byId bool) (composedErr error) {
 
 	if description == "" && g.opts.canPrompt() {
 		g.log.Logln("Using an empty description will clear out the previous one")
-		if !promptForChanges() {
-			return
+		if status := promptForChanges(); !accepted(status) {
+			return status.Error()
 		}
 	}
 
