@@ -75,11 +75,11 @@ func (g *Commands) fetch(fetchOp int) (err error) {
 	var cl []*Change
 	switch fetchOp {
 	case FetchById:
-		cl, _, err = pullLikeResolve(g, true)
+		cl, _, err = pullLikeResolve(g, TypeById)
 	case FetchMatches:
-		cl, _, err = pullLikeMatchesResolver(g)
+		cl, _, err = pullLikeResolve(g, TypeMatches)
 	default:
-		cl, _, err = pullLikeResolve(g, false)
+		cl, _, err = pullLikeResolve(g, TypeAll)
 	}
 
 	if err != nil {

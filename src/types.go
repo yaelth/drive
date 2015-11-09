@@ -513,6 +513,7 @@ func (f *File) ToIndex() *config.Index {
 type fuzzyStringsValuePair struct {
 	fuzzyLevel fuzziness
 	inTrash    bool
+	starred    bool
 	joiner     joiner
 	values     []string
 }
@@ -520,6 +521,7 @@ type fuzzyStringsValuePair struct {
 type matchQuery struct {
 	dirPath           string
 	inTrash           bool
+	starred           bool
 	keywordSearches   []fuzzyStringsValuePair
 	mimeQuerySearches []fuzzyStringsValuePair
 	titleSearches     []fuzzyStringsValuePair
@@ -614,7 +616,15 @@ func titleQueryStringify(fz *fuzzyStringsValuePair) string {
 	quote := strconv.Quote
 
 	for _, title := range fz.values {
-		keySearches = append(keySearches, fmt.Sprintf("(title %s %s and trashed=%v)", fuzzyDesc, quote(title), fz.inTrash))
+		if !fz.starred {
+			keySearches = append(keySearches, fmt.Sprintf("(title %s %s and trashed=%v)", fuzzyDesc, quote(title), fz.inTrash))
+		} else {
+			expr := "(starred=true)"
+			if false && !rootLike(title) {
+				expr = fmt.Sprintf("(title %s %s and trashed=%v and starred=true)", fuzzyDesc, quote(title), fz.inTrash)
+			}
+			keySearches = append(keySearches, expr)
+		}
 	}
 
 	return strings.Join(keySearches, fmt.Sprintf(" %s ", fz.joiner.Stringer()))
@@ -662,6 +672,11 @@ func (mq *matchQuery) Stringer() string {
 		ownerTranslations = append(ownerTranslations, ownerQuery)
 	}
 
+	starredTranslations := []string{}
+	if mq.starred {
+		starredTranslations = []string{"(starred=true)"}
+	}
+
 	exprPairs := []struct {
 		joiner   string
 		elements []string
@@ -669,6 +684,7 @@ func (mq *matchQuery) Stringer() string {
 		{" and ", mimeTranslations},
 		{" and ", titleTranslations},
 		{" and ", ownerTranslations},
+		{" and ", starredTranslations},
 	}
 
 	for _, exprPair := range exprPairs {

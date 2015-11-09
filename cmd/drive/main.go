@@ -409,6 +409,7 @@ func (lCmd *listCmd) _run(args []string, definedFlags map[string]*flag.Flag, dis
 		TypeMask:  typeMask,
 		Quiet:     *cmd.Quiet,
 		Meta:      &meta,
+		Match:     *cmd.Matches,
 	}
 
 	if *cmd.Shared {
@@ -575,6 +576,7 @@ func (cmd *indexCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Quiet:             *cmd.Quiet,
 		Force:             *cmd.Force,
 		IgnoreNameClashes: *cmd.IgnoreNameClashes,
+		Match:             *cmd.Matches,
 	}
 
 	dr := drive.New(context, options)
@@ -653,7 +655,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	sources, context, path := preprocessArgsByToggle(args, (*pCmd.ById || *pCmd.Matches))
+	sources, context, path := preprocessArgsByToggle(args, (*pCmd.ById || *pCmd.Matches || *pCmd.Starred))
 	cmd := pullCmd{}
 	df := defaultsFiller{
 		from: *pCmd, to: &cmd,
@@ -699,15 +701,18 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Verbose:           *cmd.Verbose,
 		Depth:             *cmd.Depth,
 		FixClashes:        *cmd.FixClashes,
-		Starred:	   *cmd.Starred,
+		Starred:           *cmd.Starred,
+		Match:             *cmd.Matches,
 	}
 
-	if *cmd.Matches {
-		exitWithError(drive.New(context, options).PullMatches())
+	if *cmd.Matches || *cmd.Starred {
+		exitWithError(drive.New(context, options).PullMatchLike())
 	} else if *cmd.Piped {
 		exitWithError(drive.New(context, options).PullPiped(*cmd.ById))
+	} else if *cmd.ById {
+		exitWithError(drive.New(context, options).PullById())
 	} else {
-		exitWithError(drive.New(context, options).Pull(*cmd.ById))
+		exitWithError(drive.New(context, options).Pull())
 	}
 }
 
@@ -849,6 +854,7 @@ func (cmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Hidden:    *cmd.Hidden,
 		Recursive: *cmd.Recursive,
 		Quiet:     *cmd.Quiet,
+		Match:     *cmd.Matches,
 	}
 
 	if *cmd.Matches {
@@ -1118,6 +1124,7 @@ func (cmd *deleteCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Path:    path,
 		Sources: sources,
 		Quiet:   *cmd.Quiet,
+		Match:   *cmd.Matches,
 	}
 
 	if !*cmd.Matches {
@@ -1150,6 +1157,7 @@ func (cmd *trashCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Path:    path,
 		Sources: sources,
 		Quiet:   *cmd.Quiet,
+		Match:   *cmd.Matches,
 	}
 
 	if !*cmd.Matches {
@@ -1257,6 +1265,7 @@ func (cmd *untrashCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Path:    path,
 		Sources: sources,
 		Quiet:   *cmd.Quiet,
+		Match:   *cmd.Matches,
 	}
 
 	if !*cmd.Matches {

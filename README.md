@@ -256,6 +256,13 @@ Traverse deep to infinity and beyond
 $ drive pull --depth -1 all-my-files
 ```
 
+Pulling starred files is allowed as well
+
+```shell
+$ drive pull --starred
+$ drive pull --starred --matches content
+```
+
 
 ## Note: Checksum verification:
 

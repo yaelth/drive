@@ -32,6 +32,16 @@ var (
 	maxConcPulls = DefaultMaxProcs
 )
 
+type pullType uint
+
+const (
+	TypeNone pullType = 1 << iota
+	TypeAll
+	TypeById
+	TypeMatches
+	TypeStarred
+)
+
 type urlMimeTypeExt struct {
 	ext      string
 	mimeType string
@@ -45,11 +55,36 @@ type downloadArg struct {
 	ackByteProgress bool
 }
 
+type renameOp struct {
+	newName      string
+	change       *Change
+	originalPath string
+}
+
 // Pull from remote if remote path exists and in a god context. If path is a
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
-func (g *Commands) Pull(byId bool) error {
-	cl, clashes, err := pullLikeResolve(g, byId)
+func (g *Commands) Pull() error {
+	return pull(g, TypeAll)
+}
+
+func (g *Commands) PullById() error {
+	return pull(g, TypeById)
+}
+
+func (g *Commands) PullMatchLike() error {
+	pt := TypeNone
+	if g.opts.Match {
+		pt |= TypeMatches
+	}
+	if g.opts.Starred {
+		pt |= TypeStarred
+	}
+	return pull(g, pt)
+}
+
+func pull(g *Commands, pt pullType) error {
+	cl, clashes, err := pullLikeResolve(g, pt)
 
 	if len(clashes) >= 1 {
 		if !g.opts.FixClashes {
@@ -93,11 +128,7 @@ func (g *Commands) Pull(byId bool) error {
 }
 
 func autoRenameClashes(g *Commands, clashes []*Change) error {
-	type renameOp struct {
-		newName      string
-		change       *Change
-		originalPath string
-	}
+
 	clashesMap := map[string][]*Change{}
 
 	for _, clash := range clashes {
@@ -163,7 +194,15 @@ func autoRenameClashes(g *Commands, clashes []*Change) error {
 	return composedError
 }
 
-func pullLikeResolve(g *Commands, byId bool) (cl, clashes []*Change, err error) {
+func typeById(pt pullType) bool {
+	return (pt & TypeById) != 0
+}
+
+func typeByMatchLike(pt pullType) bool {
+	return (pt&TypeMatches) != 0 || (pt&TypeStarred) != 0
+}
+
+func pullLikeResolve(g *Commands, pt pullType) (cl, clashes []*Change, err error) {
 	g.log.Logln("Resolving...")
 
 	spin := g.playabler()
@@ -171,22 +210,37 @@ func pullLikeResolve(g *Commands, byId bool) (cl, clashes []*Change, err error) 
 	defer spin.stop()
 
 	resolver := g.pullByPath
-	if byId {
+
+	if typeById(pt) {
 		resolver = g.pullById
+	} else if typeByMatchLike(pt) {
+		resolver = func() (cl, cll []*Change, err error) {
+			return g.pullLikeMatchesResolver(pt)
+		}
 	}
 
 	return resolver()
 }
 
-func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
-	mq := matchQuery{
+func matchQuerier(g *Commands, pt pullType) *matchQuery {
+	fuzzLevel := Is
+	if (pt & TypeMatches) != 0 {
+		fuzzLevel = Like
+	}
+
+	return &matchQuery{
 		dirPath: g.opts.Path,
-		inTrash: false,
+		inTrash: g.opts.InTrash,
+		starred: g.opts.Starred,
 		titleSearches: []fuzzyStringsValuePair{
-			{fuzzyLevel: Like, values: g.opts.Sources},
+			{fuzzyLevel: fuzzLevel, values: g.opts.Sources},
 		},
 	}
-	matches, err := g.rem.FindMatches(&mq) // g.opts.Path, g.opts.Sources, false)
+}
+
+func (g *Commands) pullLikeMatchesResolver(pt pullType) (cl, clashes []*Change, err error) {
+	mq := matchQuerier(g, pt)
+	matches, err := g.rem.FindMatches(mq)
 
 	if err != nil {
 		return
@@ -236,46 +290,6 @@ func pullLikeMatchesResolver(g *Commands) (cl, clashes []*Change, err error) {
 	}
 
 	return
-}
-
-func (g *Commands) PullMatches() (err error) {
-	cl, clashes, err := pullLikeMatchesResolver(g)
-
-	if len(clashes) >= 1 {
-		warnClashesPersist(g.log, clashes)
-		return ErrClashesDetected
-	}
-
-	if err != nil {
-		return err
-	}
-
-	if len(cl) < 1 {
-		return nil
-	}
-
-	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl, false)
-	if conflictsPtr != nil {
-		warnConflictsPersist(g.log, *conflictsPtr)
-		return fmt.Errorf("conflicts have prevented a pull operation")
-	}
-
-	nonConflicts := *nonConflictsPtr
-
-	clArg := changeListArg{
-		logy:       g.log,
-		changes:    nonConflicts,
-		noPrompt:   !g.opts.canPrompt(),
-		noClobber:  g.opts.NoClobber,
-		canPreview: g.opts.canPreview(),
-	}
-
-	ok, opMap := printChangeList(&clArg)
-	if !ok {
-		return nil
-	}
-
-	return g.playPullChanges(nonConflicts, g.opts.Exports, opMap)
 }
 
 func (g *Commands) PullPiped(byId bool) (err error) {
