@@ -64,6 +64,8 @@ const (
 	NewKey                  = "new"
 	IndexKey                = "index"
 	PruneKey                = "prune"
+	StarKey                 = "star"
+	UnStarKey               = "unstar"
 
 	CoercedMimeKeyKey     = "coerced-mime"
 	ExportsKey            = "export"
@@ -134,6 +136,8 @@ const (
 	DescPruneIndices          = "remove stale indices"
 	DescPush                  = "push local changes to Google Drive"
 	DescShare                 = "share files with specific emails giving the specified users specifies roles and permissions"
+	DescStar                  = "star files"
+	DescUnStar                = "unstar files"
 	DescStat                  = "display information about a file"
 	DescTouch                 = "updates a remote file's modification time to that currently on the server"
 	DescTrash                 = "moves files to trash"

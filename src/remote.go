@@ -549,6 +549,19 @@ func (r *Remote) updateDescription(fileId, newDescription string) (*File, error)
 	return r.byFileIdUpdater(fileId, f)
 }
 
+func (r *Remote) updateStarred(fileId string, star bool) (*File, error) {
+	f := &drive.File{
+		Labels: &drive.FileLabels{
+			Starred: star,
+			// Since "Starred" is a non-pointer value, we'll need to
+			// unconditionally send it with API-requests using "ForceSendFields"
+			ForceSendFields: []string{"Starred"},
+		},
+	}
+
+	return r.byFileIdUpdater(fileId, f)
+}
+
 func (r *Remote) removeParent(fileId, parentId string) error {
 	return r.service.Parents.Delete(fileId, parentId).Do()
 }

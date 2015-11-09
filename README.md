@@ -49,6 +49,7 @@
   - [Open](#open)
   - [Drive Server](#drive-server)
   - [QR Code Share](#qr-code-share)
+  - [Star Or Unstar](#star-or-unstar)
 - [Revoking Account Access](#revoking-account-access)
 - [Uninstalling](#uninstalling)
 - [Applying patches](#applying-patches)
@@ -1009,6 +1010,19 @@ $ drive qr --address https://my.server books/newest.pdf maps/infoGraphic.png
 
 That should open up a browser with the QR code that when scanned will open up the desired file.
 
+## Star Or Unstar
+
+To star or unstar documents,
+
+```shell
+$ drive star information quest/A/B/C
+$ drive star --id 0fM9rt0Yc9RTPaDdsNzg1dXVjM0E 0fM9rt0Yc9RTPaTVGc1pzODN1NjQ 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU
+```
+
+```shell
+$ drive unstar information quest/A/B/C
+$ drive unstar --id 0fM9rt0Yc9RTPaDdsNzg1dXVjM0E 0fM9rt0Yc9RTPaTVGc1pzODN1NjQ 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU
+```
 
 ### Revoking Account Access
 

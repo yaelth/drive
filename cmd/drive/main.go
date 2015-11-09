@@ -113,6 +113,8 @@ func main() {
 	bindCommandWithAliases(drive.EditDescriptionKey, drive.DescEdit, &editDescriptionCmd{}, []string{})
 	bindCommandWithAliases(drive.QRLinkKey, drive.DescQR, &qrLinkCmd{}, []string{})
 	bindCommandWithAliases(drive.DuKey, drive.DescDu, &duCmd{}, []string{})
+	bindCommandWithAliases(drive.StarKey, drive.DescStar, &starCmd{}, []string{})
+	bindCommandWithAliases(drive.UnStarKey, drive.DescUnStar, &unstarCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -1413,6 +1415,46 @@ func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
 	return fs
+}
+
+type starCmd struct {
+	ById     *bool `json:"by-id"`
+	Quiet    *bool `json:"quiet"`
+	NoPrompt *bool `json:"no-prompt"`
+}
+
+func (cmd *starCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.ById = fs.Bool(drive.CLIOptionId, false, "open by id instead of path")
+	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
+	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	return fs
+}
+
+func (cmd *starCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.ById)
+
+	opts := &drive.Options{
+		Path:    path,
+		Sources: sources,
+		Quiet:   *cmd.Quiet,
+	}
+
+	exitWithError(drive.New(context, opts).Star(*cmd.ById))
+}
+
+type unstarCmd struct {
+	starCmd
+}
+
+func (cmd *unstarCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.ById)
+
+	opts := &drive.Options{
+		Path:    path,
+		Sources: sources,
+	}
+
+	exitWithError(drive.New(context, opts).UnStar(*cmd.ById))
 }
 
 func (cmd *shareCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
