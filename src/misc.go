@@ -50,6 +50,7 @@ const (
 
 	FmtTimeString           = "2006-01-02T15:04:05.000Z"
 	MsgClashesFixedNowRetry = "Clashes were fixed, please retry the operation"
+	MsgErrFileNotMutable    = "File not mutable"
 )
 
 const (
@@ -106,6 +107,11 @@ func retryableErrorCheck(v interface{}) (ok, retryable bool) {
 
 	if err == nil {
 		ok = true
+		return
+	}
+
+	if strings.EqualFold(err.Message, MsgErrFileNotMutable) {
+		retryable = false
 		return
 	}
 
