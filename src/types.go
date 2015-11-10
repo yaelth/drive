@@ -447,8 +447,14 @@ func (c *Change) op() Operation {
 	if c.Src.IsDir != c.Dest.IsDir {
 		return indexExistanceOrDeferTo(c, OpMod, indexingOnly)
 	}
+
 	if c.Src.IsDir {
-		if fileModTimesDiffer(c.Src, c.Dest) {
+		// In regards to https://github.com/odeke-em/drive/issues/477
+		// local dir modTimes get spuriously changed by ordinary shell
+		// operations on the children.
+		// When the time is right to actually compare these times
+		// without irking users, allow modTime checks
+		if false && fileModTimesDiffer(c.Src, c.Dest) {
 			return OpMod
 		}
 		return indexExistanceOrDeferTo(c, OpNone, indexingOnly)

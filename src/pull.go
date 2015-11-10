@@ -585,6 +585,7 @@ func (g *Commands) localMod(change *Change, exports []string) (err error) {
 		}
 		downloadPerformed = true
 	}
+
 	err = os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 
 	// Update progress for the case in which you are only Chtime-ing
@@ -624,21 +625,18 @@ func (g *Commands) localAdd(change *Change, exports []string) (err error) {
 		}
 	}
 
-	if change.Src.IsDir {
-		err = os.Mkdir(destAbsPath, os.ModeDir|0755)
-		if os.IsExist(err) {
-			err = nil
+	if !change.Src.IsDir {
+		// download and create
+		if dErr := g.download(change, exports); dErr != nil {
+			return dErr
 		}
-		return err
+	} else {
+		if cErr := os.Mkdir(destAbsPath, os.ModeDir|0755); !os.IsExist(cErr) {
+			return cErr
+		}
 	}
 
-	// download and create
-	if err = g.download(change, exports); err != nil {
-		return
-	}
-
-	err = os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
-	return
+	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
 func (g *Commands) localDelete(change *Change, conform []string) (err error) {
