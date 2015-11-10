@@ -162,10 +162,11 @@ func (g *Commands) trashByMatch(inTrash, permanent bool) error {
 	}
 
 	clArg := changeListArg{
-		logy:      g.log,
-		changes:   cl,
-		noPrompt:  !g.opts.canPrompt(),
-		noClobber: false,
+		logy:       g.log,
+		changes:    cl,
+		noClobber:  false,
+		noPrompt:   !g.opts.canPrompt(),
+		canPreview: g.opts.canPreview(),
 	}
 
 	status, _ := printChangeList(&clArg)
@@ -206,10 +207,11 @@ func (g *Commands) reduceForTrash(args []string, opt *trashOpt) error {
 	}
 
 	clArg := changeListArg{
-		logy:      g.log,
-		changes:   cl,
-		noPrompt:  !g.opts.canPrompt(),
-		noClobber: false,
+		logy:       g.log,
+		changes:    cl,
+		noClobber:  false,
+		canPreview: g.opts.canPreview(),
+		noPrompt:   !g.opts.canPrompt(),
 	}
 
 	status, _ := printChangeList(&clArg)
