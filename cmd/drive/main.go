@@ -624,12 +624,14 @@ type pullCmd struct {
 	ExplicitlyExport  *bool   `json:"explicitly-export"`
 	FixClashes        *bool   `json:"fix-clashes"`
 
-	Verbose *bool `json:"verbose"`
-	Depth   *int  `json:"depth"`
-	Starred *bool `json:"starred"`
+	Verbose    *bool `json:"verbose"`
+	Depth      *int  `json:"depth"`
+	Starred    *bool `json:"starred"`
+	AllStarred *bool `json:"all-starred"`
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.AllStarred = fs.Bool(drive.CLIOptionAllStarred, false, drive.DescAllStarred)
 	cmd.NoClobber = fs.Bool(drive.CLIOptionNoClobber, false, "prevents overwriting of old content")
 	cmd.Export = fs.String(
 		drive.ExportsKey, "", "comma separated list of formats to export your docs + sheets files")
@@ -708,7 +710,11 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}
 
 	if *cmd.Matches || *cmd.Starred {
-		exitWithError(drive.New(context, options).PullMatchLike())
+		if *cmd.AllStarred {
+			exitWithError(drive.New(context, options).PullAllStarred())
+		} else {
+			exitWithError(drive.New(context, options).PullMatchLike())
+		}
 	} else if *cmd.Piped {
 		exitWithError(drive.New(context, options).PullPiped(*cmd.ById))
 	} else if *cmd.ById {

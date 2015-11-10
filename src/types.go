@@ -76,6 +76,13 @@ var opPrecedence = map[Operation]int{
 	OpAdd:         4,
 }
 
+type ParentFile struct {
+	Id         string
+	IsRoot     bool
+	SelfLink   string
+	ParentLink string
+}
+
 type File struct {
 	// AlternateLink opens the file in a relevant Google editor or viewer
 	AlternateLink string
@@ -107,9 +114,33 @@ type File struct {
 	OriginalFilename      string
 	Labels                *drive.FileLabels
 	Description           string
+	Parents               []*ParentFile
+}
+
+func newParentFile(p *drive.ParentReference) *ParentFile {
+	if p == nil {
+		return nil
+	}
+
+	return &ParentFile{
+		Id:         p.Id,
+		IsRoot:     p.IsRoot,
+		SelfLink:   p.SelfLink,
+		ParentLink: p.ParentLink,
+	}
 }
 
 func NewRemoteFile(f *drive.File) *File {
+	parents := func(pl []*drive.ParentReference) (pfl []*ParentFile) {
+		for _, p := range pl {
+			if pf := newParentFile(p); pf != nil {
+				pfl = append(pfl, pf)
+			}
+		}
+
+		return pfl
+	}(f.Parents)
+
 	return &File{
 		AlternateLink:      f.AlternateLink,
 		BlobAt:             f.DownloadUrl,
@@ -134,6 +165,7 @@ func NewRemoteFile(f *drive.File) *File {
 		OriginalFilename:      f.OriginalFilename,
 		Labels:                f.Labels,
 		Description:           f.Description,
+		Parents:               parents,
 	}
 }
 
@@ -165,6 +197,7 @@ func DupFile(f *File) *File {
 		AlternateLink:      f.AlternateLink,
 		OriginalFilename:   f.OriginalFilename,
 		Description:        f.Description,
+		Parents:            f.Parents,
 	}
 }
 

@@ -40,6 +40,7 @@ const (
 	TypeById
 	TypeMatches
 	TypeStarred
+	TypeAllStarred
 )
 
 type urlMimeTypeExt struct {
@@ -70,6 +71,10 @@ func (g *Commands) Pull() error {
 
 func (g *Commands) PullById() error {
 	return pull(g, TypeById)
+}
+
+func (g *Commands) PullAllStarred() error {
+	return pull(g, TypeAllStarred)
 }
 
 func (g *Commands) PullMatchLike() error {
@@ -203,6 +208,10 @@ func typeByMatchLike(pt pullType) bool {
 	return (pt&TypeMatches) != 0 || (pt&TypeStarred) != 0
 }
 
+func typeByAllStarred(pt pullType) bool {
+	return (pt & TypeAllStarred) != 0
+}
+
 func pullLikeResolve(g *Commands, pt pullType) (cl, clashes []*Change, err error) {
 	g.log.Logln("Resolving...")
 
@@ -214,6 +223,8 @@ func pullLikeResolve(g *Commands, pt pullType) (cl, clashes []*Change, err error
 
 	if typeById(pt) {
 		resolver = g.pullById
+	} else if typeByAllStarred(pt) {
+		resolver = g.pullAllStarred
 	} else if typeByMatchLike(pt) {
 		resolver = func() (cl, cll []*Change, err error) {
 			return g.pullLikeMatchesResolver(pt)
@@ -237,6 +248,40 @@ func matchQuerier(g *Commands, pt pullType) *matchQuery {
 			{fuzzyLevel: fuzzLevel, values: g.opts.Sources},
 		},
 	}
+}
+
+func (g *Commands) pullAllStarred() (cl, clashes []*Change, err error) {
+	starredFilesChan, sErr := g.rem.FindStarred()
+	if sErr != nil {
+		err = sErr
+		return
+	}
+
+	for stF := range starredFilesChan {
+		if stF == nil {
+			continue
+		}
+
+		fullPaths, _ := g.rem.FindBackPaths(stF.Id)
+		for _, p := range fullPaths {
+			relToRoot := filepath.Join(DriveRemoteSep, p)
+			fsPath := g.context.AbsPathOf(relToRoot)
+
+			ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, stF, false)
+
+			if cErr != nil {
+				if cErr != ErrClashesDetected {
+					return cl, clashes, cErr
+				} else {
+					clashes = append(clashes, cclashes...)
+				}
+			}
+
+			cl = append(cl, ccl...)
+		}
+	}
+
+	return
 }
 
 func (g *Commands) pullLikeMatchesResolver(pt pullType) (cl, clashes []*Change, err error) {

@@ -262,6 +262,7 @@ Pulling starred files is allowed as well
 ```shell
 $ drive pull --starred
 $ drive pull --starred --matches content
+$ drive pull --starred --all # Pull all the starred files
 ```
 
 

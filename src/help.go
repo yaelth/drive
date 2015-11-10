@@ -115,6 +115,7 @@ const (
 const (
 	DescAbout                 = "print out information about your Google drive"
 	DescAll                   = "print out the entire help section"
+	DescAllStarred            = "all the starred files"
 	DescCopy                  = "copy remote paths to a destination"
 	DescDelete                = "deletes the items permanently. This operation is irreversible"
 	DescDiff                  = "compares local files with their remote equivalent"
@@ -204,6 +205,7 @@ const (
 	CLIOptionFixClashesKey      = "fix-clashes"
 	CLIOptionPiped              = "piped"
 	CLIOptionStarred            = "starred"
+	CLIOptionAllStarred         = "all"
 )
 
 const (
