@@ -51,6 +51,8 @@ const (
 
 	// Google Drive entry point
 	DriveResourceEntryURL = "https://drive.google.com"
+
+	DriveRemoteSep = "/"
 )
 
 const (
@@ -169,6 +171,46 @@ func RetrieveRefreshToken(ctx context.Context, context *config.Context) (string,
 		return "", err
 	}
 	return token.RefreshToken, nil
+}
+
+func (r *Remote) FindBackPaths(id string) (backPaths []string, err error) {
+	f, fErr := r.FindById(id)
+	if fErr != nil {
+		err = fErr
+		return
+	}
+
+	relPath := sepJoin(DriveRemoteSep, f.Name)
+	if rootLike(relPath) {
+		relPath = DriveRemoteSep
+	}
+
+	if len(f.Parents) < 1 {
+		backPaths = append(backPaths, relPath)
+		return
+	}
+
+	for _, p := range f.Parents {
+		if p == nil {
+			continue
+		}
+
+		if p.IsRoot {
+			backPaths = append(backPaths, sepJoin(DriveRemoteSep, relPath))
+			continue
+		}
+
+		fullSubPaths, pErr := r.FindBackPaths(p.Id)
+		if pErr != nil {
+			continue
+		}
+
+		for _, subPath := range fullSubPaths {
+			backPaths = append(backPaths, sepJoin(DriveRemoteSep, subPath, relPath))
+		}
+	}
+
+	return
 }
 
 func (r *Remote) FindById(id string) (file *File, err error) {
@@ -688,6 +730,13 @@ func (r *Remote) FindByPathShared(p string) (chan *File, error) {
 	return r.findShared(nonEmpty)
 }
 
+func (r *Remote) FindStarred() (chan *File, error) {
+	req := r.service.Files.List()
+	expr := "(starred=true)"
+	req.Q(expr)
+	return reqDoPage(req, true, false), nil
+}
+
 func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
 	parent, err := r.FindByPath(mq.dirPath)
 	filesChan := make(chan *File)
@@ -701,6 +750,7 @@ func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
 	parQuery := fmt.Sprintf("(%s in parents)", customQuote(parent.Id))
 	expr := sepJoinNonEmpty(" and ", parQuery, mq.Stringer())
 
+	expr = "(starred=true)"
 	req.Q(expr)
 	return reqDoPage(req, true, false), nil
 }
