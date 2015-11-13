@@ -750,7 +750,6 @@ func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
 	parQuery := fmt.Sprintf("(%s in parents)", customQuote(parent.Id))
 	expr := sepJoinNonEmpty(" and ", parQuery, mq.Stringer())
 
-	expr = "(starred=true)"
 	req.Q(expr)
 	return reqDoPage(req, true, false), nil
 }
