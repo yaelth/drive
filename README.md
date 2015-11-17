@@ -537,6 +537,14 @@ $ drive touch -matches $(seq 0 9)
 $ drive touch --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
++ You can also touch files to a desired depth of nesting within their parent folders.
+
+```shell
+$ drive touch --depth 3 mnt newest flux
+$ drive touch --depth -1 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+$ drive touch --depth 1 --matches $(seq 0 9)
+```
+
 ### Trashing and Untrashing
 
 Files can be trashed using the `trash` command:

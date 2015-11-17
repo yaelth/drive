@@ -57,7 +57,7 @@ func (g *Commands) Touch(byId bool) (err error) {
 		if byId {
 			fileId = relToRootPath
 		}
-		chanMap[i] = g.touch(relToRootPath, fileId)
+		chanMap[i] = g.touch(relToRootPath, fileId, g.opts.Depth)
 		<-throttle
 	}
 
@@ -88,7 +88,7 @@ func (g *Commands) TouchByMatch() (err error) {
 			continue
 		}
 
-		chanMap[i] = g.touch(g.opts.Path+"/"+match.Name, match.Id)
+		chanMap[i] = g.touch(g.opts.Path+"/"+match.Name, match.Id, g.opts.Depth)
 		<-throttle
 		i += 1
 	}
@@ -97,7 +97,7 @@ func (g *Commands) TouchByMatch() (err error) {
 	return
 }
 
-func (g *Commands) touch(relToRootPath, fileId string) chan *keyValue {
+func (g *Commands) touch(relToRootPath, fileId string, depth int) chan *keyValue {
 	fileChan := make(chan *keyValue)
 
 	go func() {
@@ -122,11 +122,16 @@ func (g *Commands) touch(relToRootPath, fileId string) chan *keyValue {
 			return
 		}
 
-		if true { // TODO: Print this out if verbosity is set
+		if g.opts.Verbose {
 			g.log.Logf("%s: %v\n", relToRootPath, file.ModTime)
 		}
 
-		if g.opts.Recursive && file.IsDir {
+		depth = decrementTraversalDepth(depth)
+		if depth == 0 {
+			return
+		}
+
+		if file.IsDir {
 			childResults := make(chan chan *keyValue)
 			// Arbitrary value for rate limiter
 			throttle := time.Tick(1e9 * 2)
@@ -135,7 +140,7 @@ func (g *Commands) touch(relToRootPath, fileId string) chan *keyValue {
 			go func() {
 				defer close(childResults)
 				for child := range childrenChan {
-					childResults <- g.touch(relToRootPath+"/"+child.Name, child.Id)
+					childResults <- g.touch(relToRootPath+"/"+child.Name, child.Id, depth)
 					<-throttle
 				}
 			}()

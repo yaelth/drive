@@ -838,10 +838,12 @@ func (qCmd *qrLinkCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 
 type touchCmd struct {
 	ById      *bool `json:"by-id"`
+	Depth     *int  `json:"depth"`
 	Hidden    *bool `json:"hidden"`
 	Recursive *bool `json:"recursive"`
 	Matches   *bool `json:"matches"`
 	Quiet     *bool `json:"quiet"`
+	Verbose   *bool `json:"verbose"`
 }
 
 func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -850,19 +852,29 @@ func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Matches = fs.Bool(drive.MatchesKey, false, "search by prefix and touch")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
+	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
+	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, true, drive.DescVerbose)
+
 	return fs
 }
 
 func (cmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.Matches || *cmd.ById)
 
+	depth := *cmd.Depth
+	if *cmd.Recursive {
+		depth = drive.InfiniteDepth
+	}
+
 	opts := drive.Options{
 		Path:      path,
 		Sources:   sources,
 		Hidden:    *cmd.Hidden,
 		Recursive: *cmd.Recursive,
+		Depth:     depth,
 		Quiet:     *cmd.Quiet,
 		Match:     *cmd.Matches,
+		Verbose:   *cmd.Verbose,
 	}
 
 	if *cmd.Matches {
