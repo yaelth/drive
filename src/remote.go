@@ -355,6 +355,7 @@ func (r *Remote) insertPermissions(permInfo *permission) (*drive.Permission, err
 	if permInfo.value != "" {
 		perm.Value = permInfo.value
 	}
+
 	req := r.service.Permissions.Insert(permInfo.fileId, perm)
 
 	if permInfo.message != "" {
@@ -362,6 +363,111 @@ func (r *Remote) insertPermissions(permInfo *permission) (*drive.Permission, err
 	}
 	req = req.SendNotificationEmails(permInfo.notify)
 	return req.Do()
+}
+
+func (r *Remote) revokePermissions(p *permission) (err error) {
+	foundPermissionsChan, fErr := r.findPermissions(p)
+	if fErr != nil {
+		return fErr
+	}
+
+	successes := 0
+	for perm := range foundPermissionsChan {
+		if perm == nil {
+			continue
+		}
+
+		req := r.service.Permissions.Delete(p.fileId, perm.Id)
+		if delErr := req.Do(); delErr != nil {
+			err = reComposeError(err, fmt.Sprintf("err: %v fileId: %s permissionId %s", delErr, p.fileId, perm.Id))
+		} else {
+			successes += 1
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if successes < 1 {
+		err = fmt.Errorf("no matches found!")
+	}
+
+	return err
+}
+
+func stringifyPermissionForMatch(p *permission) string {
+	// As of "Fri Nov 20 19:06:18 MST 2015", Google Drive v2 API doesn't support a PermissionsList.Q(query)
+	// call hence the hack around will be to compare all the permissions returned to those being queried for
+	queries := []string{}
+	if role := p.role.String(); !unknownRole(role) {
+		queries = append(queries, role)
+	}
+
+	if accountType := p.accountType.String(); !unknownAccountType(accountType) {
+		queries = append(queries, accountType)
+	}
+
+	if p.value != "" {
+		queries = append(queries, p.value)
+	}
+
+	return sepJoin("", preprocessBeforePermissionMatch(queries)...)
+}
+
+func preprocessBeforePermissionMatch(args []string) (preprocessed []string) {
+	for _, arg := range args {
+		preprocessed = append(preprocessed, strings.ToLower(strings.TrimSpace(arg)))
+	}
+
+	return preprocessed
+}
+
+func stringifyDrivePermissionForMatch(p *drive.Permission) string {
+	// As of "Fri Nov 20 19:06:18 MST 2015", Google Drive v2 API doesn't support a PermissionsList.Q(query)
+	// call hence the hack around will be  to compare all the permissions returned to those being queried for
+	params := []string{p.Role, p.Type, p.EmailAddress}
+
+	repr := []string{}
+	for _, param := range params {
+		repr = append(repr, strings.ToLower(param))
+	}
+
+	return sepJoin("", preprocessBeforePermissionMatch(repr)...)
+}
+
+func (r *Remote) findPermissions(pquery *permission) (permChan chan *drive.Permission, err error) {
+	permChan = make(chan *drive.Permission)
+
+	go func() {
+		defer close(permChan)
+
+		req := r.service.Permissions.List(pquery.fileId)
+
+		results, err := req.Do()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if results == nil {
+			return
+		}
+
+		requiredSignature := stringifyPermissionForMatch(pquery)
+		// fmt.Println("requiredSignature", requiredSignature)
+		for _, perm := range results.Items {
+			if perm == nil {
+				continue
+			}
+
+			if stringifyDrivePermissionForMatch(perm) == requiredSignature {
+				// fmt.Println("perm", perm)
+				permChan <- perm
+			}
+		}
+	}()
+
+	return
 }
 
 func (r *Remote) deletePermissions(id string, accountType AccountType) error {

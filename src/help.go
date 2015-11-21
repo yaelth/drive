@@ -95,6 +95,7 @@ const (
 	OriginalNameKey       = "oname"
 	ModTimeKey            = "modt"
 	LastViewedByMeTimeKey = "lvt"
+	AccountTypeKey        = "account-type"
 	RoleKey               = "role"
 	TypeKey               = "type"
 	TrashedKey            = "trashed"

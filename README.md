@@ -473,7 +473,8 @@ $ drive unpub --id 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU 0fM9rt0Yc9RTPSTZEanBsamZjUXM
 The `share` command enables you to share a set of files with specific users and assign them specific roles as well as specific generic access to the files. It also allows for email notifications on share.
 
 ```shell
-$ drive share -emails odeke@ualberta.ca,odeke.ex@gmail.com -message "This is the substring file I told you about" -role writer -type group mnt/substringfinder.c projects/kmp.c
+$ drive share --emails odeke@ualberta.ca,odeke.ex@gmail.com --message "This is the substring file I told you about" --role reader,writer -type group mnt/substringfinder.c projects/kmp.c
+$ drive share --emails emm.odeke@gmail.com,odeke@ualberta.ca --role reader,commenter --type user influx traversal/notes/conquest
 ```
 
 For example to share a file with users of a mailing list and a custom message
@@ -492,8 +493,11 @@ $ drive share --emails developers@developers.devs --message "Developers, develop
 
 The `unshare` command revokes access of a specific accountType to a set of files.
 
+When no --role is given it by default assumes you want to revoke all access ie "reader", "writer", "commenter"
+
 ```shell
 $ drive unshare -type group mnt/drive
+$ drive unshare --emails  emm.odeke@gmail.com,odeke@ualberta.ca --type user,group --role reader,commenter infinity newfiles/confidential
 ```
 
 + Also supports unsharing by fileId

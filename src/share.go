@@ -25,7 +25,7 @@ import (
 type AccountType int
 
 const (
-	UnknownAccountType = 1 << iota
+	UnknownAccountType AccountType = 1 << iota
 	Anyone
 	User
 	Domain
@@ -35,7 +35,7 @@ const (
 type Role int
 
 const (
-	UnknownRole = 1 << iota
+	UnknownRole Role = 1 << iota
 	Owner
 	Reader
 	Writer
@@ -50,8 +50,8 @@ const (
 type shareChange struct {
 	emailMessage string
 	emails       []string
-	role         Role
-	accountType  AccountType
+	roles        []Role
+	accountTypes []AccountType
 	files        []*File
 	revoke       bool
 	notify       bool
@@ -80,6 +80,10 @@ func (r *Role) String() string {
 	return "unknown"
 }
 
+func unknownRole(r string) bool {
+	return strings.ToLower(r) == "unknown"
+}
+
 func (a *AccountType) String() string {
 	switch *a {
 	case Anyone:
@@ -92,6 +96,10 @@ func (a *AccountType) String() string {
 		return "group"
 	}
 	return "unknown"
+}
+
+func unknownAccountType(a string) bool {
+	return strings.ToLower(a) == "unknown"
 }
 
 func stringToRole() func(string) Role {
@@ -126,6 +134,22 @@ func stringToAccountType() func(string) AccountType {
 
 var reverseRoleResolve = stringToRole()
 var reverseAccountTypeResolve = stringToAccountType()
+
+func reverseRolesResolver(roleArgv ...string) (roles []Role) {
+	for _, roleStr := range roleArgv {
+		roles = append(roles, reverseRoleResolve(roleStr))
+	}
+
+	return roles
+}
+
+func reverseAccountTypesResolver(accArgv ...string) (accountTypes []AccountType) {
+	for _, accStr := range accArgv {
+		accountTypes = append(accountTypes, reverseAccountTypeResolve(accStr))
+	}
+
+	return accountTypes
+}
 
 func (g *Commands) resolveRemotePaths(relToRootPaths []string, byId bool) (files []*File) {
 	var wg sync.WaitGroup
@@ -179,87 +203,133 @@ func showPromptShareChanges(logy *log.Logger, change *shareChange) Agreement {
 	if len(change.files) < 1 {
 		return NotApplicable
 	}
-	if change.revoke {
-		logy.Logf("Revoke access for accountType: \033[92m%s\033[00m for file(s):\n",
-			change.accountType.String())
-		for _, file := range change.files {
-			logy.Logln("+ ", file.Name)
+
+	verb := "unshare"
+	shareInfo := "Revoke access"
+	extraShareInfo := ""
+	if !change.revoke {
+		shareInfo = "Provide access"
+		if len(change.emails) < 1 {
+			return NotApplicable
 		}
-		logy.Logln()
-		return promptForChanges()
+
+		verb = "share"
+		if change.notify && len(change.emailMessage) >= 1 {
+			extraShareInfo = fmt.Sprintf("Message:\n\t\033[33m%s\033[00m\n", change.emailMessage)
+		}
 	}
 
-	if len(change.emails) < 1 {
-		return NotApplicable
+	if len(change.accountTypes) >= 1 {
+		logy.Logf("%s for accountType(s)\n", shareInfo)
+		for _, accountType := range change.accountTypes {
+			logy.Logf("\t\033[32m%s\033[00m\n", accountType.String())
+		}
+
+		logy.Logln(extraShareInfo)
 	}
 
-	if change.notify {
-		logy.Logln("Message:\n\t", change.emailMessage)
+	if len(change.roles) >= 1 {
+		logy.Logln("For roles(s)")
+		for _, role := range change.roles {
+			logy.Logf("\t\033[33m%s\033[00m\n", role.String())
+		}
 	}
 
-	logy.Logln("Receipients:")
-	for _, email := range change.emails {
-		logy.Logf("\t\033[92m+\033[00m %s\n", email)
+	if len(change.emails) >= 1 {
+		logy.Logf("\nAddressees:\n")
+		for _, email := range change.emails {
+			logy.Logf("\t\033[92m+\033[00m %s\n", email)
+		}
 	}
 
-	logy.Logln("\nFile(s) to share:")
+	logy.Logf("\nFile(s) to %s:\n", verb)
 	for _, file := range change.files {
 		if file == nil {
 			continue
 		}
 		logy.Logf("\t\033[92m+\033[00m %s\n", file.Name)
 	}
+
+	logy.Logln()
 	return promptForChanges()
 }
 
-func (c *Commands) playShareChanges(change *shareChange) error {
+func (c *Commands) playShareChanges(change *shareChange) (err error) {
 	if c.opts.canPrompt() {
 		if status := showPromptShareChanges(c.log, change); !accepted(status) {
 			return status.Error()
 		}
 	}
 
-	for _, file := range change.files {
-		if change.revoke {
-			if err := c.rem.deletePermissions(file.Id, change.accountType); err != nil {
-				return fmt.Errorf("%s: %v", file.Name, err)
-			}
-			continue
-		}
+	fnName := "unshare"
+	fn := c.rem.revokePermissions
 
+	if !change.revoke {
+		fnName = "share"
+		fn = func(perm *permission) error {
+			_, err := c.rem.insertPermissions(perm)
+			return err
+		}
+	}
+
+	successes := 0
+
+	for _, file := range change.files {
 		for _, email := range change.emails {
-			perm := permission{
-				fileId:      file.Id,
-				value:       email,
-				message:     change.emailMessage,
-				notify:      change.notify,
-				role:        change.role,
-				accountType: change.accountType,
-			}
-			_, err := c.rem.insertPermissions(&perm)
-			if err != nil {
-				return err
+			for _, role := range change.roles {
+				for _, accountType := range change.accountTypes {
+					perm := permission{
+						fileId:      file.Id,
+						value:       email,
+						message:     change.emailMessage,
+						notify:      change.notify,
+						role:        role,
+						accountType: accountType,
+					}
+
+					if err := fn(&perm); err != nil {
+						err = reComposeError(err, fmt.Sprintf("%s err %s: %v\n", fnName, file.Name, err))
+					} else {
+						successes += 1
+						if c.opts.Verbose {
+							c.log.Logf("successful %s for %s with email %q, role %q accountType %q\n",
+								fnName, file.Name, email, role.String(), accountType.String())
+						}
+					}
+				}
 			}
 		}
 	}
-	return nil
+
+	if successes < 1 {
+		return fmt.Errorf("no matches found!")
+	}
+
+	return err
 }
 
 func (c *Commands) share(revoke, byId bool) (err error) {
 	files := c.resolveRemotePaths(c.opts.Sources, byId)
 
-	var role Role
-	var accountType AccountType
 	var emails []string
 	var emailMessage string
 
-	// Setup the defaults
-	role = Reader
-	accountType = User
+	roles := []Role{}
+	accountTypes := []AccountType{}
+
+	if revoke {
+		// In case of unsharing, when a user doesn't specify the
+		// roles, the addressee should be removed from all roles
+		roles = append(roles, Reader, Writer, Commenter)
+	} else {
+		roles = append(roles, Reader)
+		accountTypes = append(accountTypes, User)
+	}
+
 	meta := *c.opts.Meta
 
 	if meta != nil {
-		emailList, eOk := meta["emails"]
+		emailList, eOk := meta[EmailsKey]
 		if eOk {
 			emails = emailList
 			if false {
@@ -268,16 +338,17 @@ func (c *Commands) share(revoke, byId bool) (err error) {
 			}
 		}
 
-		roleList, rOk := meta["role"]
+		roleList, rOk := meta[RoleKey]
 		if rOk && len(roleList) >= 1 {
-			role = reverseRoleResolve(roleList[0])
-		}
-		accountTypeList, aOk := meta["accountType"]
-		if aOk && len(accountTypeList) >= 1 {
-			accountType = reverseAccountTypeResolve(accountTypeList[0])
+			roles = reverseRolesResolver(roleList...)
 		}
 
-		emailMessageList, emOk := meta["emailMessage"]
+		accountTypeList, aOk := meta[AccountTypeKey]
+		if aOk && len(accountTypeList) >= 1 {
+			accountTypes = reverseAccountTypesResolver(accountTypeList...)
+		}
+
+		emailMessageList, emOk := meta[EmailMessageKey]
 		if emOk && len(emailMessageList) >= 1 {
 			emailMessage = strings.Join(emailMessageList, "\n")
 		}
@@ -286,12 +357,12 @@ func (c *Commands) share(revoke, byId bool) (err error) {
 	notify := (c.opts.TypeMask & Notify) != 0
 
 	change := shareChange{
-		accountType:  accountType,
+		accountTypes: accountTypes,
 		emailMessage: emailMessage,
 		emails:       emails,
 		files:        files,
 		revoke:       revoke,
-		role:         role,
+		roles:        roles,
 		notify:       notify,
 	}
 

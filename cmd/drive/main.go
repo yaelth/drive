@@ -1317,18 +1317,77 @@ func (cmd *publishCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}).Publish(*cmd.ById))
 }
 
-type unshareCmd struct {
+type shareCmd struct {
+	ById        *bool   `json:"by-id"`
+	Emails      *string `json:"emails"`
+	Message     *string `json:"message"`
+	Role        *string `json:"role"`
+	AccountType *string `json:"type"`
 	NoPrompt    *bool   `json:"no-prompt"`
+	Notify      *bool   `json:"notify"`
+	Quiet       *bool   `json:"quiet"`
+	Verbose     *bool   `json:"verbose"`
+}
+
+func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.Emails = fs.String(drive.EmailsKey, "", "emails to share the file to")
+	cmd.Message = fs.String("message", "", "message to send receipients")
+	cmd.Role = fs.String(drive.RoleKey, "", "role to set to receipients of share. Possible values: "+drive.DescRoles)
+	cmd.AccountType = fs.String(drive.TypeKey, "", "scope of accounts to share files with. Possible values: "+drive.DescAccountTypes)
+	cmd.Notify = fs.Bool(drive.CLIOptionNotify, true, "toggle whether to notify receipients about share")
+	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
+	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.ById = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
+	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, true, drive.DescVerbose)
+
+	return fs
+}
+
+func (cmd *shareCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *cmd.ById)
+
+	meta := map[string][]string{
+		drive.EmailMessageKey: []string{*cmd.Message},
+		drive.EmailsKey:       uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.Emails, ",")...)),
+		drive.RoleKey:         uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.Role, ",")...)),
+		drive.AccountTypeKey:  uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.AccountType, ",")...)),
+	}
+
+	mask := drive.NoopOnShare
+	if *cmd.Notify {
+		mask = drive.Notify
+	}
+
+	exitWithError(drive.New(context, &drive.Options{
+		Path:     path,
+		Sources:  sources,
+		Meta:     &meta,
+		TypeMask: mask,
+		NoPrompt: *cmd.NoPrompt,
+		Quiet:    *cmd.Quiet,
+		Verbose:  *cmd.Verbose,
+	}).Share(*cmd.ById))
+}
+
+type unshareCmd struct {
+	Role        *string `json:"role"`
 	AccountType *string `json:"type"`
 	Quiet       *bool   `json:"quiet"`
 	ById        *bool   `json:"by-id"`
+	Emails      *string `json:"emails"`
+	NoPrompt    *bool   `json:"no-prompt"`
+	Verbose     *bool   `json:"verbose"`
 }
 
 func (cmd *unshareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.AccountType = fs.String(drive.TypeKey, "", "scope of account to revoke access to")
-	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
-	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "unshare by id instead of path")
+	cmd.Role = fs.String(drive.RoleKey, "", "role to set to receipients of share. Possible values: "+drive.DescRoles)
+	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
+	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, true, drive.DescVerbose)
+	cmd.Emails = fs.String(drive.EmailsKey, "", "emails to share the file to")
+	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
+	cmd.AccountType = fs.String(drive.TypeKey, "", "scope of account to revoke access to")
+
 	return fs
 }
 
@@ -1336,7 +1395,9 @@ func (cmd *unshareCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *cmd.ById)
 
 	meta := map[string][]string{
-		"accountType": uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.AccountType, ",")...)),
+		drive.EmailsKey:      uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.Emails, ",")...)),
+		drive.RoleKey:        uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.Role, ",")...)),
+		drive.AccountTypeKey: uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.AccountType, ",")...)),
 	}
 
 	exitWithError(drive.New(context, &drive.Options{
@@ -1345,6 +1406,7 @@ func (cmd *unshareCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Sources:  sources,
 		NoPrompt: *cmd.NoPrompt,
 		Quiet:    *cmd.Quiet,
+		Verbose:  *cmd.Verbose,
 	}).Unshare(*cmd.ById))
 }
 
@@ -1412,29 +1474,6 @@ func (cmd *renameCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}).Rename(*cmd.ById))
 }
 
-type shareCmd struct {
-	ById        *bool   `json:"by-id"`
-	Emails      *string `json:"emails"`
-	Message     *string `json:"message"`
-	Role        *string `json:"role"`
-	AccountType *string `json:"type"`
-	NoPrompt    *bool   `json:"no-prompt"`
-	Notify      *bool   `json:"notify"`
-	Quiet       *bool   `json:"quiet"`
-}
-
-func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.Emails = fs.String(drive.EmailsKey, "", "emails to share the file to")
-	cmd.Message = fs.String("message", "", "message to send receipients")
-	cmd.Role = fs.String(drive.RoleKey, "", "role to set to receipients of share. Possible values: "+drive.DescRoles)
-	cmd.AccountType = fs.String(drive.TypeKey, "", "scope of accounts to share files with. Possible values: "+drive.DescAccountTypes)
-	cmd.Notify = fs.Bool(drive.CLIOptionNotify, true, "toggle whether to notify receipients about share")
-	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
-	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
-	cmd.ById = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
-	return fs
-}
-
 type starCmd struct {
 	ById     *bool `json:"by-id"`
 	Quiet    *bool `json:"quiet"`
@@ -1473,31 +1512,6 @@ func (cmd *unstarCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}
 
 	exitWithError(drive.New(context, opts).UnStar(*cmd.ById))
-}
-
-func (cmd *shareCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	sources, context, path := preprocessArgsByToggle(args, *cmd.ById)
-
-	meta := map[string][]string{
-		drive.EmailMessageKey: []string{*cmd.Message},
-		drive.EmailsKey:       uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.Emails, ",")...)),
-		drive.RoleKey:         uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.Role, ",")...)),
-		"accountType":         uniqOrderedStr(drive.NonEmptyTrimmedStrings(strings.Split(*cmd.AccountType, ",")...)),
-	}
-
-	mask := drive.NoopOnShare
-	if *cmd.Notify {
-		mask = drive.Notify
-	}
-
-	exitWithError(drive.New(context, &drive.Options{
-		Path:     path,
-		Sources:  sources,
-		Meta:     &meta,
-		TypeMask: mask,
-		NoPrompt: *cmd.NoPrompt,
-		Quiet:    *cmd.Quiet,
-	}).Share(*cmd.ById))
 }
 
 func initContext(args []string) *config.Context {
