@@ -461,7 +461,7 @@ func NonEmptyTrimmedStrings(v ...string) (splits []string) {
 }
 
 var regExtStrMap = map[string]string{
-	"csv":   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"csv":   "text/csv",
 	"html?": "text/html",
 	"te?xt": "text/plain",
 	"xml":   "text/xml",
@@ -501,7 +501,7 @@ var regExtStrMap = map[string]string{
 
 	"docx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 	"pptx?": "application/vnd.ms-powerpoint",
-	"tsv":   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"tsv":   "text/tab-separated-values",
 	"xlsx?": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
