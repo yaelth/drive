@@ -103,11 +103,12 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 		{
 			resolver: _stringfer, keys: []string{
 				CLIOptionNotOwner, ExportsDirKey, CLIOptionExactTitle, AddressKey,
+				ExportsKey, ExcludeOpsKey,
 			},
 		},
 		{
 			resolver: _stringArrayfer, keys: []string{
-				ExportsKey, ExcludeOpsKey,
+			// Add items that might need string array parsing and conversion here
 			},
 		},
 	}
