@@ -30,6 +30,11 @@ const MaxFileSize = 50 * 1024 * 1024
 
 var Ruler = strings.Repeat("*", 4)
 
+const (
+	DiffNone = 1 << iota
+	DiffUnified
+)
+
 func (g *Commands) Diff() (err error) {
 	var cl []*Change
 
@@ -58,8 +63,16 @@ func (g *Commands) Diff() (err error) {
 		return
 	}
 
+	dst := diffSt{
+		diffProgPath: diffUtilPath,
+		cwd:          ".",
+		mask:         g.opts.TypeMask,
+		printRuler:   len(cl) > 1,
+	}
+
 	for _, c := range cl {
-		dErr := g.perDiff(c, diffUtilPath, ".")
+		dst.change = c
+		dErr := g.perDiff(dst)
 		if dErr != nil {
 			g.log.LogErrln(dErr)
 		}
@@ -67,7 +80,22 @@ func (g *Commands) Diff() (err error) {
 	return
 }
 
-func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error) {
+type diffSt struct {
+	change       *Change
+	diffProgPath string
+	cwd          string
+	mask         int
+	printRuler   bool
+}
+
+func (d diffSt) unified() bool {
+	return (d.mask & DiffUnified) != 0
+}
+
+func (g *Commands) perDiff(dSt diffSt) (err error) {
+	change := dSt.change
+	diffProgPath, cwd := dSt.diffProgPath, dSt.cwd
+
 	l, r := change.Src, change.Dest
 	if l == nil && r == nil {
 		return fmt.Errorf("Neither remote nor local exists")
@@ -124,7 +152,12 @@ func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error)
 		}
 	}
 
-	defer g.log.Logf("\n%s\n", Ruler)
+	defer func() {
+		if dSt.printRuler {
+			g.log.Logf("\n%s\n", Ruler)
+		}
+	}()
+
 	var frTmp, fl *os.File
 	var blob io.ReadCloser
 
@@ -167,8 +200,15 @@ func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error)
 		g.log.Logf("%s\n%s\n\n", l.Name, Ruler)
 	}
 
+	diffArgs := []string{diffProgPath}
+	if dSt.unified() {
+		diffArgs = append(diffArgs, "-u")
+	}
+
+	diffArgs = append(diffArgs, l.BlobAt, frTmp.Name())
+
 	diffCmd := exec.Cmd{
-		Args:   []string{diffProgPath, l.BlobAt, frTmp.Name()},
+		Args:   diffArgs,
 		Dir:    cwd,
 		Path:   diffProgPath,
 		Stdin:  nil,

@@ -103,7 +103,7 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 		{
 			resolver: _stringfer, keys: []string{
 				CLIOptionNotOwner, ExportsDirKey, CLIOptionExactTitle, AddressKey,
-				ExportsKey, ExcludeOpsKey,
+				ExportsKey, ExcludeOpsKey, CLIOptionUnifiedShortKey, CLIOptionUnified,
 			},
 		},
 		{

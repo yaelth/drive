@@ -1032,6 +1032,7 @@ type diffCmd struct {
 	Quiet             *bool `json:"quiet"`
 	Depth             *int  `json:"depth"`
 	Recursive         *bool `json:"recursive"`
+	Unified           *bool `json:"unified"`
 }
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -1042,12 +1043,18 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 	cmd.Recursive = fs.Bool(drive.RecursiveKey, true, "recursively diff")
+	cmd.Unified = fs.Bool(drive.CLIOptionUnifiedShortKey, true, drive.DescUnifiedDiff)
 
 	return fs
 }
 
 func (cmd *diffCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgs(args)
+
+	mask := drive.DiffNone
+	if *cmd.Unified {
+		mask |= drive.DiffUnified
+	}
 
 	exitWithError(drive.New(context, &drive.Options{
 		Path:              path,
@@ -1059,6 +1066,7 @@ func (cmd *diffCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		IgnoreConflict:    *cmd.IgnoreConflict,
 		Quiet:             *cmd.Quiet,
 		Depth:             *cmd.Depth,
+		TypeMask:          mask,
 	}).Diff())
 }
 

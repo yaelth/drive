@@ -174,6 +174,7 @@ const (
 	DescDescription        = "set the description"
 	DescQR                 = "open up the QR code for specified files"
 	DescStarred            = "operate only on starred files"
+	DescUnifiedDiff        = "unified diff"
 )
 
 const (
@@ -207,6 +208,8 @@ const (
 	CLIOptionPiped              = "piped"
 	CLIOptionStarred            = "starred"
 	CLIOptionAllStarred         = "all"
+	CLIOptionUnified            = "unified"
+	CLIOptionUnifiedShortKey    = "u"
 )
 
 const (
