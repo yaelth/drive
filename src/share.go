@@ -354,6 +354,13 @@ func (c *Commands) share(revoke, byId bool) (err error) {
 		}
 	}
 
+	if revoke && len(emails) < 1 {
+		// Account for case for unshare where certain types do not include the emails
+		// e.g revoking access to the entire domain, or user groups yet no email
+		// can be found
+		emails = append(emails, "")
+	}
+
 	notify := (c.opts.TypeMask & Notify) != 0
 
 	change := shareChange{
