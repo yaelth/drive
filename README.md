@@ -520,6 +520,13 @@ You can diff to a desired depth
 $ drive diff --depth 2 sub-folders/ contacts/ listings.txt
 ```
 
+You can also switch the base, either local or remote by using flag `--base-local`
+
+```shell
+$ drive diff --base-local=true assignments photos # To use local as the base
+$ drive diff --base-local=false infocom photos # To use remote as the base
+```
+
 
 ### Touching
 

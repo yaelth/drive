@@ -89,6 +89,9 @@ type Options struct {
 	FixClashes        bool
 	Match             bool
 	Starred           bool
+	// BaseLocal when set, during a diff uses the local file
+	// as the base otherwise remote is used as the base
+	BaseLocal bool
 }
 
 type Commands struct {

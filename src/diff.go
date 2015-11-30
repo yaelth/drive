@@ -35,6 +35,20 @@ const (
 	DiffUnified
 )
 
+type diffSt struct {
+	change       *Change
+	diffProgPath string
+	cwd          string
+	mask         int
+	printRuler   bool
+	// baseLocal when set uses local as the base otherwise remote is used as the base
+	baseLocal bool
+}
+
+func (d diffSt) unified() bool {
+	return (d.mask & DiffUnified) != 0
+}
+
 func (g *Commands) Diff() (err error) {
 	var cl []*Change
 
@@ -68,6 +82,7 @@ func (g *Commands) Diff() (err error) {
 		cwd:          ".",
 		mask:         g.opts.TypeMask,
 		printRuler:   len(cl) > 1,
+		baseLocal:    g.opts.BaseLocal,
 	}
 
 	for _, c := range cl {
@@ -78,18 +93,6 @@ func (g *Commands) Diff() (err error) {
 		}
 	}
 	return
-}
-
-type diffSt struct {
-	change       *Change
-	diffProgPath string
-	cwd          string
-	mask         int
-	printRuler   bool
-}
-
-func (d diffSt) unified() bool {
-	return (d.mask & DiffUnified) != 0
 }
 
 func (g *Commands) perDiff(dSt diffSt) (err error) {
@@ -205,8 +208,13 @@ func (g *Commands) perDiff(dSt diffSt) (err error) {
 		diffArgs = append(diffArgs, "-u")
 	}
 
-	diffArgs = append(diffArgs, l.BlobAt, frTmp.Name())
+	// Next step: Determine which is the base file between local and remote
+	first, other := frTmp.Name(), l.BlobAt
+	if dSt.baseLocal {
+		first, other = l.BlobAt, frTmp.Name()
+	}
 
+	diffArgs = append(diffArgs, first, other)
 	diffCmd := exec.Cmd{
 		Args:   diffArgs,
 		Dir:    cwd,

@@ -501,9 +501,9 @@ var regExtStrMap = map[string]string{
 
 	// docs and docx should not collide if "docx?" is used so terminate with "$"
 	"docx?$": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	"pptx?":   "application/vnd.ms-powerpoint",
-	"tsv":     "text/tab-separated-values",
-	"xlsx?":   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"pptx?":  "application/vnd.ms-powerpoint",
+	"tsv":    "text/tab-separated-values",
+	"xlsx?":  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
 func regMapper(srcMaps ...map[string]string) map[*regexp.Regexp]string {

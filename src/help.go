@@ -175,6 +175,7 @@ const (
 	DescQR                 = "open up the QR code for specified files"
 	DescStarred            = "operate only on starred files"
 	DescUnifiedDiff        = "unified diff"
+	DescDiffBaseLocal      = "when set uses local as the base other remote will be used as the base"
 )
 
 const (
@@ -211,6 +212,7 @@ const (
 	CLIOptionAllStarred         = "all"
 	CLIOptionUnified            = "unified"
 	CLIOptionUnifiedShortKey    = "u"
+	CLIOptionDiffBaseLocal      = "base-local"
 )
 
 const (
