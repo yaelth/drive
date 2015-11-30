@@ -39,53 +39,53 @@ const (
 
 type Options struct {
 	// Depth is the number of pages/ listing recursion depth
-	Depth int `cli:"depth"`
+	Depth int
 	// Exports contains the formats to export your Google Docs + Sheets to
 	// e.g ["csv" "txt"]
-	Exports []string `cli:"exports"`
+	Exports []string
 	// ExportsDir is the directory to put the exported Google Docs + Sheets.
 	// If not provided, will export them to the same dir as the source files are
-	ExportsDir string `cli:"exports-dir"`
+	ExportsDir string
 	// Force once set always converts NoChange into an Addition
-	Force bool `cli:"force"`
+	Force bool
 	// Hidden discovers hidden paths if set
-	Hidden       bool `cli:"hidden"`
+	Hidden       bool
 	IgnoreRegexp *regexp.Regexp
 	// IgnoreChecksum when set avoids the step
 	// of comparing checksums as a final check.
-	IgnoreChecksum bool `cli:"ignore"`
+	IgnoreChecksum bool
 	// IgnoreConflict when set turns off the conflict resolution safety.
-	IgnoreConflict bool `cli:"ignore-conflict"`
+	IgnoreConflict bool
 	// Allows listing of content in trash
-	InTrash bool `cli:"in-trash"`
+	InTrash bool
 	Meta    *map[string][]string
 	Mount   *config.Mount
 	// NoClobber when set prevents overwriting of stale content
-	NoClobber bool `cli:"no-clobber"`
+	NoClobber bool
 	// NoPrompt overwrites any prompt pauses
-	NoPrompt bool `cli:"no-prompt"`
+	NoPrompt bool
 	Path     string
 	// PageSize determines the number of results returned per API call
-	PageSize  int64 `cli:"pagesize"`
-	Recursive bool  `cli:"recursive"`
+	PageSize  int64
+	Recursive bool
 	// Sources is a of list all paths that are
 	// within the scope/path of the current gd context
-	Sources []string `cli:"sources"`
+	Sources []string
 	// TypeMask contains the result of setting different type bits e.g
 	// Folder to search only for folders etc.
-	TypeMask int `cli:"typeMask"`
+	TypeMask int
 	// Piped when set means to infer content to or from stdin
-	Piped bool `cli:"piped"`
+	Piped bool
 	// Quiet when set toggles only logging of errors to stderrs as
 	// well as reading from stdin in this case stdout is not logged to
-	Quiet             bool      `cli:"quiet"`
-	StdoutIsTty       bool      `cli:"istty"`
-	IgnoreNameClashes bool      `cli:"ignoreNameClashes"`
-	ExcludeCrudMask   CrudValue `cli:"excludeCrudMask"`
-	ExplicitlyExport  bool      `cli:"explicitlyExport"`
-	Md5sum            bool      `cli:"md5sum"`
-	indexingOnly      bool      `cli:"indexingOnly"`
-	Verbose           bool      `cli:"verbose"`
+	Quiet             bool
+	StdoutIsTty       bool
+	IgnoreNameClashes bool
+	ExcludeCrudMask   CrudValue
+	ExplicitlyExport  bool
+	Md5sum            bool
+	indexingOnly      bool
+	Verbose           bool
 	FixClashes        bool
 	Match             bool
 	Starred           bool
