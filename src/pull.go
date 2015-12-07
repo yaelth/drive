@@ -213,6 +213,7 @@ func typeByAllStarred(pt pullType) bool {
 }
 
 func pullLikeResolve(g *Commands, pt pullType) (cl, clashes []*Change, err error) {
+	// TODO: (@odeke-em) allow pull-trashed
 	g.log.Logln("Resolving...")
 
 	spin := g.playabler()
@@ -251,7 +252,7 @@ func matchQuerier(g *Commands, pt pullType) *matchQuery {
 }
 
 func (g *Commands) pullAllStarred() (cl, clashes []*Change, err error) {
-	starredFilesChan, sErr := g.rem.FindStarred()
+	starredFilesChan, sErr := g.rem.FindStarred(g.opts.InTrash, g.opts.Hidden)
 	if sErr != nil {
 		err = sErr
 		return
@@ -343,6 +344,8 @@ func (g *Commands) PullPiped(byId bool) (err error) {
 	if byId {
 		resolver = g.rem.FindById
 	}
+
+	// TODO: (@odeke-em) allow pull-trashed
 
 	for _, relToRootPath := range g.opts.Sources {
 		rem, err := resolver(relToRootPath)

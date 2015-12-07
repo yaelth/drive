@@ -836,11 +836,11 @@ func (r *Remote) FindByPathShared(p string) (chan *File, error) {
 	return r.findShared(nonEmpty)
 }
 
-func (r *Remote) FindStarred() (chan *File, error) {
+func (r *Remote) FindStarred(trashed, hidden bool) (chan *File, error) {
 	req := r.service.Files.List()
-	expr := "(starred=true)"
+	expr := fmt.Sprintf("(starred=true) and (trashed=%v)", trashed)
 	req.Q(expr)
-	return reqDoPage(req, true, false), nil
+	return reqDoPage(req, hidden, false), nil
 }
 
 func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {

@@ -302,7 +302,7 @@ type listCmd struct {
 	LongFmt      *bool   `json:"long"`
 	NoPrompt     *bool   `json:"no-prompt"`
 	Shared       *bool   `json:"shared"`
-	InTrash      *bool   `json:"in-trash"`
+	InTrash      *bool   `json:"trashed"`
 	Version      *bool   `json:"version"`
 	Matches      *bool   `json:"matches"`
 	Owners       *bool   `json:"owners"`
@@ -628,6 +628,7 @@ type pullCmd struct {
 	Depth      *int  `json:"depth"`
 	Starred    *bool `json:"starred"`
 	AllStarred *bool `json:"all-starred"`
+	InTrash    *bool `json:"trashed"`
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -654,6 +655,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 	cmd.FixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 	cmd.Starred = fs.Bool(drive.CLIOptionStarred, false, drive.DescStarred)
+	cmd.InTrash = fs.Bool(drive.TrashedKey, false, "pull content in the trash")
 
 	return fs
 }
@@ -707,6 +709,7 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		FixClashes:        *cmd.FixClashes,
 		Starred:           *cmd.Starred,
 		Match:             *cmd.Matches,
+		InTrash:           *cmd.InTrash,
 	}
 
 	if *cmd.Matches || *cmd.Starred {

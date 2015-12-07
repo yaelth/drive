@@ -262,7 +262,8 @@ Pulling starred files is allowed as well
 ```shell
 $ drive pull --starred
 $ drive pull --starred --matches content
-$ drive pull --starred --all # Pull all the starred files
+$ drive pull --starred --all # Pull all the starred files that aren't in the trash
+$ drive pull --starred --all --trashed # Pull all the starred files in the trash
 ```
 
 
