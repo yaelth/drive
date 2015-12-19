@@ -4,7 +4,7 @@
 
 `drive` is a tiny program to pull or push [Google Drive](https://drive.google.com) files.
 
-`drive` was originally developed by [Burcu Dogan](https://github.com/rakyll) while working on the Google Drive team. This repository contains the latest version of the code, as she is no longer able to maintain it.
+`drive` was originally developed by [Burcu Dogan](https://github.com/rakyll) while working on the Google Drive team. Since she is very busy and no longer able to maintain it, I took over drive on `Thursday, 1st January 2015`. This repository contains the latest version of the code.
 
 ## Table of Contents
 
