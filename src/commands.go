@@ -170,7 +170,9 @@ func New(context *config.Context, opts *Options) *Commands {
 
 	var logger *log.Logger = nil
 
-	if opts != nil {
+	if opts == nil {
+		logger = log.New(stdin, stdout, stderr)
+	} else {
 		if opts.Quiet {
 			stdout = nil
 		}
@@ -198,10 +200,6 @@ func New(context *config.Context, opts *Options) *Commands {
 
 			opts.IgnoreRegexp = ignoreRegexp
 		}
-	}
-
-	if logger == nil {
-		panic("logger cannot be nil")
 	}
 
 	return &Commands{
