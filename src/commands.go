@@ -168,9 +168,23 @@ func New(context *config.Context, opts *Options) *Commands {
 
 	stdin, stdout, stderr := os.Stdin, os.Stdout, os.Stderr
 
-	logger := log.New(stdin, stdout, stderr)
+	var logger *log.Logger = nil
 
 	if opts != nil {
+		if opts.Quiet {
+			stdout = nil
+		}
+
+		if stdout != nil {
+			opts.StdoutIsTty = isatty.IsTerminal(stdout.Fd())
+		}
+
+		if stdout == nil && opts.Piped {
+			panic("piped requires stdout to be non-nil")
+		}
+
+		logger = log.New(stdin, stdout, stderr)
+
 		// should always start with /
 		opts.Path = path.Clean(path.Join("/", opts.Path))
 
@@ -184,12 +198,10 @@ func New(context *config.Context, opts *Options) *Commands {
 
 			opts.IgnoreRegexp = ignoreRegexp
 		}
+	}
 
-		opts.StdoutIsTty = isatty.IsTerminal(stdout.Fd())
-
-		if opts.Quiet {
-			stdout = nil
-		}
+	if logger == nil {
+		panic("logger cannot be nil")
 	}
 
 	return &Commands{
