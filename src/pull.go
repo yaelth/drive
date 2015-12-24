@@ -23,8 +23,10 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/odeke-em/drive/config"
+	"github.com/odeke-em/semalim"
 	"github.com/odeke-em/statos"
 )
 
@@ -458,90 +460,56 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 
 	defer close(g.rem.progressChan)
 
-	// TODO: Only provide precedence ordering if all the other options are allowed
-
-	sort.Sort(ByPrecedence(cl))
-
 	go func() {
 		for n := range g.rem.progressChan {
 			g.taskAdd(int64(n))
 		}
 	}()
 
-	nMax := len(cl)
-	doneAck := make(chan bool)
+	// TODO: Only provide precedence ordering if all the other options are allowed
+	sort.Sort(ByPrecedence(cl))
 
-	maxConcPulls := maxProcs()
-
-	loader := make(chan *Change, maxConcPulls)
-	waiter := make(chan bool, maxConcPulls)
-
-	for i := 0; i < maxConcPulls; i++ {
-		waiter <- true
-	}
+	n := maxProcs()
+	jobsChan := make(chan semalim.Job)
 
 	go func() {
-		defer close(loader)
+		defer close(jobsChan)
+		throttle := time.Tick(time.Duration(1e9 / n))
 
-		for _, c := range cl {
+		for i, c := range cl {
 			if c == nil {
-				doneAck <- true
+				g.log.LogErrf("BUGON:: pull : nil change found for change index %d\n", i)
 				continue
 			}
 
-			<-waiter
-			loader <- c
-		}
-	}()
-
-	canPrintSteps := g.opts.Verbose && g.opts.canPreview()
-
-	go func() {
-		for ch := range loader {
-			var fn func(*Change, []string) error = nil
-
-			op := ch.Op()
-			switch op {
-			case OpMod:
-				fn = g.localMod
-			case OpModConflict:
-				fn = g.localMod
-			case OpAdd:
-				fn = g.localAdd
-			case OpDelete:
-				fn = g.localDelete
-			case OpIndexAddition:
-				fn = g.localAddIndex
+			fn := localOpToChangerTranslator(g, c)
+			conformingFn := func(c *Change) error {
+			    return fn(c, exports)
 			}
 
 			if fn == nil {
-				g.log.LogErrf("pull: cannot find operator for %v", op)
-				doneAck <- true
-				waiter <- true
+				g.log.LogErrf("pull: cannot find operator for %v", c.Op())
 				continue
 			}
 
-			go func(c *Change, f func(*Change, []string) error) {
-				if canPrintSteps {
-					g.log.Logln("\033[01mPull::Started", c.Path, "\033[00m")
-				}
+			cjs := changeJobSt{
+				change:   c,
+				fn:       conformingFn,
+				verb:     "Pull",
+				throttle: throttle,
+			}
 
-				if err := f(c, exports); err != nil {
-					g.log.LogErrf("pull: %s err: %v\n", c.Path, err)
-				}
-
-				if canPrintSteps {
-					g.log.Logln("\033[04mPull::Done", c.Path, "\033[00m")
-				}
-
-				doneAck <- true
-				waiter <- true
-			}(ch, fn)
+			dofner := cjs.changeJober(g)
+			jobsChan <- jobSt{id: uint64(i), do: dofner}
 		}
 	}()
 
-	for i := 0; i < nMax; i++ {
-		<-doneAck
+	results := semalim.Run(jobsChan, uint64(n))
+	for result := range results {
+		res, err := result.Value(), result.Err()
+		if err != nil {
+			g.log.LogErrf("push: %s err: %v\n", res, err)
+		}
 	}
 
 	g.taskFinish()

@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/odeke-em/drive/config"
+	"github.com/odeke-em/semalim"
 )
 
 var mkdirAllMu = sync.Mutex{}
@@ -254,23 +255,6 @@ func (g *Commands) deserializeIndex(identifier string) *config.Index {
 	return index
 }
 
-func translateOpToChanger(g *Commands, c *Change) func(*Change) error {
-	var fn func(*Change) error = nil
-
-	op := c.Op()
-	switch op {
-	case OpMod:
-		fn = g.remoteMod
-	case OpModConflict:
-		fn = g.remoteMod
-	case OpAdd:
-		fn = g.remoteAdd
-	case OpDelete:
-		fn = g.remoteTrash
-	}
-	return fn
-}
-
 func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounter) (err error) {
 	if opMap == nil {
 		result := opChangeCount(cl)
@@ -299,71 +283,46 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 	}
 
 	n := maxProcs()
-	bench := make(chan *workPair, n)
-	ackChan := make(chan bool, n)
-
-	// Fill up ackChan initially with pass tokens
-	for i := 0; i < n; i++ {
-		ackChan <- true
-	}
-
-	throttle := time.Tick(time.Duration(1e9 / n))
-	canPrintSteps := g.opts.Verbose && g.opts.canPreview()
 
 	sort.Sort(ByPrecedence(cl))
 
-	doneCount := len(cl)
-	done := make(chan bool, doneCount)
+	jobsChan := make(chan semalim.Job)
 
 	go func() {
-		defer close(bench)
+		defer close(jobsChan)
+		throttle := time.Tick(time.Duration(1e9 / n))
+
 		for i, c := range cl {
 			if c == nil {
-				done <- true
 				g.log.LogErrf("BUGON:: push: nil change found for change index %d\n", i)
 				continue
 			}
 
-			fn := translateOpToChanger(g, c)
+			fn := remoteOpToChangerTranslator(g, c)
 
 			if fn == nil {
 				g.log.LogErrf("push: cannot find operator for %v", c.Op())
-				done <- true
 				continue
 			}
 
-			bench <- &workPair{fn: fn, arg: c}
-			<-ackChan
+			cjs := changeJobSt{
+				change:   c,
+				fn:       fn,
+				verb:     "Push",
+				throttle: throttle,
+			}
+
+			dofner := cjs.changeJober(g)
+			jobsChan <- jobSt{id: uint64(i), do: dofner}
 		}
 	}()
 
-	go func() {
-		for wp := range bench {
-			fn, c := wp.fn, wp.arg
-
-			go func() {
-				if canPrintSteps {
-					g.log.Logln("\033[01mPush::Started", c.Path, "\033[00m")
-				}
-
-				if err := fn(c); err != nil {
-					g.log.LogErrf("push: %s err: %v\n", c.Path, err)
-				}
-
-				if canPrintSteps {
-					g.log.Logln("\033[04mPush::Done", c.Path, "\033[00m")
-				}
-
-				<-throttle
-
-				done <- true
-				ackChan <- true
-			}()
+	results := semalim.Run(jobsChan, uint64(n))
+	for result := range results {
+		res, err := result.Value(), result.Err()
+		if err != nil {
+			g.log.LogErrf("push: %s err: %v\n", res, err)
 		}
-	}()
-
-	for i := 0; i < doneCount; i++ {
-		<-done
 	}
 
 	g.taskFinish()

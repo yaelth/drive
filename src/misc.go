@@ -83,6 +83,47 @@ type tuple struct {
 	last   interface{}
 }
 
+type jobSt struct {
+	id uint64
+	do func() (interface{}, error)
+}
+
+func (js jobSt) Id() interface{} {
+	return js.id
+}
+
+func (js jobSt) Do() (interface{}, error) {
+	return js.do()
+}
+
+type changeJobSt struct {
+	change   *Change
+	verb     string
+	throttle <-chan time.Time
+	fn       func(*Change) error
+}
+
+func (cjs *changeJobSt) changeJober(g *Commands) func() (interface{}, error) {
+	return func() (interface{}, error) {
+		ch := cjs.change
+		verb := cjs.verb
+
+		canPrintSteps := g.opts.Verbose && g.opts.canPreview()
+		if canPrintSteps {
+			g.log.Logf("\033[01m%s::Started %s\033[00m\n", verb, ch.Path)
+		}
+
+		err := cjs.fn(ch)
+
+		if canPrintSteps {
+			g.log.Logf("\033[04m%s::Done %s\033[00m\n", verb, ch.Path)
+		}
+
+		<-cjs.throttle
+		return ch.Path, err
+	}
+}
+
 func retryableErrorCheck(v interface{}) (ok, retryable bool) {
 	pr, pOk := v.(*tuple)
 	if pr == nil || !pOk {
@@ -870,4 +911,40 @@ func resolver(g *Commands, byId bool, sources []string, fileOp func(*File) inter
 
 func NotExist(err error) bool {
 	return os.IsNotExist(err) || err == ErrPathNotExists
+}
+
+func localOpToChangerTranslator(g *Commands, c *Change) func(*Change, []string) error {
+	var fn func(*Change, []string) error = nil
+
+	op := c.Op()
+	switch op {
+	case OpMod:
+		fn = g.localMod
+	case OpModConflict:
+		fn = g.localMod
+	case OpAdd:
+		fn = g.localAdd
+	case OpDelete:
+		fn = g.localDelete
+	case OpIndexAddition:
+		fn = g.localAddIndex
+	}
+	return fn
+}
+
+func remoteOpToChangerTranslator(g *Commands, c *Change) func(*Change) error {
+	var fn func(*Change) error = nil
+
+	op := c.Op()
+	switch op {
+	case OpMod:
+		fn = g.remoteMod
+	case OpModConflict:
+		fn = g.remoteMod
+	case OpAdd:
+		fn = g.remoteAdd
+	case OpDelete:
+		fn = g.remoteTrash
+	}
+	return fn
 }
