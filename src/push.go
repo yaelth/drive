@@ -41,13 +41,13 @@ func (g *Commands) Push() (err error) {
 	var cl []*Change
 
 	g.log.Logln("Resolving...")
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill)
 
 	spin := g.playabler()
 	spin.play()
 
 	// To Ensure mount points are cleared in the event of external exceptions
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill)
 	go func() {
 		_ = <-c
 		spin.stop()
@@ -55,20 +55,16 @@ func (g *Commands) Push() (err error) {
 		os.Exit(1)
 	}()
 
-	// TODO: Look at clashes?
 	clashes := []*Change{}
 
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, true)
-		if cErr != nil {
-			if cErr == ErrClashesDetected {
-				clashes = append(clashes, cclashes...)
-				continue
-			} else {
-				spin.stop()
-				return cErr
-			}
+
+		clashes = append(clashes, cclashes...)
+		if cErr != nil && cErr != ErrClashesDetected {
+			spin.stop()
+			return cErr
 		}
 		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
@@ -330,27 +326,46 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 }
 
 func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change, err error) {
-	r, err := g.rem.FindByPath(absPath)
-	if err != nil && err != ErrPathNotExists {
-		return
-	}
+	remotesChan := g.rem.FindByPathM(absPath)
 
+	iterCount := uint64(0)
+	noClashThreshold := uint64(1)
 	var l *File
 	localinfo, _ := os.Stat(path)
 	if localinfo != nil {
 		l = NewLocalFile(path, localinfo)
 	}
 
-	clr := &changeListResolve{
-		push:   true,
-		dir:    parent,
-		base:   absPath,
-		remote: r,
-		local:  l,
-		depth:  g.opts.Depth,
+	for r := range remotesChan {
+		if r == nil {
+			continue
+		}
+
+		iterCount++
+
+		clr := &changeListResolve{
+			push:   true,
+			dir:    parent,
+			base:   absPath,
+			remote: r,
+			local:  l,
+			depth:  g.opts.Depth,
+		}
+
+		ccl, cclashes, cErr := g.resolveChangeListRecv(clr)
+		cl = append(cl, ccl...)
+		clashes = append(clashes, cclashes...)
+		if cErr != nil {
+			err = reComposeError(err, cErr.Error())
+		}
 	}
 
-	return g.resolveChangeListRecv(clr)
+	if iterCount > noClashThreshold && len(clashes) < 1 {
+		clashes = append(clashes, cl...)
+		err = reComposeError(err, ErrClashesDetected.Error())
+	}
+
+	return
 }
 
 func (g *Commands) pathSplitter(absPath string) (dir, base string) {

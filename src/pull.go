@@ -342,25 +342,24 @@ func (g *Commands) pullLikeMatchesResolver(pt pullType) (cl, clashes []*Change, 
 }
 
 func (g *Commands) PullPiped(byId bool) (err error) {
-	resolver := g.rem.FindByPath
+	resolver := g.rem.FindByPathM
 	if byId {
-		resolver = g.rem.FindById
+		resolver = g.rem.FindByIdM
 	}
 
 	// TODO: (@odeke-em) allow pull-trashed
 
 	for _, relToRootPath := range g.opts.Sources {
-		rem, err := resolver(relToRootPath)
-		if err != nil {
-			return fmt.Errorf("%s: %v", relToRootPath, err)
-		}
-		if rem == nil {
-			continue
-		}
+		matches := resolver(relToRootPath)
+		for rem := range matches {
+			if rem == nil {
+				continue
+			}
 
-		err = g.pullAndDownload(relToRootPath, os.Stdout, rem, true)
-		if err != nil {
-			return err
+			err = g.pullAndDownload(relToRootPath, os.Stdout, rem, true)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -407,12 +406,9 @@ func (g *Commands) pullByPath() (cl, clashes []*Change, err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, false)
-		if cErr != nil {
-			if cErr != ErrClashesDetected {
-				return cl, clashes, cErr
-			} else {
-				clashes = append(clashes, cclashes...)
-			}
+		clashes = append(clashes, cclashes...)
+		if cErr != nil && cErr != ErrClashesDetected {
+			return cl, clashes, cErr
 		}
 		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
@@ -484,7 +480,7 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 
 			fn := localOpToChangerTranslator(g, c)
 			conformingFn := func(c *Change) error {
-			    return fn(c, exports)
+				return fn(c, exports)
 			}
 
 			if fn == nil {

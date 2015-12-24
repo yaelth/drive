@@ -140,19 +140,33 @@ func (g *Commands) byRemoteResolve(relToRoot, fsPath string, r *File, push bool)
 }
 
 func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, clashes []*Change, err error) {
-	var r *File
-	resolver := g.rem.FindByPath
 
-	r, err = resolver(relToRoot)
-	if err != nil && err != ErrPathNotExists {
-		return
+	remotesChan := g.rem.FindByPathM(relToRoot)
+	iterCount := uint64(0)
+	noClashThreshold := uint64(1)
+
+	for rem := range remotesChan {
+		if rem != nil && anyMatch(g.opts.IgnoreRegexp, rem.Name) {
+			return
+		}
+
+		iterCount++
+
+		ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, rem, push)
+
+		cl = append(cl, ccl...)
+		clashes = append(clashes, cclashes...)
+		if false && cErr != nil {
+			err = reComposeError(err, cErr.Error())
+		}
 	}
 
-	if r != nil && anyMatch(g.opts.IgnoreRegexp, r.Name) {
-		return
+	if iterCount > noClashThreshold && len(clashes) < 1 {
+		clashes = append(clashes, cl...)
+		// err = reComposeError(err, ErrClashesDetected.Error())
 	}
 
-	return g.byRemoteResolve(relToRoot, fsPath, r, push)
+	return
 }
 
 func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, push bool) (cl, clashes []*Change, err error) {

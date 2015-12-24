@@ -56,17 +56,32 @@ func (g *Commands) Diff() (err error) {
 	spin.play()
 	defer spin.stop()
 
+	clashes := []*Change{}
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
-		ccl, _, cErr := g.changeListResolve(relToRootPath, fsPath, true)
+		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, true)
 		// TODO: Show the conflicts if any
 
+		clashes = append(clashes, cclashes...)
 		if cErr != nil {
-			return cErr
+			if cErr != ErrClashesDetected {
+				return cErr
+			} else {
+				err = reComposeError(err, cErr.Error())
+			}
 		}
+
 		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
+	}
+
+	if !g.opts.IgnoreNameClashes && len(clashes) >= 1 {
+		warnClashesPersist(g.log, clashes)
+		if err != nil {
+			return err
+		}
+		return ErrClashesDetected
 	}
 
 	spin.stop()

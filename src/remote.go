@@ -213,6 +213,22 @@ func (r *Remote) FindBackPaths(id string) (backPaths []string, err error) {
 	return
 }
 
+func wrapInChan(f *File, err error) chan *File {
+	ch := make(chan *File)
+
+	go func() {
+		defer close(ch)
+		ch <- f
+	}()
+
+	return ch
+}
+
+func (r *Remote) FindByIdM(id string) chan *File {
+	f, err := r.FindById(id)
+	return wrapInChan(f, err)
+}
+
 func (r *Remote) FindById(id string) (file *File, err error) {
 	req := r.service.Files.Get(id)
 	var f *drive.File
@@ -231,6 +247,20 @@ func retryableChangeOp(fn func() (interface{}, error), debug bool) *expb.Exponen
 	}
 }
 
+func (r *Remote) findByPathM(p string, trashed bool) chan *File {
+	if rootLike(p) {
+		return r.FindByIdM("root")
+	}
+
+	parts := strings.Split(p, RemoteSeparator)
+	finder := r.findByPathRecvM
+	if trashed {
+		finder = r.findByPathTrashedM
+	}
+
+	return finder("root", parts[1:])
+}
+
 func (r *Remote) findByPath(p string, trashed bool) (*File, error) {
 	if rootLike(p) {
 		return r.FindById("root")
@@ -247,8 +277,16 @@ func (r *Remote) FindByPath(p string) (file *File, err error) {
 	return r.findByPath(p, false)
 }
 
+func (r *Remote) FindByPathM(p string) chan *File {
+	return r.findByPathM(p, false)
+}
+
 func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
 	return r.findByPath(p, true)
+}
+
+func (r *Remote) FindByPathTrashedM(p string) chan *File {
+	return r.findByPathM(p, true)
 }
 
 func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) chan *File {
@@ -870,6 +908,70 @@ func (r *Remote) About() (about *drive.About, err error) {
 	return r.service.About.Get().Do()
 }
 
+func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) chan *File {
+
+	chanOChan := make(chan chan *File)
+
+	go func() {
+		defer close(chanOChan)
+		if len(p) < 1 {
+			return
+		}
+
+		first, rest := p[0], p[1:]
+		// find the file or directory under parentId and titled with p[0]
+		req := r.service.Files.List()
+		// TODO: use field selectors
+		var expr string
+		head := urlToPath(first, false)
+		if trashed {
+			expr = fmt.Sprintf("title = %s and trashed=true", customQuote(head))
+		} else {
+			expr = fmt.Sprintf("%s in parents and title = %s and trashed=false",
+				customQuote(parentId), customQuote(head))
+		}
+		req.Q(expr)
+
+		resultsChan := reqDoPage(req, true, false)
+		if len(rest) < 1 {
+			chanOChan <- resultsChan
+			return
+		}
+
+		/*
+			files, err := req.Do()
+			if err != nil {
+			    if err.Error() == ErrGoogleApiInvalidQueryHardCoded.Error() { // Send the user back the query information
+				err = fmt.Errorf("err: %v query: `%s`", err, expr)
+			    }
+
+			    return nil, err
+			}
+		*/
+		for f := range resultsChan {
+			if f == nil {
+				continue
+			}
+
+			chanOChan <- r.findByPathRecvRawM(f.Id, p[1:], trashed)
+		}
+	}()
+
+	resolvedResults := make(chan *File)
+
+	go func() {
+		defer close(resolvedResults)
+
+		for ch := range chanOChan {
+			for f := range ch {
+				resolvedResults <- f
+			}
+		}
+	}()
+
+	return resolvedResults
+}
+
 func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (file *File, err error) {
 	// find the file or directory under parentId and titled with p[0]
 	req := r.service.Files.List()
@@ -907,11 +1009,19 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	return r.findByPathRecvRaw(first.Id, p[1:], trashed)
 }
 
-func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err error) {
+func (r *Remote) findByPathRecv(parentId string, p []string) (*File, error) {
 	return r.findByPathRecvRaw(parentId, p, false)
 }
 
-func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err error) {
+func (r *Remote) findByPathRecvM(parentId string, p []string) chan *File {
+	return r.findByPathRecvRawM(parentId, p, false)
+}
+
+func (r *Remote) findByPathTrashedM(parentId string, p []string) chan *File {
+	return r.findByPathRecvRawM(parentId, p, true)
+}
+
+func (r *Remote) findByPathTrashed(parentId string, p []string) (*File, error) {
 	return r.findByPathRecvRaw(parentId, p, true)
 }
 
