@@ -76,6 +76,7 @@ const (
 	ExcludeOpsKey         = "exclude-ops"
 	IgnoreConflictKey     = "ignore-conflict"
 	IgnoreNameClashesKey  = "ignore-name-clashes"
+	ClashesKey            = "clashes"
 	CommentStr            = "#"
 	DepthKey              = "depth"
 	EmailsKey             = "emails"
@@ -171,11 +172,13 @@ const (
 	DescUrl                = "returns the remote URL of each file"
 	DescVerbose            = "show step by step information verbosely"
 	DescFixClashes         = "fix clashes by renaming files"
+	DescListClashes        = "list clashes"
 	DescDescription        = "set the description"
 	DescQR                 = "open up the QR code for specified files"
 	DescStarred            = "operate only on starred files"
 	DescUnifiedDiff        = "unified diff"
 	DescDiffBaseLocal      = "when set uses local as the base other remote will be used as the base"
+	DescClashesOpById      = "operate on clashes by id instead of by path"
 )
 
 const (
@@ -213,6 +216,8 @@ const (
 	CLIOptionUnified            = "unified"
 	CLIOptionUnifiedShortKey    = "u"
 	CLIOptionDiffBaseLocal      = "base-local"
+	CLIOptionFixClashes         = "fix"
+	CLIOptionListClashes        = "list"
 )
 
 const (

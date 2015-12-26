@@ -40,6 +40,7 @@
   - [Help](#help)
   - [Move](#move)
   - [Rename](#rename)
+  - [Clashes](#clashes)
   - [DriveIgnore](#driveignore)
   - [DriveRC](#driverc)
   - [DesktopEntry](#desktopentry)
@@ -847,6 +848,22 @@ $ drive rename openSrc/2015 2015-Contributions
 $ drive rename 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 fluxing
 ```
 
+### Clashes
+
+You can deal with clashes by using command `drive clashes`.
+
+* To list clashes, you can do
+
+```shell
+$ drive clashes [paths...]
+$ drive clashes --list [paths...] # To be more explicit
+```
+
+* To fix clashes, you can do:
+
+```
+$ drive clashes --fix [paths...]
+```
 
 ### Move
 

@@ -115,6 +115,7 @@ func main() {
 	bindCommandWithAliases(drive.DuKey, drive.DescDu, &duCmd{}, []string{})
 	bindCommandWithAliases(drive.StarKey, drive.DescStar, &starCmd{}, []string{})
 	bindCommandWithAliases(drive.UnStarKey, drive.DescUnStar, &unstarCmd{}, []string{})
+	bindCommandWithAliases(drive.ClashesKey, drive.DescFixClashes, &clashesCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -1526,6 +1527,53 @@ func (cmd *unstarCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}
 
 	exitWithError(drive.New(context, opts).UnStar(*cmd.ById))
+}
+
+type clashesCmd struct {
+	Fix    *bool `json:"fix"`
+	List   *bool `json:"list"`
+	ById   *bool `json:"by-id"`
+	Depth  *int  `json:"depth"`
+	Hidden *bool `json:"hidden"`
+}
+
+func (cmd *clashesCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.Fix = fs.Bool(drive.CLIOptionFixClashes, false, drive.DescFixClashes)
+	cmd.List = fs.Bool(drive.CLIOptionListClashes, true, drive.DescListClashes)
+	cmd.ById = fs.Bool(drive.CLIOptionId, false, drive.DescClashesOpById)
+	cmd.Depth = fs.Int(drive.DepthKey, drive.InfiniteDepth, "maximum recursion depth")
+	cmd.Hidden = fs.Bool(drive.HiddenKey, true, "allows operation on hidden paths")
+
+	return fs
+}
+
+func (ccmd *clashesCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *ccmd.ById)
+	cmd := clashesCmd{}
+	df := defaultsFiller{
+		from: *ccmd, to: &cmd,
+		rcSourcePath: context.AbsPathOf(path),
+		definedFlags: definedFlags,
+	}
+
+	if err := fillWithDefaults(df); err != nil {
+		exitWithError(err)
+	}
+
+	opts := &drive.Options{
+		Path:    path,
+		Sources: sources,
+		Depth:   *cmd.Depth,
+		Hidden:  *cmd.Hidden,
+	}
+
+	driveInstance := drive.New(context, opts)
+	fn := driveInstance.ListClashes
+	if *cmd.Fix {
+		fn = driveInstance.FixClashes
+	}
+
+	exitWithError(fn(*cmd.ById))
 }
 
 func initContext(args []string) *config.Context {
