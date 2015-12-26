@@ -21,7 +21,11 @@ import (
 )
 
 func (g *Commands) ListClashes(byId bool) error {
+	spin := g.playabler()
+	spin.play()
 	clashes, err := listClashes(g, g.opts.Sources, byId)
+	spin.stop()
+
 	if len(clashes) < 1 {
 		if err == nil {
 			return fmt.Errorf("no clashes exist!")
@@ -39,7 +43,10 @@ func (g *Commands) ListClashes(byId bool) error {
 }
 
 func (g *Commands) FixClashes(byId bool) error {
+	spin := g.playabler()
+	spin.play()
 	clashes, err := listClashes(g, g.opts.Sources, byId)
+	spin.stop()
 
 	if len(clashes) < 1 {
 		return err

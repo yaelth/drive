@@ -855,14 +855,14 @@ You can deal with clashes by using command `drive clashes`.
 * To list clashes, you can do
 
 ```shell
-$ drive clashes [paths...]
-$ drive clashes --list [paths...] # To be more explicit
+$ drive clashes [--depth n] [paths...]
+$ drive clashes --list [--depth n] [paths...] # To be more explicit
 ```
 
 * To fix clashes, you can do:
 
 ```
-$ drive clashes --fix [paths...]
+$ drive clashes --fix [--depth n] [paths...]
 ```
 
 ### Move
