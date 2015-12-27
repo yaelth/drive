@@ -83,6 +83,7 @@ const (
 	EmailMessageKey       = "emailMessage"
 	ForceKey              = "force"
 	QuietKey              = "quiet"
+	IdKey                 = "id"
 	QuitShortKey          = "q"
 	YesShortKey           = "Y"
 	QuitLongKey           = "quit"
@@ -179,6 +180,7 @@ const (
 	DescUnifiedDiff        = "unified diff"
 	DescDiffBaseLocal      = "when set uses local as the base other remote will be used as the base"
 	DescClashesOpById      = "operate on clashes by id instead of by path"
+	DescId                 = "retrieve the fileId for the specified paths"
 )
 
 const (
@@ -350,6 +352,7 @@ func createAndRegisterAliases() map[string][]string {
 		MoveKey:            []string{"mv"},
 		DeleteKey:          []string{"del"},
 		EditDescriptionKey: []string{EditDescriptionShortKey},
+		IdKey:              []string{"file-id"},
 	}
 
 	for originalKey, aliasList := range aliases {

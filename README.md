@@ -33,6 +33,7 @@
   - [Stating Files](#stating-files)
   - [Retrieving md5 checksums](#retrieving-md5-checksums)
   - [Editing Description](#editing-description)
+  - [FileId Retrieval](#fileid-retrieval)
   - [New File](#new-file)
   - [Quota](#quota)
   - [Features](#features)
@@ -763,6 +764,29 @@ Even more conveniently by piping content
 
 ```shell
 $ cat fileDescriptions | drive edit-desc --piped  targetFile influx/1.txt
+```
+
+### FileId Retrieval
+
+You can retrieve just the fileId for specified paths
+```shell
+$ drive id [--depth n] [paths...]
+$ drive file-id [--depth n] [paths...]
+```
+
+For example:
+
+```shell
+$ drive file-id --depth 2 dup-tests bug-reproductions
+$ # drive file-id --depth 2 dup-tests bug-reproductions
+FileId                                           Relative Path
+"0By5qKlgRJeV2NB1OTlpmSkg8TFU"                   "/dup-tests"
+"0Bz5wQlgRJeP2QkRSenBTaUowU3c"                   "/dup-tests/influx_0"
+"0Cu5wQlgRJeV2d2VmY29HV217TFE"                   "/dup-tests/a"
+"0Cy5wQlgRJeX2WXVFMnQyQ2NDRTQ"                   "/dup-tests/influx"
+"0Cy5wQlgRJeP2YGMiOC15OEpUZnM"                   "/bug-reproductions"
+"0Cy5wQlgRJeV2MzFtTm50NVV5NW8"                   "/bug-reproductions/drive-406"
+"1xmXPziMPEgq2dK-JqaUytKz_By8S_7_RVY79ceRoZwv"	 "info-bulletins"
 ```
 
 ### Quota

@@ -116,6 +116,7 @@ func main() {
 	bindCommandWithAliases(drive.StarKey, drive.DescStar, &starCmd{}, []string{})
 	bindCommandWithAliases(drive.UnStarKey, drive.DescUnStar, &unstarCmd{}, []string{})
 	bindCommandWithAliases(drive.ClashesKey, drive.DescFixClashes, &clashesCmd{}, []string{})
+	bindCommandWithAliases(drive.IdKey, drive.DescId, &idCmd{}, []string{})
 
 	command.DefineHelp(&helpCmd{})
 	command.ParseAndRun()
@@ -1527,6 +1528,40 @@ func (cmd *unstarCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}
 
 	exitWithError(drive.New(context, opts).UnStar(*cmd.ById))
+}
+
+type idCmd struct {
+	Depth  *int  `json:"depth"`
+	Hidden *bool `json:"hidden"`
+}
+
+func (cmd *idCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.Depth = fs.Int(drive.DepthKey, 1, "maximum recursion depth")
+	cmd.Hidden = fs.Bool(drive.HiddenKey, true, "allows operation on hidden paths")
+	return fs
+}
+
+func (icmd *idCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgs(args)
+	cmd := idCmd{}
+	df := defaultsFiller{
+		from: *icmd, to: &cmd,
+		rcSourcePath: context.AbsPathOf(path),
+		definedFlags: definedFlags,
+	}
+
+	if err := fillWithDefaults(df); err != nil {
+		exitWithError(err)
+	}
+
+	opts := &drive.Options{
+		Path:    path,
+		Sources: sources,
+		Depth:   *cmd.Depth,
+		Hidden:  *cmd.Hidden,
+	}
+
+	exitWithError(drive.New(context, opts).Id())
 }
 
 type clashesCmd struct {
