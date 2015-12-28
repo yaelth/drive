@@ -82,10 +82,16 @@ func findClashesForChildren(g *Commands, parentId, relToRootPath string, depth i
 		memoized[child.Name] = cluster
 	}
 
+	separatorPrefix := relToRootPath
+	if rootLike(separatorPrefix) {
+		// Avoid a situation where you have Join("/", "/", "a") -> "//a"
+		separatorPrefix = ""
+	}
+
 	// To preserve the discovery order
 	for _, commonKey := range discoveryOrder {
 		cluster, _ := memoized[commonKey]
-		fullRelToRootPath := sepJoin(RemoteSeparator, relToRootPath, commonKey)
+		fullRelToRootPath := sepJoin(RemoteSeparator, separatorPrefix, commonKey)
 		nameClashesPresent := len(cluster) > 1
 
 		for _, rem := range cluster {
@@ -226,8 +232,9 @@ func autoRenameClashes(g *Commands, clashes []*Change) error {
 
 	var composedError error
 
+	quot := customQuote
 	for _, r := range renames {
-		message := fmt.Sprintf("Renaming %s %v -> %s\n", r.originalPath, r.change.Src.Id, r.newName)
+		message := fmt.Sprintf("Renaming %s %s -> %s\n", quot(r.originalPath), quot(r.change.Src.Id), quot(r.newName))
 		_, err := g.rem.rename(r.change.Src.Id, r.newName)
 		if err == nil {
 			g.log.Log(message)

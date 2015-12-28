@@ -146,17 +146,18 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, c
 	noClashThreshold := uint64(1)
 
 	for rem := range remotesChan {
-		if rem != nil && anyMatch(g.opts.IgnoreRegexp, rem.Name) {
-			return
+		if rem != nil {
+			if anyMatch(g.opts.IgnoreRegexp, rem.Name) {
+				return
+			}
+			iterCount++
 		}
-
-		iterCount++
 
 		ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, rem, push)
 
 		cl = append(cl, ccl...)
 		clashes = append(clashes, cclashes...)
-		if false && cErr != nil {
+		if cErr != nil {
 			err = reComposeError(err, cErr.Error())
 		}
 	}

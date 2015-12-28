@@ -328,20 +328,19 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change, err error) {
 	remotesChan := g.rem.FindByPathM(absPath)
 
-	iterCount := uint64(0)
-	noClashThreshold := uint64(1)
 	var l *File
 	localinfo, _ := os.Stat(path)
 	if localinfo != nil {
 		l = NewLocalFile(path, localinfo)
 	}
 
-	for r := range remotesChan {
-		if r == nil {
-			continue
-		}
+	iterCount := uint64(0)
+	noClashThreshold := uint64(1)
 
-		iterCount++
+	for r := range remotesChan {
+		if r != nil {
+			iterCount++
+		}
 
 		clr := &changeListResolve{
 			push:   true,

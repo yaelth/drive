@@ -66,6 +66,7 @@ func (g *Commands) Id() (err error) {
 		iterCount := uint64(0)
 		for rem := range remotes {
 			if rem == nil {
+				err = reComposeError(err, fmt.Sprintf("%s does not exist remotely", customQuote(relToRootPath)))
 				continue
 			}
 

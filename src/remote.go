@@ -299,7 +299,7 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 		defer close(fileChan)
 
 		pageToken := ""
-		for {
+		for pageIterCount := uint64(0); ; pageIterCount++ {
 			if pageToken != "" {
 				req = req.PageToken(pageToken)
 			}
@@ -319,6 +319,10 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 			}
 			pageToken = results.NextPageToken
 			if pageToken == "" {
+				if len(results.Items) < 1 && pageIterCount < 1 {
+					// Item absolutely doesn't exist
+					fileChan <- nil
+				}
 				break
 			}
 

@@ -284,6 +284,7 @@ func (g *Commands) PullPiped(byId bool) (err error) {
 		matches := resolver(relToRootPath)
 		for rem := range matches {
 			if rem == nil {
+				err = reComposeError(err, fmt.Sprintf("%s doesnot exist", customQuote(relToRootPath)))
 				continue
 			}
 
@@ -334,16 +335,17 @@ func (g *Commands) pullById() (cl, clashes []*Change, err error) {
 }
 
 func (g *Commands) pullByPath() (cl, clashes []*Change, err error) {
-	fmt.Println("pullByPath")
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, false)
-		clashes = append(clashes, cclashes...)
-		if cErr != nil && cErr != ErrClashesDetected {
-			return cl, clashes, cErr
+		if len(cclashes) > 0 {
+			clashes = append(clashes, cclashes...)
 		}
 		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
+		}
+		if cErr != nil && cErr != ErrClashesDetected {
+			err = reComposeError(err, cErr.Error())
 		}
 	}
 
