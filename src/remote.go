@@ -291,6 +291,10 @@ func (r *Remote) FindByPathTrashedM(p string) chan *File {
 }
 
 func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) chan *File {
+	return _reqDoPage(req, hidden, promptOnPagination, false)
+}
+
+func _reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination, nilOnNoMatch bool) chan *File {
 	fileChan := make(chan *File)
 
 	throttle := time.Tick(1e7)
@@ -319,7 +323,7 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 			}
 			pageToken = results.NextPageToken
 			if pageToken == "" {
-				if len(results.Items) < 1 && pageIterCount < 1 {
+				if nilOnNoMatch && len(results.Items) < 1 && pageIterCount < 1 {
 					// Item absolutely doesn't exist
 					fileChan <- nil
 				}
@@ -937,7 +941,7 @@ func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) c
 		}
 		req.Q(expr)
 
-		resultsChan := reqDoPage(req, true, false)
+		resultsChan := _reqDoPage(req, true, false, true)
 		if len(rest) < 1 {
 			chanOChan <- resultsChan
 			return
