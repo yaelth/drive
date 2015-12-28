@@ -19,8 +19,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/cheggaaa/pb"
 	"github.com/mattn/go-isatty"
@@ -31,10 +29,6 @@ import (
 
 var (
 	ErrNoContext = errors.New("not in a drive context")
-)
-
-const (
-	DriveIgnoreSuffix = ".driveignore"
 )
 
 type Options struct {
@@ -49,8 +43,8 @@ type Options struct {
 	// Force once set always converts NoChange into an Addition
 	Force bool
 	// Hidden discovers hidden paths if set
-	Hidden       bool
-	IgnoreRegexp *regexp.Regexp
+	Hidden  bool
+	Ignorer func(string) bool
 	// IgnoreChecksum when set avoids the step
 	// of comparing checksums as a final check.
 	IgnoreChecksum bool
@@ -192,13 +186,13 @@ func New(context *config.Context, opts *Options) *Commands {
 
 		if !opts.Force {
 			ignoresPath := filepath.Join(context.AbsPath, DriveIgnoreSuffix)
-			ignoreRegexp, regErr := combineIgnores(ignoresPath)
+			ignorer, regErr := combineIgnores(ignoresPath)
 
 			if regErr != nil {
 				logger.LogErrf("combining ignores from path %s and internally: %v\n", ignoresPath, regErr)
 			}
 
-			opts.IgnoreRegexp = ignoreRegexp
+			opts.Ignorer = ignorer
 		}
 	}
 
@@ -209,24 +203,6 @@ func New(context *config.Context, opts *Options) *Commands {
 		log:           logger,
 		mkdirAllCache: expirableCache.New(),
 	}
-}
-
-func combineIgnores(ignoresPath string) (*regexp.Regexp, error) {
-	clauses, err := readCommentedFile(ignoresPath, "#")
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	clauses = append(clauses, internalIgnores()...)
-	if len(clauses) < 1 {
-		return nil, nil
-	}
-
-	regExComp, regErr := regexp.Compile(strings.Join(clauses, "|"))
-	if regErr != nil {
-		return nil, regErr
-	}
-	return regExComp, nil
 }
 
 func (g *Commands) taskStart(tasks int64) {

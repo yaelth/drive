@@ -104,7 +104,7 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 func (g *Commands) resolveToLocalFile(relToRoot string, fsPaths ...string) (local *File, err error) {
 	checks := append([]string{relToRoot}, fsPaths...)
 
-	if anyMatch(g.opts.IgnoreRegexp, checks...) {
+	if anyMatch(g.opts.Ignorer, checks...) {
 		err = fmt.Errorf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
 		return
 	}
@@ -147,7 +147,7 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, c
 
 	for rem := range remotesChan {
 		if rem != nil {
-			if anyMatch(g.opts.IgnoreRegexp, rem.Name) {
+			if anyMatch(g.opts.Ignorer, rem.Name) {
 				return
 			}
 			iterCount++
@@ -275,7 +275,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 		matchChecks = append(matchChecks, r.Name)
 	}
 
-	if anyMatch(g.opts.IgnoreRegexp, matchChecks...) {
+	if anyMatch(g.opts.Ignorer, matchChecks...) {
 		return
 	}
 
@@ -349,7 +349,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 			context: g.context,
 			hidden:  g.opts.Hidden,
 			depth:   originalDepth, // local listing needs to start from original depth
-			ignore:  g.opts.IgnoreRegexp,
+			ignore:  g.opts.Ignorer,
 		}
 
 		localChildren, err = list(&fslArg)

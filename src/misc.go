@@ -52,6 +52,9 @@ const (
 	FmtTimeString           = "2006-01-02T15:04:05.000Z"
 	MsgClashesFixedNowRetry = "Clashes were fixed, please retry the operation"
 	MsgErrFileNotMutable    = "File not mutable"
+
+	DriveIgnoreSuffix                 = ".driveignore"
+	DriveIgnoreNegativeLookAheadToken = "!"
 )
 
 const (
@@ -587,17 +590,99 @@ func cacher(regMap map[*regexp.Regexp]string) func(string) string {
 	}
 }
 
-func anyMatch(pat *regexp.Regexp, args ...string) bool {
-	if pat == nil {
+func anyMatch(ignore func(string) bool, args ...string) bool {
+	if ignore == nil {
 		return false
 	}
 
 	for _, arg := range args {
-		if pat.Match([]byte(arg)) {
+		if ignore(arg) {
 			return true
 		}
 	}
 	return false
+}
+
+func siftExcludes(clauses []string) (excludes, includes []string) {
+	alreadySeenExclude := map[string]bool{}
+	alreadySeenInclude := map[string]bool{}
+
+	for _, clause := range clauses {
+		memoizerPtr := &alreadySeenExclude
+		ptr := &excludes
+		// Because Go lacks the negative lookahead ?! capability
+		// it is necessary to avoid
+		if strings.HasPrefix(clause, DriveIgnoreNegativeLookAheadToken) {
+			ptr = &includes
+			rest := strings.Split(clause, DriveIgnoreNegativeLookAheadToken)
+			if len(rest) > 1 {
+				memoizerPtr = &alreadySeenInclude
+				clause = sepJoin("", rest[1:]...)
+			}
+		}
+
+		memoizer := *memoizerPtr
+		if _, alreadySeen := memoizer[clause]; alreadySeen {
+			continue
+		}
+
+		*ptr = append(*ptr, clause)
+		memoizer[clause] = true
+	}
+	return
+}
+
+func ignorerByClause(clauses ...string) (ignorer func(string) bool, err error) {
+	if len(clauses) < 1 {
+		return nil, nil
+	}
+
+	excludes, includes := siftExcludes(clauses)
+
+	var excludesRegComp, includesComp *regexp.Regexp
+	if len(excludes) >= 1 {
+		excRegComp, excRegErr := regexp.Compile(strings.Join(excludes, "|"))
+		if excRegErr != nil {
+			err = reComposeError(err, fmt.Sprintf("excludeIgnoreRegErr: %v", excRegErr.Error()))
+			return
+		}
+		excludesRegComp = excRegComp
+	}
+
+	if len(includes) >= 1 {
+		incRegComp, incRegErr := regexp.Compile(strings.Join(includes, "|"))
+		if incRegErr != nil {
+			err = reComposeError(err, fmt.Sprintf("includeIgnoreRegErr: %v", incRegErr.Error()))
+			return
+		}
+		includesComp = incRegComp
+	}
+
+	ignorer = func(s string) bool {
+		sb := []byte(s)
+		if excludesRegComp != nil && excludesRegComp.Match(sb) {
+			if includesComp != nil && includesComp.Match(sb) {
+				return false
+			}
+			return true
+		}
+		return false
+	}
+
+	return ignorer, nil
+}
+
+func combineIgnores(ignoresPath string) (ignorer func(string) bool, err error) {
+	clauses, err := readCommentedFile(ignoresPath, "#")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	// TODO: Should internalIgnores only be added only
+	// after all the exclusion and exclusion steps.
+	clauses = append(clauses, internalIgnores()...)
+
+	return ignorerByClause(clauses...)
 }
 
 var mimeTypeFromQuery = cacher(regMapper(regExtStrMap, map[string]string{
@@ -806,7 +891,7 @@ type fsListingArg struct {
 	context *config.Context
 	parent  string
 	hidden  bool
-	ignore  *regexp.Regexp
+	ignore  func(string) bool
 	depth   int
 }
 

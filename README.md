@@ -921,8 +921,24 @@ $ cat << $ >> .driveignore
 ```
 
 
-Note: Pattern matching and suffixes are done by regular expression matching so make sure to use a valid regular expression suffix.
+Note:
+  * Pattern matching and suffixes are done by regular expression matching so make sure to use a valid regular expression suffix.
 
+  * Go doesn't have a negative lookahead mechanism ie `exclude all but` which would
+    normally be achieved in other languages or regex engines by "?!". See https://groups.google.com/forum/#!topic/golang-nuts/7qgSDWPIh_E.
+    This was reported and requested in [issue #535](https://github.com/odeke-em/drive/issues/535).
+    A use case might be ignoring all but say .bashrc files or .dotfiles.
+    To enable this, prefix "!" at the beginning of the path to achieve this behavior.
+
+
+###### Sample .driveignore with the include and exclude clauses combined.
+```shell
+$ cat << $ >> .driveignore
+> ^\.
+> !^\.bashrc # .bashrc files won't be ignored
+> _export$ # _export files are to be ignored
+> !must_export$ # the exception to the clause anything with "must_export"$ won't be ignored
+```
 
 ### DriveRC
 

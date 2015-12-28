@@ -151,7 +151,7 @@ func TestRetryableErrorCheck(t *testing.T) {
 			value: &tuple{
 				first: "",
 				last: &googleapi.Error{
-					Code: 500,
+					Code:    500,
 					Message: "This is an error",
 				},
 			},
@@ -160,9 +160,9 @@ func TestRetryableErrorCheck(t *testing.T) {
 		},
 		{
 			value: &tuple{
-				first: nil, 
+				first: nil,
 				last: &googleapi.Error{
-					Code: 401,
+					Code:    401,
 					Message: "401 right here",
 				},
 			},
@@ -171,9 +171,9 @@ func TestRetryableErrorCheck(t *testing.T) {
 		},
 		{
 			value: &tuple{
-				first: nil, 
+				first: nil,
 				last: &googleapi.Error{
-					Code: 409,
+					Code:    409,
 					Message: "409 right here",
 				},
 			},
@@ -182,9 +182,9 @@ func TestRetryableErrorCheck(t *testing.T) {
 		},
 		{
 			value: &tuple{
-				first: nil, 
+				first: nil,
 				last: &googleapi.Error{
-					Code: 403,
+					Code:    403,
 					Message: "403 right here",
 				},
 			},
@@ -193,9 +193,9 @@ func TestRetryableErrorCheck(t *testing.T) {
 		},
 		{
 			value: &tuple{
-				first: nil, 
+				first: nil,
 				last: &googleapi.Error{
-					Code: 500,
+					Code:    500,
 					Message: MsgErrFileNotMutable,
 				},
 			},
@@ -204,9 +204,9 @@ func TestRetryableErrorCheck(t *testing.T) {
 		},
 		{
 			value: &tuple{
-				first: nil, 
+				first: nil,
 				last: &googleapi.Error{
-					Code: 500,
+					Code:    500,
 					Message: strings.ToLower(MsgErrFileNotMutable),
 				},
 			},
@@ -215,9 +215,9 @@ func TestRetryableErrorCheck(t *testing.T) {
 		},
 		{
 			value: &tuple{
-				first: nil, 
+				first: nil,
 				last: &googleapi.Error{
-					Code: 501,
+					Code:    501,
 					Message: strings.ToUpper(MsgErrFileNotMutable),
 				},
 			},
