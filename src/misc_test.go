@@ -353,3 +353,111 @@ func TestReadFile(t *testing.T) {
 		t.Errorf("%q should have been ignored as a comment", comment)
 	}
 }
+
+func TestCustomQuote(t *testing.T) {
+	// https://github.com/golang/go/issues/11511
+	// https://github.com/odeke-em/drive/issues/250
+
+	testCases := []struct {
+		sample, want string
+	}{
+		{
+			sample: "", want: "\"\"",
+		},
+		{
+			sample: "全角スペース　含みます/", want: "\"全角スペース　含みます/\"",
+		},
+		{
+			sample: "this is a test", want: "\"this is a test\"",
+		},
+		{
+			sample: "this ' is a test", want: "\"this ' is a test\"",
+		},
+		{
+			sample: "全角スペース\"　含みます/", want: "\"全角スペース\\\"　含みます/\"",
+		},
+		{
+			sample: "久聞大名  久聞大名", want: "\"久聞大名  久聞大名\"",
+		},
+		{
+			sample: "Go: для начинающих и профессионалов (18:30)", want: "\"Go: для начинающих и профессионалов (18:30)\"",
+		},
+		{
+			sample: "Go:\\ для начинающих и профессионалов (18:30)", want: "\"Go:\\\\ для начинающих и профессионалов (18:30)\"",
+		},
+	}
+
+	for _, tc := range testCases {
+		got := customQuote(tc.sample)
+		if got != tc.want {
+			t.Errorf("given sample: %v, wanted %v, got %v", tc.sample, tc.want, got)
+		}
+	}
+}
+
+func TestHttpOk(t *testing.T) {
+	testCases := []struct {
+		sample int
+		want   bool
+	}{
+		{sample: 200, want: true},
+		{sample: 201, want: true},
+		{sample: 210, want: true},
+		{sample: 290, want: true},
+		{sample: 299, want: true},
+		{sample: -200, want: false},
+		{sample: -200000000000, want: false},
+		{sample: 300, want: false},
+		{sample: 403, want: false},
+		{sample: 500, want: false},
+		{sample: 100, want: false},
+		{sample: 0, want: false},
+		{sample: -1, want: false},
+	}
+
+	for _, tc := range testCases {
+		if got, want := httpOk(tc.sample), tc.want; got != want {
+			t.Errorf("given sample %v, expected %v instead got %v", tc.sample, want, got)
+		}
+	}
+}
+
+func TestCrudToAtoi(t *testing.T) {
+	testCases := []struct {
+		specimen []string
+		want     CrudValue
+		comment  string
+	}{
+		{
+			specimen: []string{"create", "delete", "update", "read"},
+			want:     Create | Delete | Update | Read,
+		},
+		{
+			specimen: []string{"c", "r", "u", "d`"},
+			want:     Create | Read | Update | Delete,
+			comment:  "short forms being used",
+		},
+		{
+			specimen: []string{"trim", "create", "update", "bank`"},
+			want:     Create | Update,
+		},
+		{
+			specimen: []string{"interfere", "extrict", "influence", "bank`"},
+			want:     None,
+		},
+		{
+			specimen: []string{"", "", "", "ReAd"},
+			want:     Read,
+		},
+		{
+			specimen: []string{"", "", "", ""},
+			want:     None,
+		},
+	}
+
+	for _, tc := range testCases {
+		if got, want := CrudAtoi(tc.specimen...), tc.want; got != want {
+			t.Errorf("given specimen %v, expected %q instead got %q", tc.specimen, want, got)
+		}
+	}
+}
