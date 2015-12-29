@@ -17,12 +17,18 @@ package drive
 import (
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"google.golang.org/api/googleapi"
 )
+
+func callerFilepath() string {
+	_, p, _, _ := runtime.Caller(1)
+	return p
+}
 
 func TestRemoteOpToChangerTranslator(t *testing.T) {
 	g := &Commands{}
@@ -234,5 +240,116 @@ func TestRetryableErrorCheck(t *testing.T) {
 		if retryable != tc.retryable {
 			t.Errorf("%v retryable got %v expected %v: %q", tc.value, retryable, tc.retryable, tc.comment)
 		}
+	}
+}
+
+func TestDriveIgnore(t *testing.T) {
+	testCases := []struct {
+		clauses          []string
+		mustErr          bool
+		nilIgnorer       bool
+		excludesExpected []string
+		includesExpected []string
+		comment          string
+		mustBeIgnored    []string
+		mustNotBeIgnored []string
+	}{
+		{clauses: []string{}, nilIgnorer: true, comment: "no clauses in"},
+		{
+			clauses: []string{"#this is a comment"}, nilIgnorer: false,
+			comment: "plain commented file",
+		},
+		{
+			comment:          "intentionally unescaped '.'",
+			clauses:          []string{".git", ".docx$"},
+			mustBeIgnored:    []string{"bgits", "frogdocx"},
+			mustNotBeIgnored: []string{"", "  ", "frogdocxs"},
+		},
+		{
+			comment:          "entirely commented, so all clauses should be skipped",
+			clauses:          []string{"^#"},
+			mustBeIgnored:    []string{"#patch", "#   ", "#", "#Like this one", "#\\.git"},
+			mustNotBeIgnored: []string{"", "  ", "src/misc_test.go"},
+		},
+		{
+			comment:       "strictly escaped '.'",
+			clauses:       []string{"\\.git", "\\.docx$"},
+			mustBeIgnored: []string{".git", "drive.docx", ".docx"},
+			mustNotBeIgnored: []string{
+				"", "  ", "frogdocxs", "digit", "drive.docxs",
+				"drive.docxx", "drive.", ".drive", ".docx ",
+			},
+		},
+		{
+			comment:       "strictly escaped '.'",
+			clauses:       []string{"^\\.", "#!\\.driveignore"},
+			mustBeIgnored: []string{".git", ".driveignore", ".bashrc"},
+			mustNotBeIgnored: []string{
+				"", "  ", "frogdocxs", "digit", "drive.docxs",
+				"drive.docxx", "drive.", " .drive", "a.docx ",
+			},
+		},
+		{
+			comment:       "include vs exclude issue #535",
+			clauses:       []string{"\\.", "!^\\.docx$", "!\\.bashrc", "#!\\.driveignore"},
+			mustBeIgnored: []string{".git", "drive.docx", ".docx ", ".driveignore"},
+			mustNotBeIgnored: []string{
+				".docx", ".bashrc",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		ignorer, err := ignorerByClause(tc.clauses...)
+		if tc.mustErr {
+			if err == nil {
+				t.Fatalf("expected to err with clause %v comment %q", tc.clauses, tc.comment)
+			}
+		} else if err != nil {
+			t.Fatalf("%v should not err. Got %v", tc.clauses, err)
+		}
+
+		if tc.nilIgnorer {
+			if ignorer != nil {
+				t.Fatalf("ignorer for (%v)(%q) expected to be nil, got %p", tc.clauses, tc.comment, ignorer)
+			}
+		} else if ignorer == nil {
+			t.Fatalf("ignorer not expected to be nil for (%v) %q", tc.clauses, tc.comment)
+		}
+
+		if !tc.nilIgnorer && ignorer != nil {
+			for _, expectedPass := range tc.mustBeIgnored {
+				if !ignorer(expectedPass) {
+					t.Errorf("%q: %q must be ignored", tc.comment, expectedPass)
+				}
+			}
+
+			for _, expectedFail := range tc.mustNotBeIgnored {
+				if ignorer(expectedFail) {
+					t.Errorf("%q: %q must not be ignored", tc.comment, expectedFail)
+				}
+			}
+		}
+	}
+}
+
+func TestReadFile(t *testing.T) {
+	ownFilepath := callerFilepath()
+	comment := `
+// A comment right here intentionally put that will self read and consumed.
++  A follow up right here and now.
+`
+	clauses, err := readCommentedFile(ownFilepath, "//")
+	if err != nil {
+		t.Fatalf("%q is currently being run and should be read successfully, instead got err %v", ownFilepath, err)
+	}
+
+	if len(clauses) < 1 {
+		t.Errorf("expecting at least one line in this file %q", ownFilepath)
+	}
+
+	restitched := strings.Join(clauses, "\n")
+	if strings.Index(restitched, comment) != -1 {
+		t.Errorf("%q should have been ignored as a comment", comment)
 	}
 }
