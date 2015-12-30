@@ -918,11 +918,13 @@ func (r *Remote) About() (about *drive.About, err error) {
 }
 
 func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) chan *File {
-
 	chanOChan := make(chan chan *File)
+
+	resolvedResults := make(chan *File)
 
 	go func() {
 		defer close(chanOChan)
+
 		if len(p) < 1 {
 			return
 		}
@@ -939,9 +941,10 @@ func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) c
 			expr = fmt.Sprintf("%s in parents and title = %s and trashed=false",
 				customQuote(parentId), customQuote(head))
 		}
-		req.Q(expr)
 
+		req.Q(expr)
 		resultsChan := _reqDoPage(req, true, false, true)
+
 		if len(rest) < 1 {
 			chanOChan <- resultsChan
 			return
@@ -959,14 +962,13 @@ func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) c
 		*/
 		for f := range resultsChan {
 			if f == nil {
+				resolvedResults <- f
 				continue
 			}
 
-			chanOChan <- r.findByPathRecvRawM(f.Id, p[1:], trashed)
+			chanOChan <- r.findByPathRecvRawM(f.Id, rest, trashed)
 		}
 	}()
-
-	resolvedResults := make(chan *File)
 
 	go func() {
 		defer close(resolvedResults)
