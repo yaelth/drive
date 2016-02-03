@@ -269,6 +269,7 @@ $ drive pull --starred --all # Pull all the starred files that aren't in the tra
 $ drive pull --starred --all --trashed # Pull all the starred files in the trash
 ```
 
+Like most commands [.driveignore](#driveignore) can be used to filter which files to pull.
 
 ## Note: Checksum verification:
 
@@ -346,6 +347,8 @@ drive also supports pushing content piped from stdin which can be accomplished b
 ```shell
 $ drive push -piped path
 ```
+
+Like most commands [.driveignore](#driveignore) can be used to filter which files to push.
 
 Here is an example using drive to backup the current working directory. It pushes a tar.gz archive created on the fly. No archive file is made on the machine running the command, so it doesn't waste disk space.
 
