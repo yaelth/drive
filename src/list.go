@@ -310,7 +310,7 @@ func (f *File) pretty(logy *log.Logger, opt attribute) {
 	}
 
 	if opt.minimal {
-		logy.Logf("%s ", fmtdPath)
+		logy.Logf("%s", fmtdPath)
 	} else {
 		if f.IsDir {
 			logy.Logf("d")
@@ -337,7 +337,7 @@ func (f *File) pretty(logy *log.Logger, opt attribute) {
 	}
 
 	if !opt.minimal {
-		logy.Logf(" %-10s\t%-10s\t\t%-20s\t%-50s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
+		logy.Logf(" %-10s\t%-10s\t\t%-20s\t%-s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
 	} else {
 		logy.Logln()
 	}
