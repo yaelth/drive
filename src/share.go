@@ -302,7 +302,7 @@ func (c *Commands) playShareChanges(change *shareChange) (err error) {
 	}
 
 	if successes < 1 {
-		return fmt.Errorf("no matches found!")
+		return noMatchesFoundErr(fmt.Errorf("no matches found!"))
 	}
 
 	return err

@@ -94,7 +94,7 @@ func (g *Commands) EmptyTrash() error {
 func (g *Commands) trasher(relToRoot string, opt *trashOpt) (*Change, error) {
 	var file *File
 	if relToRoot == "/" && opt.toTrash {
-		return nil, fmt.Errorf("Will not try to trash root.")
+		return nil, immutableAttemptErr(fmt.Errorf("Will not try to trash root."))
 	}
 	resolver := g.rem.FindByPathTrashed
 	if opt.byId {
@@ -111,7 +111,7 @@ func (g *Commands) trasher(relToRoot string, opt *trashOpt) (*Change, error) {
 	if opt.byId {
 		if file.Labels != nil {
 			if file.Labels.Trashed == opt.toTrash {
-				return nil, fmt.Errorf("toTrash=%v set yet already file.Trash=%v", opt.toTrash, file.Labels.Trashed)
+				return nil, illogicalStateErr(fmt.Errorf("toTrash=%v set yet already file.Trash=%v", opt.toTrash, file.Labels.Trashed))
 			}
 		}
 		relToRoot = fmt.Sprintf("%s (%s)", relToRoot, file.Name)
@@ -158,7 +158,7 @@ func (g *Commands) trashByMatch(inTrash, permanent bool) error {
 	}
 
 	if len(cl) < 1 {
-		return fmt.Errorf("no matches found!")
+		return noMatchesFoundErr(fmt.Errorf("no matches found!"))
 	}
 
 	clArg := changeListArg{

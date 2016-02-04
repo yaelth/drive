@@ -99,7 +99,7 @@ func (g *Commands) Push() (err error) {
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl, true)
 	if conflictsPtr != nil {
 		warnConflictsPersist(g.log, *conflictsPtr)
-		return fmt.Errorf("conflicts have prevented a push operation")
+		return unresolvedConflictsErr(fmt.Errorf("conflicts have prevented a push operation"))
 	}
 
 	nonConflicts := *nonConflictsPtr
@@ -127,7 +127,7 @@ func (g *Commands) Push() (err error) {
 	if unSafe {
 		unSafeQuotaMsg := fmt.Sprintf("projected size: (%d) %s\n", pushSize, prettyBytes(pushSize))
 		if !g.opts.canPrompt() {
-			return fmt.Errorf("quota: noPrompt is set yet for quota %s", unSafeQuotaMsg)
+			return cannotPromptErr(fmt.Errorf("quota: noPrompt is set yet for quota %s", unSafeQuotaMsg))
 		}
 
 		g.log.LogErrf(" %s", unSafeQuotaMsg)
@@ -181,11 +181,11 @@ func (g *Commands) PushPiped() (err error) {
 			return resErr
 		}
 		if rem != nil && !g.opts.Force {
-			return fmt.Errorf("%s already exists remotely, use `%s` to override this behaviour.\n", relToRootPath, ForceKey)
+			return overwriteAttemptedErr(fmt.Errorf("%s already exists remotely, use `%s` to override this behaviour.\n", relToRootPath, ForceKey))
 		}
 
 		if hasExportLinks(rem) {
-			return fmt.Errorf("'%s' is a GoogleDoc/Sheet document cannot be pushed to raw.\n", relToRootPath)
+			return googleDocNonExportErr(fmt.Errorf("'%s' is a GoogleDoc/Sheet document cannot be pushed to raw.\n", relToRootPath))
 		}
 
 		base := filepath.Base(relToRootPath)
@@ -355,13 +355,13 @@ func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change,
 		cl = append(cl, ccl...)
 		clashes = append(clashes, cclashes...)
 		if cErr != nil {
-			err = reComposeError(err, cErr.Error())
+			err = combineErrors(err, cErr)
 		}
 	}
 
 	if iterCount > noClashThreshold && len(clashes) < 1 {
 		clashes = append(clashes, cl...)
-		err = reComposeError(err, ErrClashesDetected.Error())
+		err = combineErrors(err, ErrClashesDetected)
 	}
 
 	return
@@ -383,7 +383,7 @@ func (g *Commands) parentPather(absPath string) string {
 
 func (g *Commands) remoteMod(change *Change) (err error) {
 	if change.Dest == nil && change.Src == nil {
-		err = fmt.Errorf("bug on: both dest and src cannot be nil")
+		err = illogicalStateErr(fmt.Errorf("bug on: both dest and src cannot be nil"))
 		g.log.LogErrln(err)
 		return err
 	}

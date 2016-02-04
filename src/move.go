@@ -28,7 +28,7 @@ type moveOpt struct {
 func (g *Commands) Move(byId bool) error {
 	argc := len(g.opts.Sources)
 	if argc < 2 {
-		return fmt.Errorf("move: expected <src> [src...] <dest>, instead got: %v", g.opts.Sources)
+		return invalidArgumentsErr(fmt.Errorf("move: expected <src> [src...] <dest>, instead got: %v", g.opts.Sources))
 	}
 
 	rest, dest := g.opts.Sources[:argc-1], g.opts.Sources[argc-1]
@@ -40,7 +40,7 @@ func (g *Commands) Move(byId bool) error {
 
 		// Trying to nest a parent into its child
 		if prefix == src {
-			return fmt.Errorf("%s cannot be nested into %s", src, dest)
+			return illogicalStateErr(fmt.Errorf("%s cannot be nested into %s", src, dest))
 		}
 
 		opt := moveOpt{
@@ -67,19 +67,19 @@ func (g *Commands) move(opt *moveOpt) (err error) {
 	}
 
 	if remSrc, err = srcResolver(opt.src); err != nil {
-		return fmt.Errorf("src('%s') %v", opt.src, err)
+		return makeErrorWithStatus(fmt.Sprintf("src('%s')", opt.src), err, StatusRemoteLookupFailed)
 	}
 
 	if remSrc == nil {
-		return fmt.Errorf("src: '%s' could not be found", opt.src)
+		return nonExistantRemoteErr(fmt.Errorf("src: '%s' could not be found", opt.src))
 	}
 
 	if newParent, err = g.rem.FindByPath(opt.dest); err != nil {
-		return fmt.Errorf("dest: '%s' %v", opt.dest, err)
+		return remoteLookupErr(fmt.Errorf("dest: '%s' %v", opt.dest, err))
 	}
 
 	if newParent == nil || !newParent.IsDir {
-		return fmt.Errorf("dest: '%s' must be an existent folder", opt.dest)
+		return illogicalStateErr(fmt.Errorf("dest: '%s' must be an existent folder", opt.dest))
 	}
 
 	if !opt.byId {
@@ -91,8 +91,8 @@ func (g *Commands) move(opt *moveOpt) (err error) {
 
 		// TODO: If oldParent is not found, retry since it may have been moved temporarily at least
 		if oldParent != nil && oldParent.Id == newParent.Id {
-			return fmt.Errorf("src and dest are the same srcParentId %s destParentId %s",
-				customQuote(oldParent.Id), customQuote(newParent.Id))
+			return illogicalStateErr(fmt.Errorf("src and dest are the same srcParentId %s destParentId %s",
+				customQuote(oldParent.Id), customQuote(newParent.Id)))
 		}
 	}
 
@@ -107,16 +107,16 @@ func (g *Commands) move(opt *moveOpt) (err error) {
 
 	if dupCheck != nil {
 		if dupCheck.Id == remSrc.Id { // Trying to move to self
-			return fmt.Errorf("move: trying to move fileId:%s to self fileId:%s", customQuote(dupCheck.Id), customQuote(remSrc.Id))
+			return illogicalStateErr(fmt.Errorf("move: trying to move fileId:%s to self fileId:%s", customQuote(dupCheck.Id), customQuote(remSrc.Id)))
 		}
 		if !g.opts.Force {
-			return fmt.Errorf("%s already exists. Use `%s` flag to override this behaviour", newFullPath, ForceKey)
+			return overwriteAttemptedErr(fmt.Errorf("%s already exists. Use `%s` flag to override this behaviour", newFullPath, ForceKey))
 		}
 	}
 
 	// Avoid self-nesting
 	if remSrc.Id == newParent.Id {
-		return fmt.Errorf("move: cannot move '%s' to itself", opt.src)
+		return illogicalStateErr(fmt.Errorf("move: cannot move '%s' to itself", opt.src))
 	}
 
 	if err = g.rem.insertParent(remSrc.Id, newParent.Id); err != nil {
@@ -136,14 +136,14 @@ func (g *Commands) removeParent(fileId, relToRootPath string) error {
 		return pErr
 	}
 	if parent == nil {
-		return fmt.Errorf("non existent parent '%s' for src", parentPath)
+		return illogicalStateErr(fmt.Errorf("non existent parent '%s' for src", parentPath))
 	}
 	return g.rem.removeParent(fileId, parent.Id)
 }
 
 func (g *Commands) Rename(byId bool) error {
 	if len(g.opts.Sources) < 2 {
-		return fmt.Errorf("rename: expecting <src> <newname>")
+		return invalidArgumentsErr(fmt.Errorf("rename: expecting <src> <newname>"))
 	}
 
 	src := g.opts.Sources[0]
@@ -156,7 +156,7 @@ func (g *Commands) Rename(byId bool) error {
 		return fmt.Errorf("%s: %v", src, err)
 	}
 	if remSrc == nil {
-		return fmt.Errorf("%s does not exist", src)
+		return illogicalStateErr(fmt.Errorf("%s does not exist", src))
 	}
 
 	var parentPath string
@@ -178,7 +178,7 @@ func (g *Commands) Rename(byId bool) error {
 			return nil
 		}
 		if !g.opts.Force {
-			return fmt.Errorf("%s already exists. Use `%s` flag to override this behaviour", newFullPath, ForceKey)
+			return overwriteAttemptedErr(fmt.Errorf("%s already exists. Use `%s` flag to override this behaviour", newFullPath, ForceKey))
 		}
 	}
 

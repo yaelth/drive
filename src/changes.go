@@ -105,7 +105,7 @@ func (g *Commands) resolveToLocalFile(relToRoot string, fsPaths ...string) (loca
 	checks := append([]string{relToRoot}, fsPaths...)
 
 	if anyMatch(g.opts.Ignorer, checks...) {
-		err = fmt.Errorf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
+		err = illogicalStateErr(fmt.Errorf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey))
 		return
 	}
 
@@ -117,7 +117,7 @@ func (g *Commands) resolveToLocalFile(relToRoot string, fsPaths ...string) (loca
 			return
 		} else if localInfo != nil {
 			if namedPipe(localInfo.Mode()) {
-				err = fmt.Errorf("%s (%s) is a named pipe, yet not reading from it", relToRoot, fsPath)
+				err = namedPipeReadAttemptErr(fmt.Errorf("%s (%s) is a named pipe, yet not reading from it", relToRoot, fsPath))
 				return
 			}
 
@@ -158,7 +158,7 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, c
 		cl = append(cl, ccl...)
 		clashes = append(clashes, cclashes...)
 		if cErr != nil {
-			err = reComposeError(err, cErr.Error())
+			err = combineErrors(err, cErr)
 		}
 	}
 
@@ -172,8 +172,8 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, c
 
 func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, push bool) (cl, clashes []*Change, err error) {
 	if l == nil && r == nil {
-		err = fmt.Errorf("'%s' aka '%s' doesn't exist locally nor remotely",
-			relToRoot, fsPath)
+		err = illogicalStateErr(fmt.Errorf("'%s' aka '%s' doesn't exist locally nor remotely",
+			relToRoot, fsPath))
 		return
 	}
 

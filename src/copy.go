@@ -30,7 +30,7 @@ type copyArgs struct {
 func (g *Commands) Copy(byId bool) error {
 	argc := len(g.opts.Sources)
 	if argc < 2 {
-		return fmt.Errorf("expecting src [src1....] dest got: %v", g.opts.Sources)
+		return invalidArgumentsErr(fmt.Errorf("expecting src [src1....] dest got: %v", g.opts.Sources))
 	}
 
 	g.log.Logln("Processing...")
@@ -44,13 +44,13 @@ func (g *Commands) Copy(byId bool) error {
 
 	destFile, err := g.rem.FindByPath(dest)
 	if err != nil && err != ErrPathNotExists {
-		return fmt.Errorf("destination: %s err: %v", dest, err)
+		return remoteLookupErr(fmt.Errorf("destination: %s err: %v", dest, err))
 	}
 
 	multiPaths := len(sources) > 1
 	if multiPaths {
 		if destFile != nil && !destFile.IsDir {
-			return fmt.Errorf("%s: %v", dest, ErrPathNotDir)
+			return illogicalStateErr(fmt.Errorf("%s: %v", dest, ErrPathNotDir))
 		}
 		_, err := g.remoteMkdirAll(dest)
 		if err != nil {
@@ -93,12 +93,12 @@ func (g *Commands) Copy(byId bool) error {
 
 func (g *Commands) copy(src *File, destPath string) (*File, error) {
 	if src == nil {
-		return nil, fmt.Errorf("non existent src")
+		return nil, illogicalStateErr(fmt.Errorf("non existent src"))
 	}
 
 	if !src.IsDir {
 		if !src.Copyable {
-			return nil, fmt.Errorf("%s is non-copyable", src.Name)
+			return nil, illogicalStateErr(fmt.Errorf("%s is non-copyable", src.Name))
 		}
 
 		destDir, destBase := g.pathSplitter(destPath)

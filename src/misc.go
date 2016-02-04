@@ -644,7 +644,7 @@ func ignorerByClause(clauses ...string) (ignorer func(string) bool, err error) {
 	if len(excludes) >= 1 {
 		excRegComp, excRegErr := regexp.Compile(strings.Join(excludes, "|"))
 		if excRegErr != nil {
-			err = reComposeError(err, fmt.Sprintf("excludeIgnoreRegErr: %v", excRegErr.Error()))
+			err = combineErrors(err, makeErrorWithStatus("excludeIgnoreRegErr", excRegErr, StatusIllogicalState))
 			return
 		}
 		excludesRegComp = excRegComp
@@ -653,7 +653,7 @@ func ignorerByClause(clauses ...string) (ignorer func(string) bool, err error) {
 	if len(includes) >= 1 {
 		incRegComp, incRegErr := regexp.Compile(strings.Join(includes, "|"))
 		if incRegErr != nil {
-			err = reComposeError(err, fmt.Sprintf("includeIgnoreRegErr: %v", incRegErr.Error()))
+			err = combineErrors(err, makeErrorWithStatus("includeIgnoreRegErr", incRegErr, StatusIllogicalState))
 			return
 		}
 		includesComp = incRegComp
@@ -774,6 +774,23 @@ func newExpirableCacheValue(v interface{}) *expirableCache.ExpirableValue {
 	return expirableCache.NewExpirableValueWithOffset(v, uint64(time.Hour))
 }
 
+func combineErrors(prevErr, supplementaryErr error) error {
+	if prevErr == nil && supplementaryErr == nil {
+		return nil
+	}
+
+	if supplementaryErr == nil {
+		return prevErr
+	}
+
+	newErr := reComposeError(prevErr, supplementaryErr.Error())
+	if codedErr, ok := supplementaryErr.(*Error); ok {
+		return makeError(newErr, ErrorStatus(codedErr.Code()))
+	}
+
+	return newErr
+}
+
 func reComposeError(prevErr error, messages ...string) error {
 	if len(messages) < 1 {
 		return prevErr
@@ -792,7 +809,13 @@ func reComposeError(prevErr error, messages ...string) error {
 		joinedMessage = fmt.Sprintf("%v\n%s", prevErr, joinedMessage)
 	}
 
-	return errors.New(joinedMessage)
+	err := errors.New(joinedMessage)
+	codedErr, hasCode := prevErr.(*Error)
+	if !hasCode {
+		return err
+	}
+
+	return makeError(err, ErrorStatus(codedErr.Code()))
 }
 
 func CopyOptionsFromKeysIfNotSet(fromPtr, toPtr *Options, alreadySetKeys map[string]bool) {
