@@ -116,7 +116,7 @@ const (
 	ReportIssueKey        = "report-issue"
 	IssueTitleKey         = "title"
 	IssueBodyKey          = "body"
-	SkipContentCheckKey     = "skip-content-check"
+	SkipContentCheckKey   = "skip-content-check"
 )
 
 const (

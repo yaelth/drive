@@ -546,8 +546,8 @@ var regExtStrMap = map[string]string{
 
 	// docs and docx should not collide if "docx?" is used so terminate with "$"
 	"docx?$": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	"ppt":    "application/vnd.ms-powerpoint",
-	"pptx":   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	"ppt$":   "application/vnd.ms-powerpoint",
+	"pptx$":  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 	"tsv":    "text/tab-separated-values",
 	"xlsx?":  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
