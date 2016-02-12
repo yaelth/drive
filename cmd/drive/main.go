@@ -1040,6 +1040,7 @@ type diffCmd struct {
 	Recursive         *bool `json:"recursive"`
 	Unified           *bool `json:"unified"`
 	BaseLocal         *bool `json:"base-local"`
+	SkipContentCheck  *bool `json:"skip-content-check"`
 }
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -1052,6 +1053,7 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Recursive = fs.Bool(drive.RecursiveKey, true, "recursively diff")
 	cmd.Unified = fs.Bool(drive.CLIOptionUnifiedShortKey, true, drive.DescUnifiedDiff)
 	cmd.BaseLocal = fs.Bool(drive.CLIOptionDiffBaseLocal, true, drive.DescDiffBaseLocal)
+	cmd.SkipContentCheck = fs.Bool(drive.SkipContentCheckKey, false, drive.DescSkipContentCheck)
 
 	return fs
 }
@@ -1062,6 +1064,14 @@ func (cmd *diffCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	mask := drive.DiffNone
 	if *cmd.Unified {
 		mask |= drive.DiffUnified
+	}
+
+	var metaPtr *map[string][]string
+	if *cmd.SkipContentCheck {
+		meta := map[string][]string{
+		    drive.SkipContentCheckKey: []string{drive.SkipContentCheckKey},
+		}
+		metaPtr = &meta
 	}
 
 	exitWithError(drive.New(context, &drive.Options{
@@ -1075,6 +1085,7 @@ func (cmd *diffCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Quiet:             *cmd.Quiet,
 		Depth:             *cmd.Depth,
 		BaseLocal:         *cmd.BaseLocal,
+		Meta:              metaPtr,
 		TypeMask:          mask,
 	}).Diff())
 }

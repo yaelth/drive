@@ -534,6 +534,11 @@ $ drive diff --base-local=true assignments photos # To use local as the base
 $ drive diff --base-local=false infocom photos # To use remote as the base
 ```
 
+You can only diff for short changes that is only name differences, file modTimes and types, you can use flag `--skip-content-check`.
+
+```shell
+$ drive diff --skip-content-check
+```
 
 ### Touching
 

@@ -41,7 +41,11 @@ type diffSt struct {
 	cwd          string
 	mask         int
 	printRuler   bool
-	// baseLocal when set uses local as the base otherwise remote is used as the base
+	// skipContentCheck when set prevents content
+	// diffing, but only time differences.
+	skipContentCheck bool
+	// baseLocal when set uses local as the base
+	// otherwise remote is used as the base.
 	baseLocal bool
 }
 
@@ -100,6 +104,12 @@ func (g *Commands) Diff() (err error) {
 		baseLocal:    g.opts.BaseLocal,
 	}
 
+	metaPtr := g.opts.Meta
+	if metaPtr != nil {
+		meta := *metaPtr
+		_, dst.skipContentCheck = meta[SkipContentCheckKey]
+	}
+
 	for _, c := range cl {
 		dst.change = c
 		dErr := g.perDiff(dst)
@@ -124,8 +134,11 @@ func (g *Commands) perDiff(dSt diffSt) (err error) {
 	if l == nil && r != nil {
 		return fmt.Errorf("%s only on remote", change.Path)
 	}
+
 	// Pre-screening phase
 	if r.IsDir && l.IsDir {
+		// Note that if they are both directories, comparing times is spurious
+		// see issues #304, #471, #477 and PR #478.
 		return fmt.Errorf("Both local and remote are directories")
 	}
 	if r.IsDir && !l.IsDir {
@@ -134,19 +147,6 @@ func (g *Commands) perDiff(dSt diffSt) (err error) {
 
 	if l.IsDir && !r.IsDir {
 		return fmt.Errorf("Local is a directory while remote is an ordinary file")
-	}
-
-	if r.BlobAt == "" {
-		return fmt.Errorf("Cannot access download link for '%v'", r.Name)
-	}
-
-	if r.Size > MaxFileSize {
-		return fmt.Errorf("%s Remote too large for display \033[94m[%v bytes]\033[00m",
-			change.Path, r.Size)
-	}
-	if l.Size > MaxFileSize {
-		return fmt.Errorf("%s Local too large for display \033[92m[%v bytes]\033[00m",
-			change.Path, l.Size)
 	}
 
 	mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
@@ -170,11 +170,34 @@ func (g *Commands) perDiff(dSt diffSt) (err error) {
 		}
 	}
 
+	if l.Name != r.Name {
+		g.log.Logf("%s %s\n%s\n\n", l.Name, r.Name, Ruler)
+	} else {
+		g.log.Logf("%s\n%s\n\n", l.Name, Ruler)
+	}
+
+	if dSt.skipContentCheck {
+		return
+	}
+
 	defer func() {
 		if dSt.printRuler {
 			g.log.Logf("\n%s\n", Ruler)
 		}
 	}()
+
+	if r.BlobAt == "" {
+		return fmt.Errorf("Cannot access download link for '%v'", r.Name)
+	}
+
+	if r.Size > MaxFileSize {
+		return fmt.Errorf("%s Remote too large for display \033[94m[%v bytes]\033[00m",
+			change.Path, r.Size)
+	}
+	if l.Size > MaxFileSize {
+		return fmt.Errorf("%s Local too large for display \033[92m[%v bytes]\033[00m",
+			change.Path, l.Size)
+	}
 
 	var frTmp, fl *os.File
 	var blob io.ReadCloser
@@ -210,12 +233,6 @@ func (g *Commands) perDiff(dSt diffSt) (err error) {
 	_, err = io.Copy(frTmp, blob)
 	if err != nil {
 		return
-	}
-
-	if l.Name != r.Name {
-		g.log.Logf("%s %s\n%s\n\n", l.Name, r.Name, Ruler)
-	} else {
-		g.log.Logf("%s\n%s\n\n", l.Name, Ruler)
 	}
 
 	diffArgs := []string{diffProgPath}

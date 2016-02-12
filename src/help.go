@@ -116,6 +116,7 @@ const (
 	ReportIssueKey        = "report-issue"
 	IssueTitleKey         = "title"
 	IssueBodyKey          = "body"
+	SkipContentCheckKey     = "skip-content-check"
 )
 
 const (
@@ -187,6 +188,7 @@ const (
 	DescIssueTitle         = "the title of the issue being filed"
 	DescReportIssue        = "report an issue to the project's issue tracker"
 	DescId                 = "retrieve the fileId for the specified paths"
+	DescSkipContentCheck   = "skip diffing actual body content, show only name, time, type changes"
 )
 
 const (
