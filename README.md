@@ -394,7 +394,7 @@ $ drive push -no-clobber
 $ drive push -force sure_of_content
 ```
 
-To pull without user input (i.e. without prompt)
+To push without user input (i.e. without prompt)
 ```shell
 $ drive push -quiet
 ```
