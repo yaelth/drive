@@ -438,7 +438,7 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 	for result := range results {
 		res, err := result.Value(), result.Err()
 		if err != nil {
-			g.log.LogErrf("push: %s err: %v\n", res, err)
+			g.log.LogErrf("pull: %s err: %v\n", res, err)
 		}
 	}
 
