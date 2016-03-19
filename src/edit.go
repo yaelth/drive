@@ -59,7 +59,7 @@ func (g *Commands) EditDescription(byId bool) (composedErr error) {
 	for kv := range kvChan {
 		file, ok := kv.value.(*File)
 		if !ok {
-			g.log.LogErrf("%s: %s\n", kv.key, kv.value)
+			composedErr = reComposeError(composedErr, fmt.Sprintf("%s: %s", kv.key, kv.value))
 			continue
 		}
 
@@ -79,5 +79,5 @@ func (g *Commands) EditDescription(byId bool) (composedErr error) {
 		}
 	}
 
-	return
+	return composedErr
 }
