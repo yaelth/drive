@@ -108,7 +108,7 @@ func findClashesForChildren(g *Commands, parentId, relToRootPath string, depth i
 			ccl, cErr := findClashesForChildren(g, rem.Id, fullRelToRootPath, decrementedDepth)
 			clashes = append(clashes, ccl...)
 			if cErr != nil {
-				err = reComposeError(err, cErr.Error())
+				err = combineErrors(err, cErr)
 			}
 		}
 	}
@@ -156,7 +156,7 @@ func findClashesByPath(g *Commands, relToRootPath string, depth int) (clashes []
 	for _, change := range cl {
 		ccl, cErr := findClashesForChildren(g, change.Src.Id, change.Path, decrementedDepth)
 		if cErr != nil {
-			err = reComposeError(err, cErr.Error())
+			err = combineErrors(err, cErr)
 		}
 
 		clashes = append(clashes, ccl...)
@@ -172,7 +172,7 @@ func listClashes(g *Commands, sources []string, byId bool) (clashes []*Change, e
 		clashes = append(clashes, cclashes...)
 
 		if cErr != nil {
-			err = reComposeError(err, cErr.Error())
+			err = combineErrors(err, cErr)
 		}
 	}
 

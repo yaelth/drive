@@ -191,7 +191,7 @@ func (g *Commands) List(byId bool) error {
 	for _, relPath := range g.opts.Sources {
 		r, rErr := resolver(relPath)
 		if rErr != nil && rErr != ErrPathNotExists {
-			return fmt.Errorf("%v: '%s'", rErr, relPath)
+			return illogicalStateErr(fmt.Errorf("%v: '%s'", rErr, relPath))
 		}
 
 		if r == nil {

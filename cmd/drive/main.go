@@ -1725,10 +1725,19 @@ func uniqOrderedStr(sources []string) []string {
 }
 
 func exitWithError(err error) {
-	if err != nil {
-		drive.FprintfShadow(os.Stderr, "%v\n", err)
-		os.Exit(1)
+	if err == nil {
+		return
 	}
+
+	msg := err.Error()
+	code := -1
+
+	if codedErr, ok := err.(*drive.Error); ok {
+		code = codedErr.Code()
+	}
+
+	drive.FprintfShadow(os.Stderr, "%s\n", msg)
+	os.Exit(code)
 }
 
 func relativePaths(root string, args ...string) ([]string, error) {

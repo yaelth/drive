@@ -71,7 +71,7 @@ func (g *Commands) Diff() (err error) {
 			if cErr != ErrClashesDetected {
 				return cErr
 			} else {
-				err = reComposeError(err, cErr.Error())
+				err = combineErrors(err, cErr)
 			}
 		}
 
@@ -126,27 +126,27 @@ func (g *Commands) perDiff(dSt diffSt) (err error) {
 
 	l, r := change.Src, change.Dest
 	if l == nil && r == nil {
-		return fmt.Errorf("Neither remote nor local exists")
+		return illogicalStateErr(fmt.Errorf("Neither remote nor local exists"))
 	}
 	if r == nil && l != nil {
-		return fmt.Errorf("%s only on local", change.Path)
+		return illogicalStateErr(fmt.Errorf("%s only on local", change.Path))
 	}
 	if l == nil && r != nil {
-		return fmt.Errorf("%s only on remote", change.Path)
+		return illogicalStateErr(fmt.Errorf("%s only on remote", change.Path))
 	}
 
 	// Pre-screening phase
 	if r.IsDir && l.IsDir {
 		// Note that if they are both directories, comparing times is spurious
 		// see issues #304, #471, #477 and PR #478.
-		return fmt.Errorf("Both local and remote are directories")
+		return illogicalStateErr(fmt.Errorf("Both local and remote are directories"))
 	}
 	if r.IsDir && !l.IsDir {
-		return fmt.Errorf("Remote is a directory while local is an ordinary file")
+		return illogicalStateErr(fmt.Errorf("Remote is a directory while local is an ordinary file"))
 	}
 
 	if l.IsDir && !r.IsDir {
-		return fmt.Errorf("Local is a directory while remote is an ordinary file")
+		return illogicalStateErr(fmt.Errorf("Local is a directory while remote is an ordinary file"))
 	}
 
 	mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
@@ -187,16 +187,16 @@ func (g *Commands) perDiff(dSt diffSt) (err error) {
 	}()
 
 	if r.BlobAt == "" {
-		return fmt.Errorf("Cannot access download link for '%v'", r.Name)
+		return illogicalStateErr(fmt.Errorf("Cannot access download link for '%v'", r.Name))
 	}
 
 	if r.Size > MaxFileSize {
-		return fmt.Errorf("%s Remote too large for display \033[94m[%v bytes]\033[00m",
-			change.Path, r.Size)
+		return contentTooLargeErr(fmt.Errorf("%s Remote too large for display \033[94m[%v bytes]\033[00m",
+			change.Path, r.Size))
 	}
 	if l.Size > MaxFileSize {
-		return fmt.Errorf("%s Local too large for display \033[92m[%v bytes]\033[00m",
-			change.Path, l.Size)
+		return contentTooLargeErr(fmt.Errorf("%s Local too large for display \033[92m[%v bytes]\033[00m",
+			change.Path, l.Size))
 	}
 
 	var frTmp, fl *os.File

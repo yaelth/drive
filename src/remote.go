@@ -15,7 +15,6 @@
 package drive
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -41,7 +40,7 @@ const (
 	RedirectURL = "urn:ietf:wg:oauth:2.0:oob"
 
 	// OAuth 2.0 full Drive scope used for authorization.
-	DriveScope = "https://www.googleapis.com/auth/drive"
+	DriveScope = "https://www.GoogleAPIs.com/auth/drive"
 
 	// OAuth 2.0 access type for offline/refresh access.
 	AccessType = "offline"
@@ -66,12 +65,12 @@ const (
 )
 
 var (
-	ErrPathNotExists   = errors.New("remote path doesn't exist")
-	ErrNetLookup       = errors.New("net lookup failed")
-	ErrClashesDetected = fmt.Errorf("clashes detected. Use `%s` to override this behavior or `%s` to try fixing this",
-		CLIOptionIgnoreNameClashes, CLIOptionFixClashesKey)
-	ErrClashFixingAborted             = fmt.Errorf("clash fixing aborted")
-	ErrGoogleApiInvalidQueryHardCoded = errors.New("googleapi: Error 400: Invalid query, invalid")
+	ErrPathNotExists   = nonExistantRemoteErr(fmt.Errorf("remote path doesn't exist"))
+	ErrNetLookup       = netLookupFailedErr(fmt.Errorf("net lookup failed"))
+	ErrClashesDetected = clashesDetectedErr(fmt.Errorf("clashes detected. Use `%s` to override this behavior or `%s` to try fixing this",
+		CLIOptionIgnoreNameClashes, CLIOptionFixClashesKey))
+	ErrClashFixingAborted             = clashFixingAbortedErr(fmt.Errorf("clash fixing aborted"))
+	ErrGoogleAPIInvalidQueryHardCoded = invalidGoogleAPIQueryErr(fmt.Errorf("GoogleAPI: Error 400: Invalid query, invalid"))
 )
 
 var (
@@ -80,7 +79,7 @@ var (
 )
 
 func errCannotMkdirAll(p string) error {
-	return fmt.Errorf("cannot mkdirAll: `%s`", p)
+	return mkdirFailedErr(fmt.Errorf("cannot mkdirAll: `%s`", p))
 }
 
 type Remote struct {
@@ -437,7 +436,7 @@ func (r *Remote) revokePermissions(p *permission) (err error) {
 	}
 
 	if successes < 1 {
-		err = fmt.Errorf("no matches found!")
+		err = noMatchesFoundErr(fmt.Errorf("no matches found!"))
 	}
 
 	return err
@@ -558,11 +557,11 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	resp, err := r.client.Get(url)
 	if err == nil {
 		if resp == nil {
-			err = fmt.Errorf("bug on: download for url \"%s\". resp and err are both nil", url)
+			err = illogicalStateErr(fmt.Errorf("bug on: download for url \"%s\". resp and err are both nil", url))
 		} else if httpOk(resp.StatusCode) { // TODO: Handle other statusCodes e.g redirects?
 			body = resp.Body
 		} else {
-			err = fmt.Errorf("download: failed for url \"%s\". StatusCode: %v", url, resp.StatusCode)
+			err = downloadFailedErr(fmt.Errorf("download: failed for url \"%s\". StatusCode: %v", url, resp.StatusCode))
 		}
 	}
 
@@ -789,7 +788,7 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	   //   + perform an assertion for fileStated.IsDir() == args.src.IsDir
 	*/
 	if args.src == nil {
-		err = fmt.Errorf("bug on: src cannot be nil")
+		err = illogicalStateErr(fmt.Errorf("bug on: src cannot be nil"))
 		return
 	}
 
@@ -953,7 +952,7 @@ func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) c
 		/*
 			files, err := req.Do()
 			if err != nil {
-			    if err.Error() == ErrGoogleApiInvalidQueryHardCoded.Error() { // Send the user back the query information
+			    if err.Error() == ErrGoogleAPIInvalidQueryHardCoded.Error() { // Send the user back the query information
 				err = fmt.Errorf("err: %v query: `%s`", err, expr)
 			    }
 
@@ -1003,8 +1002,8 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	files, err := req.Do()
 
 	if err != nil {
-		if err.Error() == ErrGoogleApiInvalidQueryHardCoded.Error() { // Send the user back the query information
-			err = fmt.Errorf("err: %v query: `%s`", err, expr)
+		if err.Error() == ErrGoogleAPIInvalidQueryHardCoded.Error() { // Send the user back the query information
+			err = invalidGoogleAPIQueryErr(fmt.Errorf("err: %v query: `%s`", err, expr))
 		}
 		return nil, err
 	}

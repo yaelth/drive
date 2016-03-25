@@ -112,7 +112,7 @@ func pull(g *Commands, pt pullType) error {
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl, false)
 	if conflictsPtr != nil {
 		warnConflictsPersist(g.log, *conflictsPtr)
-		return fmt.Errorf("conflicts have prevented a pull operation")
+		return unresolvedConflictsErr(fmt.Errorf("conflicts have prevented a pull operation"))
 	}
 
 	nonConflicts := *nonConflictsPtr
@@ -301,7 +301,7 @@ func (g *Commands) pullById() (cl, clashes []*Change, err error) {
 	for _, srcId := range g.opts.Sources {
 		rem, remErr := g.rem.FindById(srcId)
 		if remErr != nil {
-			return cl, clashes, fmt.Errorf("pullById: %s: %v", srcId, remErr)
+			return cl, clashes, makeErrorWithStatus(fmt.Sprintf("pullById: %s", srcId), remErr, StatusPullFailed)
 		}
 
 		if rem == nil {
@@ -345,7 +345,7 @@ func (g *Commands) pullByPath() (cl, clashes []*Change, err error) {
 			cl = append(cl, ccl...)
 		}
 		if cErr != nil && cErr != ErrClashesDetected {
-			err = reComposeError(err, cErr.Error())
+			err = combineErrors(err, cErr)
 		}
 	}
 
@@ -356,9 +356,12 @@ func (g *Commands) pullByPath() (cl, clashes []*Change, err error) {
 	return cl, clashes, err
 }
 
-func (g *Commands) pullAndDownload(relToRootPath string, fh io.Writer, rem *File, piped bool) (err error) {
+func (g *Commands) pullAndDownload(relToRootPath string, fh io.Writer, rem *File, piped bool) error {
 	if hasExportLinks(rem) {
-		return fmt.Errorf("'%s' is a GoogleDoc/Sheet document cannot be pulled from raw, only exported.\n", relToRootPath)
+		return googleDocNonExportErr(
+			fmt.Errorf("'%s' is a GoogleDoc/Sheet document cannot be pulled from raw, only exported.\n", relToRootPath),
+		)
+
 	}
 	blobHandle, dlErr := g.rem.Download(rem.Id, "")
 	if dlErr != nil {
@@ -368,9 +371,12 @@ func (g *Commands) pullAndDownload(relToRootPath string, fh io.Writer, rem *File
 		return nil
 	}
 
-	_, err = io.Copy(fh, blobHandle)
+	_, err := io.Copy(fh, blobHandle)
 	blobHandle.Close()
-	return
+	if err == nil {
+		return nil
+	}
+	return downloadFailedErr(err)
 }
 
 func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Operation]sizeCounter) (err error) {
@@ -664,7 +670,7 @@ func isLocalFile(f *File) bool {
 
 func (g *Commands) download(change *Change, exports []string) (err error) {
 	if change.Src == nil {
-		return fmt.Errorf("tried to download nil change.Src")
+		return illogicalStateErr(fmt.Errorf("tried to download nil change.Src"))
 	}
 
 	destAbsPath := g.context.AbsPathOf(change.Path)

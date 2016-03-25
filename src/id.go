@@ -50,7 +50,7 @@ func idPrintAndRecurse(g *Commands, parentId, relToRootPath string, depth int) (
 		childRelToRootPath := sepJoin(RemoteSeparator, separatorPrefix, child.Name)
 		cErr := idPrintAndRecurse(g, child.Id, childRelToRootPath, decrementedDepth)
 		if cErr != nil {
-			err = reComposeError(err, cErr.Error())
+			err = combineErrors(err, cErr)
 		}
 	}
 
@@ -78,7 +78,7 @@ func (g *Commands) Id() (err error) {
 			iterCount++
 			cErr := idPrintAndRecurse(g, rem.Id, relToRootPath, g.opts.Depth)
 			if cErr != nil {
-				err = reComposeError(err, cErr.Error())
+				err = combineErrors(err, cErr)
 			}
 		}
 
