@@ -40,7 +40,7 @@ const (
 	RedirectURL = "urn:ietf:wg:oauth:2.0:oob"
 
 	// OAuth 2.0 full Drive scope used for authorization.
-	DriveScope = "https://www.GoogleAPIs.com/auth/drive"
+	DriveScope = "https://www.googleapis.com/auth/drive"
 
 	// OAuth 2.0 access type for offline/refresh access.
 	AccessType = "offline"
