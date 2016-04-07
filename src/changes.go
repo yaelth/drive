@@ -178,10 +178,14 @@ func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, push b
 	}
 
 	dirname := path.Dir(relToRoot)
+	base := relToRoot
+	if relBase, err := filepath.Rel(g.context.AbsPathOf(""), fsPath); err == nil {
+		base = relBase
+	}
 
 	clr := &changeListResolve{
 		dir:    dirname,
-		base:   relToRoot,
+		base:   base,
 		local:  l,
 		push:   push,
 		remote: r,
@@ -352,8 +356,10 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 			ignore:  g.opts.Ignorer,
 		}
 
-		localChildren, err = list(&fslArg)
-		if err != nil {
+		var lErr error
+		localChildren, lErr = list(&fslArg)
+		if lErr != nil && !os.IsNotExist(lErr) {
+			err = lErr
 			return
 		}
 	}

@@ -189,6 +189,7 @@ const (
 	DescReportIssue        = "report an issue to the project's issue tracker"
 	DescId                 = "retrieve the fileId for the specified paths"
 	DescSkipContentCheck   = "skip diffing actual body content, show only name, time, type changes"
+	DescPushDestination    = "specify the final destination of the contents of an operation"
 )
 
 const (
@@ -228,6 +229,7 @@ const (
 	CLIOptionDiffBaseLocal      = "base-local"
 	CLIOptionFixClashes         = "fix"
 	CLIOptionListClashes        = "list"
+	CLIOptionPushDestination    = "destination"
 )
 
 const (

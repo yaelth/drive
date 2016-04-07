@@ -86,6 +86,10 @@ type Options struct {
 	// BaseLocal when set, during a diff uses the local file
 	// as the base otherwise remote is used as the base
 	BaseLocal bool
+	// Destination when set is the final logical location of the
+	// constituents of an operation for example a push or pull.
+	// See issue #612.
+	Destination string
 }
 
 type Commands struct {

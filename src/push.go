@@ -37,7 +37,6 @@ var mkdirAllMu = sync.Mutex{}
 func (g *Commands) Push() (err error) {
 	defer g.clearMountPoints()
 
-	root := g.context.AbsPathOf("")
 	var cl []*Change
 
 	g.log.Logln("Resolving...")
@@ -57,9 +56,17 @@ func (g *Commands) Push() (err error) {
 
 	clashes := []*Change{}
 
+	rootAbsPath := g.context.AbsPathOf("")
+	destAbsPath := g.context.AbsPathOf(g.opts.Destination)
+	remoteDestRelPath, err := filepath.Rel(rootAbsPath, destAbsPath)
+	if err != nil {
+		return err
+	}
 	for _, relToRootPath := range g.opts.Sources {
-		fsPath := g.context.AbsPathOf(relToRootPath)
-		ccl, cclashes, cErr := g.changeListResolve(relToRootPath, fsPath, true)
+		fsAbsPath := g.context.AbsPathOf(relToRootPath)
+		// Join this relative path to that of the remote relative path of the destination.
+		relToDestPath := remotePathJoin(remoteDestRelPath, relToRootPath)
+		ccl, cclashes, cErr := g.changeListResolve(relToDestPath, fsAbsPath, true)
 
 		clashes = append(clashes, cclashes...)
 		if cErr != nil && cErr != ErrClashesDetected {
@@ -87,7 +94,7 @@ func (g *Commands) Push() (err error) {
 	mount := g.opts.Mount
 	if mount != nil {
 		for _, mt := range mount.Points {
-			ccl, _, cerr := lonePush(g, root, mt.Name, mt.MountPath)
+			ccl, _, cerr := lonePush(g, rootAbsPath, mt.Name, mt.MountPath)
 			if cerr == nil {
 				cl = append(cl, ccl...)
 			}
@@ -315,9 +322,9 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 
 	results := semalim.Run(jobsChan, uint64(n))
 	for result := range results {
-		res, err := result.Value(), result.Err()
-		if err != nil {
-			g.log.LogErrf("push: %s err: %v\n", res, err)
+		res, resErr := result.Value(), result.Err()
+		if resErr != nil {
+			err = reComposeError(err, fmt.Sprintf("push: %s err: %v\n", res, resErr))
 		}
 	}
 

@@ -754,6 +754,7 @@ type pushCmd struct {
 	Verbose           *bool   `json:"verbose"`
 	Depth             *int    `json:"depth"`
 	FixClashes        *bool   `json:"fix-clashes"`
+	Destination       *string `json:"dest"`
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -776,28 +777,29 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
 	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 	cmd.FixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
+	cmd.Destination = fs.String(drive.CLIOptionPushDestination, "", drive.DescPushDestination)
 	return fs
 }
 
 func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	if *cmd.MountedPush {
-		cmd.pushMounted(args, definedFlags)
+		exitWithError(cmd.pushMounted(args, definedFlags))
+	}
+
+	sources, context, path := preprocessArgs(args)
+
+	options, err := cmd.createPushOptions(context.AbsPathOf(path), definedFlags)
+	if err != nil {
+		exitWithError(err)
+	}
+
+	options.Path = path
+	options.Sources = sources
+
+	if *cmd.Piped {
+		exitWithError(drive.New(context, options).PushPiped())
 	} else {
-		sources, context, path := preprocessArgs(args)
-
-		options, err := cmd.createPushOptions(context.AbsPathOf(path), definedFlags)
-		if err != nil {
-			exitWithError(err)
-		}
-
-		options.Path = path
-		options.Sources = sources
-
-		if *cmd.Piped {
-			exitWithError(drive.New(context, options).PushPiped())
-		} else {
-			exitWithError(drive.New(context, options).Push())
-		}
+		exitWithError(drive.New(context, options).Push())
 	}
 }
 
@@ -938,31 +940,29 @@ func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[str
 		Verbose:           *cmd.Verbose,
 		Depth:             *cmd.Depth,
 		FixClashes:        *cmd.FixClashes,
+		Destination:       *cmd.Destination,
 	}
 
 	return opts, nil
 }
 
-func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Flag) {
+func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Flag) error {
 	argc := len(args)
 
 	var err error
 	var contextArgs, rest, sources []string
 
-	if !*cmd.MountedPush {
-		contextArgs = args
-	} else {
-		// Expectation is that at least one path has to be passed in
-		if argc < 2 {
-			cwd, cerr := os.Getwd()
-			if cerr != nil {
-				contextArgs = []string{cwd}
-			}
-			rest = args
-		} else {
-			rest = args[:argc-1]
-			contextArgs = args[argc-1:]
+	// Expectation is that at least one path has to be passed in
+	if argc < 2 {
+		cwd, cerr := os.Getwd()
+		if cerr != nil {
+			contextArgs = append(contextArgs, cwd)
 		}
+		rest = args
+	} else {
+		endIndex := argc - 1
+		contextArgs = append(contextArgs, args[endIndex:]...)
+		rest = append(rest, args[:endIndex]...)
 	}
 
 	rest = drive.NonEmptyStrings(rest...)
@@ -989,7 +989,7 @@ func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Fla
 	options.Mount = mount
 	options.Sources = sources
 
-	exitWithError(drive.New(context, options).Push())
+	return drive.New(context, options).Push()
 }
 
 type aboutCmd struct {
@@ -1069,7 +1069,7 @@ func (cmd *diffCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	var metaPtr *map[string][]string
 	if *cmd.SkipContentCheck {
 		meta := map[string][]string{
-		    drive.SkipContentCheckKey: []string{drive.SkipContentCheckKey},
+			drive.SkipContentCheckKey: []string{drive.SkipContentCheckKey},
 		}
 		metaPtr = &meta
 	}

@@ -794,7 +794,15 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 
 	var body io.Reader
 	if !args.src.IsDir {
-		body, err = os.Open(args.fsAbsPath)
+		// In relation to issue #612, since we are not only resolving
+		// relative to the current working directory, we should try reading
+		// first from the source's original local fsAbsPath aka `BlobAt`
+		// because the resolved path might be different from the original path.
+		fsAbsPath := args.src.BlobAt
+		if fsAbsPath == "" {
+			fsAbsPath = args.fsAbsPath
+		}
+		body, err = os.Open(fsAbsPath)
 		if err != nil {
 			return
 		}

@@ -279,6 +279,13 @@ func sepJoinNonEmpty(sep string, args ...string) string {
 	return sepJoin(sep, nonEmpties...)
 }
 
+func remotePathJoin(segments ...string) string {
+	// Always ensure that the first segment is the remoteSeparator
+	segments = append([]string{RemoteSeparator}, segments...)
+	joins := sepJoinNonEmpty(RemoteSeparator, segments...)
+	return path.Clean(joins)
+}
+
 func isHidden(p string, ignore bool) bool {
 	if strings.HasPrefix(p, ".") {
 		return !ignore

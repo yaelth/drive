@@ -336,6 +336,17 @@ Like `pull`, you can run it without any arguments to push all of the files from 
 $ drive push --depth 1 head-folders
 ```
 
+You can also push multiple paths that are children of the root of the mounted drive to a destination,
+
+in relation to issue #612, using key `--destination`:
+
+For example to push the content of `music/Travi$+Future`, `integrals/complex/compilations` directly to `a1/b2/c3`:
+
+```shell
+$ drive push --destination a1/b2/c3 music/Travi$+Future integrals/complex/compilations
+```
+
+
 Note: To ignore checksum verification during a push:
 
 ```shell
