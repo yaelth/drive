@@ -279,11 +279,19 @@ func sepJoinNonEmpty(sep string, args ...string) string {
 	return sepJoin(sep, nonEmpties...)
 }
 
-func remotePathJoin(segments ...string) string {
-	// Always ensure that the first segment is the remoteSeparator
-	segments = append([]string{RemoteSeparator}, segments...)
-	joins := sepJoinNonEmpty(RemoteSeparator, segments...)
+func _centricPathJoin(sep string, segments ...string) string {
+	// Always ensure that the first segment is the separator
+	segments = append([]string{sep}, segments...)
+	joins := sepJoinNonEmpty(sep, segments...)
 	return path.Clean(joins)
+}
+
+func localPathJoin(segments ...string) string {
+	return _centricPathJoin(UnescapedPathSep, segments...)
+}
+
+func remotePathJoin(segments ...string) string {
+	return _centricPathJoin(RemoteSeparator, segments...)
 }
 
 func isHidden(p string, ignore bool) bool {

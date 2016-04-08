@@ -350,12 +350,12 @@ func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change,
 		}
 
 		clr := &changeListResolve{
-			push:   true,
-			dir:    parent,
-			base:   absPath,
-			remote: r,
-			local:  l,
-			depth:  g.opts.Depth,
+			remote:    r,
+			local:     l,
+			push:      true,
+			dir:       parent,
+			localBase: absPath,
+			depth:     g.opts.Depth,
 		}
 
 		ccl, cclashes, cErr := g.resolveChangeListRecv(clr)

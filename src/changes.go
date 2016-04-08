@@ -178,18 +178,24 @@ func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, push b
 	}
 
 	dirname := path.Dir(relToRoot)
-	base := relToRoot
+	remoteBase := relToRoot
+	localBase := relToRoot
 	if relBase, err := filepath.Rel(g.context.AbsPathOf(""), fsPath); err == nil {
-		base = relBase
+		localBase = relBase
 	}
 
+	// Issue #618. Ensure that any base is always direction-centric separator prefixed
+	localBase = localPathJoin(localBase)
+	remoteBase = remotePathJoin(remoteBase)
+
 	clr := &changeListResolve{
-		dir:    dirname,
-		base:   base,
-		local:  l,
-		push:   push,
-		remote: r,
-		depth:  g.opts.Depth,
+		dir:        dirname,
+		localBase:  localBase,
+		remoteBase: remoteBase,
+		local:      l,
+		push:       push,
+		remote:     r,
+		depth:      g.opts.Depth,
 	}
 
 	return g.resolveChangeListRecv(clr)
@@ -239,37 +245,36 @@ func (g *Commands) coercedMimeKey() (coerced string, ok bool) {
 }
 
 type changeListResolve struct {
-	dir    string
-	base   string
-	local  *File
-	remote *File
-	push   bool
-	depth  int
+	dir                   string
+	localBase, remoteBase string
+	local                 *File
+	remote                *File
+	push                  bool
+	depth                 int
 }
 
 type changeSliceArg struct {
-	clashesMap    map[int][]*Change
-	id            int
-	wg            *sync.WaitGroup
-	depth         int
-	push          bool
-	parent        string
-	dirList       []*dirList
-	changeListPtr *[]*Change
+	clashesMap                map[int][]*Change
+	id                        int
+	wg                        *sync.WaitGroup
+	depth                     int
+	push                      bool
+	localParent, remoteParent string
+	dirList                   []*dirList
+	changeListPtr             *[]*Change
 }
 
 func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []*Change, err error) {
 	l := clr.local
 	r := clr.remote
 	dir := clr.dir
-	base := clr.base
 
 	var change *Change
 
 	cl = make([]*Change, 0)
 	clashes = make([]*Change, 0)
 
-	matchChecks := []string{base}
+	matchChecks := []string{clr.localBase}
 
 	if l != nil {
 		matchChecks = append(matchChecks, l.Name)
@@ -291,7 +296,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 		if hasExportLinks(r) {
 			return cl, clashes, nil
 		}
-		change = &Change{Path: base, Src: l, Dest: r, Parent: dir, g: g}
+		change = &Change{Path: clr.remoteBase, Src: l, Dest: r, Parent: dir, g: g}
 	} else {
 		exportable := !g.opts.Force && hasExportLinks(r)
 		if exportable && !explicitlyRequested {
@@ -302,7 +307,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 				return cl, clashes, nil
 			}
 		}
-		change = &Change{Path: base, Src: r, Dest: l, Parent: dir, g: g}
+		change = &Change{Path: clr.remoteBase, Src: r, Dest: l, Parent: dir, g: g}
 	}
 
 	change.NoClobber = g.opts.NoClobber
@@ -349,7 +354,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 		close(localChildren)
 	} else {
 		fslArg := fsListingArg{
-			parent:  base,
+			parent:  clr.localBase,
 			context: g.context,
 			hidden:  g.opts.Hidden,
 			depth:   originalDepth, // local listing needs to start from original depth
@@ -374,12 +379,13 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 	dirlist, clashingFiles := merge(remoteChildren, localChildren, g.opts.IgnoreNameClashes)
 
 	if !g.opts.IgnoreNameClashes && len(clashingFiles) >= 1 {
-		if rootLike(base) {
-			base = ""
+		remoteBase := clr.remoteBase
+		if rootLike(remoteBase) {
+			remoteBase = ""
 		}
 
 		for _, dup := range clashingFiles {
-			clashes = append(clashes, &Change{Path: sepJoin("/", base, dup.Name), Src: dup, g: g})
+			clashes = append(clashes, &Change{Path: sepJoin("/", remoteBase, dup.Name), Src: dup, g: g})
 		}
 
 		// Ensure all clashes are retrieved and listed
@@ -416,7 +422,8 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 			wg:            &wg,
 			push:          clr.push,
 			dirList:       dirlist[i:end],
-			parent:        base,
+			remoteParent:  clr.remoteBase,
+			localParent:   clr.localBase,
 			depth:         remoteTraversalDepth,
 			changeListPtr: &cl,
 			clashesMap:    clashesMap,
@@ -441,7 +448,6 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 }
 
 func (g *Commands) changeSlice(cslArg *changeSliceArg) {
-	p := cslArg.parent
 	cl := cslArg.changeListPtr
 	id := cslArg.id
 	wg := cslArg.wg
@@ -452,20 +458,17 @@ func (g *Commands) changeSlice(cslArg *changeSliceArg) {
 	defer wg.Done()
 	for _, l := range dlist {
 		// Avoiding path.Join which normalizes '/+' to '/'
-		var joined string
-		if p == "/" {
-			joined = "/" + l.Name()
-		} else {
-			joined = sepJoin("/", p, l.Name())
-		}
+		localBase := remotePathJoin(cslArg.localParent, l.Name())
+		remoteBase := remotePathJoin(cslArg.remoteParent, l.Name())
 
 		clr := &changeListResolve{
-			push:   push,
-			dir:    p,
-			base:   joined,
-			remote: l.remote,
-			local:  l.local,
-			depth:  cslArg.depth,
+			push:       push,
+			dir:        cslArg.localParent,
+			localBase:  localBase,
+			remoteBase: remoteBase,
+			remote:     l.remote,
+			local:      l.local,
+			depth:      cslArg.depth,
 		}
 
 		childChanges, childClashes, cErr := g.resolveChangeListRecv(clr)
@@ -478,7 +481,7 @@ func (g *Commands) changeSlice(cslArg *changeSliceArg) {
 			clashesMap[id] = childClashes
 			continue
 		} else if cErr != ErrPathNotExists {
-			g.log.LogErrf("%s: %v\n", p, cErr)
+			g.log.LogErrf("%s: %v\n", localBase, cErr)
 			break
 		}
 	}
