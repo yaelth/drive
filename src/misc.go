@@ -534,7 +534,7 @@ var regExtStrMap = map[string]string{
 	"odt": "application/vnd.oasis.opendocument.text",
 	"odm": "application/vnd.oasis.opendocument.text-master",
 	"ott": "application/vnd.oasis.opendocument.text-template",
-	"ods": "application/vnd.oasis.opendocument.sheet",
+	"ods": "application/vnd.oasis.opendocument.spreadsheet",
 	"ots": "application/vnd.oasis.opendocument.spreadsheet-template",
 	"odg": "application/vnd.oasis.opendocument.graphics",
 	"otg": "application/vnd.oasis.opendocument.graphics-template",
