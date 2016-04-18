@@ -209,8 +209,8 @@ func (g *Commands) PushPiped() (err error) {
 			parent, pErr = g.remoteMkdirAll(parentPath)
 			spin.stop()
 			if pErr != nil || parent == nil {
-				g.log.LogErrf("%s: %v", relToRootPath, pErr)
-				return
+				g.log.LogErrf("%s: %v\n", relToRootPath, pErr)
+				return pErr
 			}
 		}
 
