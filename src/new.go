@@ -66,8 +66,9 @@ func _newFile(g *Commands, folder bool) (err error) {
 		}
 
 		upArg := upsertOpt{
-			parentId: parent.Id,
-			src:      f,
+			parentId:   parent.Id,
+			src:        f,
+			retryCount: g.opts.ExponentialBackoffRetryCount,
 		}
 
 		freshFile, _, fErr := g.rem.upsertByComparison(nil, &upArg)

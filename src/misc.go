@@ -58,7 +58,7 @@ const (
 )
 
 const (
-	MaxFailedRetryCount = uint32(20) // Arbitrary value
+	MaxFailedRetryCount = 20 // Arbitrary value
 )
 
 var DefaultMaxProcs = runtime.NumCPU()

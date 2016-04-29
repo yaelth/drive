@@ -627,11 +627,12 @@ type pullCmd struct {
 	ExplicitlyExport  *bool   `json:"explicitly-export"`
 	FixClashes        *bool   `json:"fix-clashes"`
 
-	Verbose    *bool `json:"verbose"`
-	Depth      *int  `json:"depth"`
-	Starred    *bool `json:"starred"`
-	AllStarred *bool `json:"all-starred"`
-	InTrash    *bool `json:"trashed"`
+	Verbose                      *bool `json:"verbose"`
+	Depth                        *int  `json:"depth"`
+	Starred                      *bool `json:"starred"`
+	AllStarred                   *bool `json:"all-starred"`
+	InTrash                      *bool `json:"trashed"`
+	ExponentialBackoffRetryCount *int  `json:"retry-count"`
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -659,6 +660,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.FixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 	cmd.Starred = fs.Bool(drive.CLIOptionStarred, false, drive.DescStarred)
 	cmd.InTrash = fs.Bool(drive.TrashedKey, false, "pull content in the trash")
+	cmd.ExponentialBackoffRetryCount = fs.Int(drive.CLIOptionRetryCount, drive.MaxFailedRetryCount, drive.DescExponentialBackoffRetryCount)
 
 	return fs
 }
@@ -689,6 +691,11 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	// Filter out empty strings.
 	exports := drive.NonEmptyTrimmedStrings(strings.Split(*cmd.Export, ",")...)
 
+	retryCount := drive.MaxFailedRetryCount
+	if cmd.ExponentialBackoffRetryCount != nil {
+		retryCount = *(cmd.ExponentialBackoffRetryCount)
+	}
+
 	options := &drive.Options{
 		Path:              path,
 		Sources:           sources,
@@ -713,6 +720,7 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Starred:           *cmd.Starred,
 		Match:             *cmd.Matches,
 		InTrash:           *cmd.InTrash,
+		ExponentialBackoffRetryCount: retryCount,
 	}
 
 	if *cmd.Matches || *cmd.Starred {
@@ -743,18 +751,19 @@ type pushCmd struct {
 	Convert *bool `json:"convert"`
 	// ocr when set indicates that Optical Character Recognition should be
 	// attempted on .[gif, jpg, pdf, png] uploads
-	Ocr               *bool   `json:"ocr"`
-	IgnoreChecksum    *bool   `json:"ignore-checksum"`
-	IgnoreConflict    *bool   `json:"ignore-conflict"`
-	IgnoreNameClashes *bool   `json:"ignore-name-clashes"`
-	Quiet             *bool   `json:"quiet"`
-	CoercedMimeKey    *string `json:"coerced-mime"`
-	ExcludeOps        *string `json:"exclude-ops"`
-	SkipMimeKey       *string `json:"skip-mime"`
-	Verbose           *bool   `json:"verbose"`
-	Depth             *int    `json:"depth"`
-	FixClashes        *bool   `json:"fix-clashes"`
-	Destination       *string `json:"dest"`
+	Ocr                          *bool   `json:"ocr"`
+	IgnoreChecksum               *bool   `json:"ignore-checksum"`
+	IgnoreConflict               *bool   `json:"ignore-conflict"`
+	IgnoreNameClashes            *bool   `json:"ignore-name-clashes"`
+	Quiet                        *bool   `json:"quiet"`
+	CoercedMimeKey               *string `json:"coerced-mime"`
+	ExcludeOps                   *string `json:"exclude-ops"`
+	SkipMimeKey                  *string `json:"skip-mime"`
+	Verbose                      *bool   `json:"verbose"`
+	Depth                        *int    `json:"depth"`
+	FixClashes                   *bool   `json:"fix-clashes"`
+	Destination                  *string `json:"dest"`
+	ExponentialBackoffRetryCount *int    `json:"retry-count"`
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -778,6 +787,8 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 	cmd.FixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 	cmd.Destination = fs.String(drive.CLIOptionPushDestination, "", drive.DescPushDestination)
+	cmd.ExponentialBackoffRetryCount = fs.Int(drive.CLIOptionRetryCount, drive.MaxFailedRetryCount, drive.DescExponentialBackoffRetryCount)
+
 	return fs
 }
 
@@ -923,24 +934,30 @@ func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[str
 		exitWithError(fmt.Errorf("all CRUD operations forbidden yet asking to push"))
 	}
 
+	retryCount := drive.MaxFailedRetryCount
+	if cmd.ExponentialBackoffRetryCount != nil {
+		retryCount = *(cmd.ExponentialBackoffRetryCount)
+	}
+
 	opts := &drive.Options{
-		Force:             *cmd.Force,
-		Hidden:            *cmd.Hidden,
-		IgnoreChecksum:    *cmd.IgnoreChecksum,
-		IgnoreConflict:    *cmd.IgnoreConflict,
-		NoClobber:         *cmd.NoClobber,
-		NoPrompt:          *cmd.NoPrompt,
-		Recursive:         *cmd.Recursive,
-		Piped:             *cmd.Piped,
-		Quiet:             *cmd.Quiet,
-		Meta:              &meta,
-		TypeMask:          mask,
-		ExcludeCrudMask:   excludeCrudMask,
-		IgnoreNameClashes: *cmd.IgnoreNameClashes,
-		Verbose:           *cmd.Verbose,
-		Depth:             *cmd.Depth,
-		FixClashes:        *cmd.FixClashes,
-		Destination:       *cmd.Destination,
+		Force:                        *cmd.Force,
+		Hidden:                       *cmd.Hidden,
+		IgnoreChecksum:               *cmd.IgnoreChecksum,
+		IgnoreConflict:               *cmd.IgnoreConflict,
+		NoClobber:                    *cmd.NoClobber,
+		NoPrompt:                     *cmd.NoPrompt,
+		Recursive:                    *cmd.Recursive,
+		Piped:                        *cmd.Piped,
+		Quiet:                        *cmd.Quiet,
+		Meta:                         &meta,
+		TypeMask:                     mask,
+		ExcludeCrudMask:              excludeCrudMask,
+		IgnoreNameClashes:            *cmd.IgnoreNameClashes,
+		Verbose:                      *cmd.Verbose,
+		Depth:                        *cmd.Depth,
+		FixClashes:                   *cmd.FixClashes,
+		Destination:                  *cmd.Destination,
+		ExponentialBackoffRetryCount: retryCount,
 	}
 
 	return opts, nil

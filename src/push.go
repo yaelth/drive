@@ -227,6 +227,7 @@ func (g *Commands) PushPiped() (err error) {
 			mask:           g.opts.TypeMask,
 			nonStatable:    true,
 			ignoreChecksum: g.opts.IgnoreChecksum,
+			retryCount:     g.opts.ExponentialBackoffRetryCount,
 		}
 
 		rem, _, rErr := g.rem.upsertByComparison(os.Stdin, &args)
@@ -433,6 +434,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		mask:           g.opts.TypeMask,
 		ignoreChecksum: g.opts.IgnoreChecksum,
 		debug:          g.opts.Verbose && g.opts.canPreview(),
+		retryCount:     g.opts.ExponentialBackoffRetryCount,
 	}
 
 	coercedMimeKey, ok := g.coercedMimeKey()
@@ -576,9 +578,10 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	}
 
 	args := upsertOpt{
-		parentId: parent.Id,
-		src:      remoteFile,
-		debug:    g.opts.Verbose && g.opts.canPreview(),
+		parentId:   parent.Id,
+		src:        remoteFile,
+		debug:      g.opts.Verbose && g.opts.canPreview(),
+		retryCount: g.opts.ExponentialBackoffRetryCount,
 	}
 
 	cur, curErr := g.rem.UpsertByComparison(&args)

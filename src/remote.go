@@ -238,12 +238,16 @@ func (r *Remote) FindById(id string) (file *File, err error) {
 	return NewRemoteFile(f), nil
 }
 
-func retryableChangeOp(fn func() (interface{}, error), debug bool) *expb.ExponentialBacker {
+func retryableChangeOp(fn func() (interface{}, error), debug bool, retryCount int) *expb.ExponentialBacker {
+	if retryCount < 0 {
+		retryCount = MaxFailedRetryCount
+	}
+
 	return &expb.ExponentialBacker{
 		Do:          fn,
-		StatusCheck: retryableErrorCheck,
-		RetryCount:  MaxFailedRetryCount,
 		Debug:       debug,
+		RetryCount:  uint32(retryCount),
+		StatusCheck: retryableErrorCheck,
 	}
 }
 
@@ -614,6 +618,7 @@ type upsertOpt struct {
 	ignoreChecksum bool
 	mimeKey        string
 	nonStatable    bool
+	retryCount     int
 }
 
 func togglePropertiesInsertCall(req *drive.FilesInsertCall, mask int) *drive.FilesInsertCall {
@@ -825,7 +830,7 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 			return &tuple{first: f, second: mediaInserted, last: err}, err
 		}
 
-		retrier := retryableChangeOp(emitter, args.debug)
+		retrier := retryableChangeOp(emitter, args.debug, args.retryCount)
 
 		res, err := expb.ExponentialBackOffSync(retrier)
 		resultLoad <- &tuple{first: res, last: err}
