@@ -289,6 +289,12 @@ drive also supports piping pulled content to stdout which can be accomplished by
 $ drive pull -piped path1 path2
 ```
 
++ In relation to issue #529, you can change the max retry counts for exponential backoff. Using a count < 0 falls back to the
+default count of 20:
+```shell
+$ drive pull --retry-count 14 documents/2016/March videos/2013/September
+```
+
 #### Exporting Docs
 
 By default, the `pull` command will export Google Docs documents as PDF files. To specify other formats, use the `-export` option:
@@ -456,6 +462,12 @@ pass in option `--verbose` e.g:
 ```shell
 $ drive pull --verbose 2015/Photos content
 $ drive push --verbose Music Fall2014
+```
+
++ In relation to issue #529, you can change the max retry counts for exponential backoff. Using a count < 0 falls back to the
+default count of 20:
+```shell
+$ drive push --retry-count 4 a/bc/def terms
 ```
 
 ### Publishing
