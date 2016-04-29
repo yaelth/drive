@@ -90,6 +90,7 @@ type Options struct {
 	// constituents of an operation for example a push or pull.
 	// See issue #612.
 	Destination string
+	RenameMode  RenameMode
 }
 
 type Commands struct {

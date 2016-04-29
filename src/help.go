@@ -230,6 +230,8 @@ const (
 	CLIOptionFixClashes         = "fix"
 	CLIOptionListClashes        = "list"
 	CLIOptionPushDestination    = "destination"
+	CLIOptionRenameLocal        = "local"
+	CLIOptionRenameRemote       = "remote"
 )
 
 const (

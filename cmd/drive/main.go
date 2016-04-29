@@ -1473,16 +1473,24 @@ func (cmd *moveCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 }
 
 type renameCmd struct {
-	Force *bool `json:"force"`
-	Quiet *bool `json:"quiet"`
-	ById  *bool `json:"by-id"`
+	Force        *bool `json:"force"`
+	Quiet        *bool `json:"quiet"`
+	ById         *bool `json:"by-id"`
+	RenameLocal  *bool `json:"rename-local"`
+	RenameRemote *bool `json:"rename-local"`
 }
 
 func (cmd *renameCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Force = fs.Bool(drive.ForceKey, false, "coerce rename even if remote already exists")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "unshare by id instead of path")
+	cmd.RenameLocal = fs.Bool(drive.CLIOptionRenameLocal, true, "rename local as well")
+	cmd.RenameRemote = fs.Bool(drive.CLIOptionRenameRemote, true, "rename remote as well")
 	return fs
+}
+
+func boolDeref(boolPtr *bool) bool {
+	return boolPtr != nil && *boolPtr
 }
 
 func (cmd *renameCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
@@ -1493,12 +1501,22 @@ func (cmd *renameCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	rest, last := args[:argc-1], args[argc-1]
 	sources, context, path := preprocessArgsByToggle(rest, *cmd.ById)
 
+	var renameMode drive.RenameMode
+	if boolDeref(cmd.RenameLocal) {
+		renameMode |= drive.RenameLocal
+	}
+
+	if boolDeref(cmd.RenameRemote) {
+		renameMode |= drive.RenameRemote
+	}
+
 	sources = append(sources, last)
 	exitWithError(drive.New(context, &drive.Options{
-		Path:    path,
-		Sources: sources,
-		Force:   *cmd.Force,
-		Quiet:   *cmd.Quiet,
+		Path:       path,
+		Sources:    sources,
+		Force:      *cmd.Force,
+		Quiet:      *cmd.Quiet,
+		RenameMode: renameMode,
 	}).Rename(*cmd.ById))
 }
 

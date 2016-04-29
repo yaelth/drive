@@ -16,6 +16,7 @@ package drive
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 )
 
@@ -23,6 +24,26 @@ type moveOpt struct {
 	src  string
 	dest string
 	byId bool
+}
+
+type RenameMode uint
+
+const (
+	RenameNone RenameMode = 1 << iota
+	RenameRemote
+	RenameLocal
+)
+
+func canRenameLocal(rmode RenameMode) bool {
+	return (rmode & RenameLocal) != 0
+}
+
+func canRenameRemote(rmode RenameMode) bool {
+	return (rmode & RenameRemote) != 0
+}
+
+func cannotRename(rmode RenameMode) bool {
+	return !(canRenameLocal(rmode) || canRenameRemote(rmode))
 }
 
 func (g *Commands) Move(byId bool) error {
@@ -141,9 +162,39 @@ func (g *Commands) removeParent(fileId, relToRootPath string) error {
 	return g.rem.removeParent(fileId, parent.Id)
 }
 
+func (g *Commands) renameLocal(oldRelToRootPath, newRelToRootPath string) error {
+	oldLocalPath := g.context.AbsPathOf(oldRelToRootPath)
+	newLocalPath := g.context.AbsPathOf(newRelToRootPath)
+
+	return os.Rename(oldLocalPath, newLocalPath)
+}
+
+func (g *Commands) renameRemote(remSrcId, parentPath, newName string) error {
+	urlBoundName := urlToPath(newName, true)
+	newFullPath := filepath.Join(parentPath, urlBoundName)
+
+	dupCheck, err := g.rem.FindByPath(newFullPath)
+
+	if err == nil && dupCheck != nil {
+		if dupCheck.Id == remSrcId { // Trying to rename self
+			return nil
+		}
+		if !g.opts.Force {
+			return overwriteAttemptedErr(fmt.Errorf("%s already exists. Use `%s` flag to override this behaviour", newFullPath, ForceKey))
+		}
+	}
+
+	_, err = g.rem.rename(remSrcId, newName)
+	return err
+}
+
 func (g *Commands) Rename(byId bool) error {
 	if len(g.opts.Sources) < 2 {
 		return invalidArgumentsErr(fmt.Errorf("rename: expecting <src> <newname>"))
+	}
+
+	if cannotRename(g.opts.RenameMode) {
+		return illogicalStateErr(fmt.Errorf("no rename mode set, set either `local` or `remote` mode"))
 	}
 
 	src := g.opts.Sources[0]
@@ -167,21 +218,21 @@ func (g *Commands) Rename(byId bool) error {
 	}
 
 	newName := g.opts.Sources[1]
-	urlBoundName := urlToPath(newName, true)
-	newFullPath := filepath.Join(parentPath, urlBoundName)
-
-	var dupCheck *File
-	dupCheck, err = g.rem.FindByPath(newFullPath)
-
-	if err == nil && dupCheck != nil {
-		if dupCheck.Id == remSrc.Id { // Trying to rename self
-			return nil
-		}
-		if !g.opts.Force {
-			return overwriteAttemptedErr(fmt.Errorf("%s already exists. Use `%s` flag to override this behaviour", newFullPath, ForceKey))
+	if canRenameRemote(g.opts.RenameMode) {
+		if err = g.renameRemote(remSrc.Id, parentPath, newName); err != nil {
+			return err
 		}
 	}
 
-	_, err = g.rem.rename(remSrc.Id, newName)
+	if canRenameLocal(g.opts.RenameMode) {
+		// Otherwise time to mirror the same changes locally
+		oldRelToRootPath := sepJoin(RemoteSeparator, parentPath, remSrc.Name)
+		newRelToRootPath := sepJoin(RemoteSeparator, parentPath, newName)
+
+		if err = g.renameLocal(oldRelToRootPath, newRelToRootPath); err != nil {
+			return err
+		}
+	}
+
 	return err
 }

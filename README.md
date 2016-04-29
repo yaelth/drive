@@ -879,7 +879,10 @@ $ drive copy -r --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U .
 
 ### Rename
 
-drive allows you to rename a file/folder remotely. To do so:
+drive allows you to rename a file/folder remotely.
+Two arguments are required to rename ie `<relativePath/To/source or Id>` `<newName>`.
+
+To perform a rename:
 
 ```shell
 $ drive rename url_test url_test_results
@@ -891,6 +894,17 @@ $ drive rename openSrc/2015 2015-Contributions
 ```shell
 $ drive rename 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 fluxing
 ```
+
+
+To turn off renaming locally or remotely, use flags
+`--local=false` or `--remote=false`. By default both are turned on.
+
+For example
+
+```shell
+$ drive rename --local=false --remote=true a/b/c/d/e/f flux
+```
+
 
 ### Clashes
 
