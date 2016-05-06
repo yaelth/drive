@@ -262,6 +262,7 @@ type changeSliceArg struct {
 	localParent, remoteParent string
 	dirList                   []*dirList
 	changeListPtr             *[]*Change
+	mu                        *sync.Mutex
 }
 
 func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []*Change, err error) {
@@ -409,6 +410,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 	var wg sync.WaitGroup
 	wg.Add(chunkCount)
 
+	mu := &sync.Mutex{}
 	clashesMap := make(map[int][]*Change)
 
 	for j := 0; j < chunkCount; j += 1 {
@@ -427,6 +429,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 			depth:         remoteTraversalDepth,
 			changeListPtr: &cl,
 			clashesMap:    clashesMap,
+			mu:            mu,
 		}
 
 		go g.changeSlice(&cslArgs)
@@ -473,7 +476,9 @@ func (g *Commands) changeSlice(cslArg *changeSliceArg) {
 
 		childChanges, childClashes, cErr := g.resolveChangeListRecv(clr)
 		if cErr == nil {
+			cslArg.mu.Lock()
 			*cl = append(*cl, childChanges...)
+			cslArg.mu.Unlock()
 			continue
 		}
 
