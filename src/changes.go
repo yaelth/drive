@@ -262,7 +262,7 @@ type changeSliceArg struct {
 	localParent, remoteParent string
 	dirList                   []*dirList
 	changeListPtr             *[]*Change
-	mtx                       *sync.Mutex
+	mu                        *sync.Mutex
 }
 
 func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []*Change, err error) {
@@ -410,7 +410,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 	var wg sync.WaitGroup
 	wg.Add(chunkCount)
 
-	mtx := &sync.Mutex{}
+	mu := &sync.Mutex{}
 	clashesMap := make(map[int][]*Change)
 
 	for j := 0; j < chunkCount; j += 1 {
@@ -429,7 +429,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 			depth:         remoteTraversalDepth,
 			changeListPtr: &cl,
 			clashesMap:    clashesMap,
-			mtx:           mtx,
+			mu:            mu,
 		}
 
 		go g.changeSlice(&cslArgs)
@@ -457,7 +457,6 @@ func (g *Commands) changeSlice(cslArg *changeSliceArg) {
 	push := cslArg.push
 	dlist := cslArg.dirList
 	clashesMap := cslArg.clashesMap
-	mtx := cslArg.mtx
 
 	defer wg.Done()
 	for _, l := range dlist {
@@ -477,9 +476,9 @@ func (g *Commands) changeSlice(cslArg *changeSliceArg) {
 
 		childChanges, childClashes, cErr := g.resolveChangeListRecv(clr)
 		if cErr == nil {
-			mtx.Lock()
+			cslArg.mu.Lock()
 			*cl = append(*cl, childChanges...)
-			mtx.Unlock()
+			cslArg.mu.Unlock()
 			continue
 		}
 
