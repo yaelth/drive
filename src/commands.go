@@ -212,7 +212,7 @@ func New(context *config.Context, opts *Options) *Commands {
 }
 
 func (g *Commands) taskStart(tasks int64) {
-	if tasks > 0 {
+	if tasks > 0 && g.opts.canPreview() {
 		g.progress = newProgressBar(tasks)
 	}
 }
