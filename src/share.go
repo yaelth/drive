@@ -136,8 +136,13 @@ var reverseRoleResolve = stringToRole()
 var reverseAccountTypeResolve = stringToAccountType()
 
 func reverseRolesResolver(roleArgv ...string) (roles []Role) {
+	alreadySeen := map[Role]bool{}
 	for _, roleStr := range roleArgv {
-		roles = append(roles, reverseRoleResolve(roleStr))
+		role := reverseRoleResolve(roleStr)
+		if _, seen := alreadySeen[role]; !seen {
+			roles = append(roles, role)
+			alreadySeen[role] = true
+		}
 	}
 
 	return roles
@@ -238,6 +243,9 @@ func showPromptShareChanges(logy *log.Logger, change *shareChange) Agreement {
 	if len(change.emails) >= 1 {
 		logy.Logf("\nAddressees:\n")
 		for _, email := range change.emails {
+			if email == "" {
+				email = "Anyone with the link"
+			}
 			logy.Logf("\t\033[92m+\033[00m %s\n", email)
 		}
 	}
@@ -275,9 +283,15 @@ func (c *Commands) playShareChanges(change *shareChange) (err error) {
 	successes := 0
 
 	for _, file := range change.files {
-		for _, email := range change.emails {
-			for _, role := range change.roles {
-				for _, accountType := range change.accountTypes {
+		for _, accountType := range change.accountTypes {
+			for _, email := range change.emails {
+				if accountType == Anyone && email != "" {
+					// It doesn't make sense to share a file with
+					// permission "anyone" yet provide an email
+					continue
+				}
+
+				for _, role := range change.roles {
 					perm := permission{
 						fileId:      file.Id,
 						value:       email,
@@ -362,6 +376,15 @@ func (c *Commands) share(revoke, byId bool) (err error) {
 	}
 
 	notify := (c.opts.TypeMask & Notify) != 0
+
+	// Now here we have to match up emails with roles
+	// See Issue #568. If we've requested say `anyone`, this role needs no email
+	// address, so we should add an empty "" to the list of emails
+	for _, accountType := range accountTypes {
+		if accountType == Anyone {
+			emails = append(emails, "")
+		}
+	}
 
 	change := shareChange{
 		accountTypes: accountTypes,
