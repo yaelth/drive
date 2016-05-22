@@ -16,6 +16,8 @@ package v1
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"io"
 	"io/ioutil"
 	"testing"
 )
@@ -27,7 +29,7 @@ var aesKey = []byte{122, 207, 56, 234, 212, 67, 99, 125, 149, 229, 186, 218, 134
 
 // TestKeys tests that the keys function hasn't changed and produces the expected keys.
 func TestKeys(t *testing.T) {
-	a, b, err := keys(password, salt, scryptIterations)
+	a, b, err := keys(password, salt, int(scryptIterations))
 	if err != nil {
 		t.Errorf("keys(%v, %v) => %q; want nil", password, salt, err)
 	}
@@ -65,23 +67,23 @@ func TestRoundTrip(t *testing.T) {
 				t.Errorf("randBytes(%d) => %q; want nil", size, err)
 				continue
 			}
-			er, err := newEncryptReader(bytes.NewBuffer(b), password, salt, 1024)
+			encReader, err := newEncryptReader(bytes.NewReader(b), password, salt, 1024)
 			if err != nil {
 				t.Errorf("NewEncryptReader() => %q; want nil", err)
 				continue
 			}
-			cipher, err := ioutil.ReadAll(er)
+			cipher, err := ioutil.ReadAll(encReader)
 			if err != nil {
 				t.Errorf("ioutil.ReadAll(*EncryptReader) => %q; want nil", err)
 				continue
 			}
-			dr, err := newDecryptReader(bytes.NewBuffer(cipher), password, 1024)
+			decReader, err := NewDecryptReader(bytes.NewReader(cipher), password)
 			if err != nil {
 				t.Errorf("NewDecryptReader() => %q; want nil", err)
 				continue
 			}
-			plain, err := ioutil.ReadAll(dr)
-			dr.Close()
+			plain, err := ioutil.ReadAll(decReader)
+			decReader.Close()
 			if err != nil {
 				t.Errorf("ioutil.ReadAll(*DecryptReader) => %q; want nil", err)
 				continue
@@ -91,4 +93,38 @@ func TestRoundTrip(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestHash(t *testing.T) {
+	sizes := []int{24, 1024, 15872, 16364, 16384, 16394, 16896, 66560}
+	for _, size := range sizes {
+		h := sha256.New()
+		t.Logf("Testing file of size: %db, with password: %s", size, password)
+		b, err := randBytes(size)
+		if err != nil {
+			t.Errorf("randBytes(%d) => %q; want nil", size, err)
+			continue
+		}
+		encReader, err := newEncryptReader(bytes.NewReader(b), password, salt, 1024)
+		if err != nil {
+			t.Errorf("NewEncryptReader() => %q; want nil", err)
+			continue
+		}
+		cipher, err := ioutil.ReadAll(io.TeeReader(encReader, h))
+		if err != nil {
+			t.Errorf("ioutil.ReadAll(*EncryptReader) => %q; want nil", err)
+			continue
+		}
+		want := h.Sum(nil)
+		h.Reset()
+		got, err := Hash(bytes.NewReader(b), bytes.NewReader(cipher[0:HeaderSize]), password, h)
+		if err != nil {
+			t.Errorf("Hash() => err = %q; want nil", err)
+			continue
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("Hash() => %v; want %v", got, want)
+		}
+	}
+
 }

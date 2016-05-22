@@ -17,6 +17,8 @@ package dcrypto_test
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
+	"io"
 	"io/ioutil"
 	"testing"
 
@@ -54,7 +56,7 @@ func TestRoundTrip(t *testing.T) {
 				t.Errorf("randBytes(%d) => %q; want nil", size, err)
 				continue
 			}
-			encReader, err := dcrypto.NewEncrypter(bytes.NewBuffer(b), password)
+			encReader, err := dcrypto.NewEncrypter(bytes.NewReader(b), password)
 			if err != nil {
 				t.Errorf("NewEncrypter() => %q; want nil", err)
 				continue
@@ -64,7 +66,7 @@ func TestRoundTrip(t *testing.T) {
 				t.Errorf("ioutil.ReadAll(*Encrypter) => %q; want nil", err)
 				continue
 			}
-			decReader, err := dcrypto.NewDecrypter(bytes.NewBuffer(cipher), password)
+			decReader, err := dcrypto.NewDecrypter(bytes.NewReader(cipher), password)
 			if err != nil {
 				t.Errorf("NewDecrypter() => %q; want nil", err)
 				continue
@@ -80,4 +82,38 @@ func TestRoundTrip(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestHash(t *testing.T) {
+	password := []byte("test")
+	sizes := []int{0, 24, 1337, 66560}
+	for _, size := range sizes {
+		h := sha256.New()
+		t.Logf("Testing file of size: %db, with password: %s", size, password)
+		b, err := randBytes(size)
+		if err != nil {
+			t.Errorf("randBytes(%d) => %q; want nil", size, err)
+			continue
+		}
+		encReader, err := dcrypto.NewEncrypter(bytes.NewReader(b), password)
+		if err != nil {
+			t.Errorf("NewEncryper() => %q; want nil", err)
+			continue
+		}
+		cipher, err := ioutil.ReadAll(io.TeeReader(encReader, h))
+		if err != nil {
+			t.Errorf("ioutil.ReadAll(*EncryptReader) => %q; want nil", err)
+			continue
+		}
+		want := h.Sum(nil)
+		got, err := dcrypto.Hash(bytes.NewReader(b), bytes.NewReader(cipher[0:dcrypto.MaxHeaderSize]), password, sha256.New)
+		if err != nil {
+			t.Errorf("Hash() => err = %q; want nil", err)
+			continue
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("Hash() => %v; want %v", got, want)
+		}
+	}
+
 }
