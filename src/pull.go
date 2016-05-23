@@ -90,6 +90,9 @@ func (g *Commands) PullMatchLike() error {
 }
 
 func pull(g *Commands, pt pullType) error {
+	g.rem.encrypter = g.opts.Encrypter
+	g.rem.decrypter = g.opts.Decrypter
+
 	cl, clashes, err := pullLikeResolve(g, pt)
 
 	if len(clashes) >= 1 {
@@ -273,6 +276,9 @@ func (g *Commands) pullLikeMatchesResolver(pt pullType) (cl, clashes []*Change, 
 }
 
 func (g *Commands) PullPiped(byId bool) (err error) {
+	g.rem.encrypter = g.opts.Encrypter
+	g.rem.decrypter = g.opts.Decrypter
+
 	resolver := g.rem.FindByPathM
 	if byId {
 		resolver = g.rem.FindByIdM

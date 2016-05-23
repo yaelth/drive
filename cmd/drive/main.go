@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -30,6 +31,7 @@ import (
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/drive/gen"
 	"github.com/odeke-em/drive/src"
+	"github.com/odeke-em/drive/src/dcrypto"
 )
 
 var context *config.Context
@@ -627,12 +629,13 @@ type pullCmd struct {
 	ExplicitlyExport  *bool   `json:"explicitly-export"`
 	FixClashes        *bool   `json:"fix-clashes"`
 
-	Verbose                      *bool `json:"verbose"`
-	Depth                        *int  `json:"depth"`
-	Starred                      *bool `json:"starred"`
-	AllStarred                   *bool `json:"all-starred"`
-	InTrash                      *bool `json:"trashed"`
-	ExponentialBackoffRetryCount *int  `json:"retry-count"`
+	Verbose                      *bool   `json:"verbose"`
+	Depth                        *int    `json:"depth"`
+	Starred                      *bool   `json:"starred"`
+	AllStarred                   *bool   `json:"all-starred"`
+	InTrash                      *bool   `json:"trashed"`
+	ExponentialBackoffRetryCount *int    `json:"retry-count"`
+	DecryptionPassword           *string `json:"decryption-password"`
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -661,6 +664,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Starred = fs.Bool(drive.CLIOptionStarred, false, drive.DescStarred)
 	cmd.InTrash = fs.Bool(drive.TrashedKey, false, "pull content in the trash")
 	cmd.ExponentialBackoffRetryCount = fs.Int(drive.CLIOptionRetryCount, drive.MaxFailedRetryCount, drive.DescExponentialBackoffRetryCount)
+	cmd.DecryptionPassword = fs.String(drive.CLIDecryptionPassword, "", drive.DescDecryptionPassword)
 
 	return fs
 }
@@ -696,6 +700,17 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		retryCount = *(cmd.ExponentialBackoffRetryCount)
 	}
 
+	var decryptFn func(io.Reader) (io.ReadCloser, error)
+	if cmd.DecryptionPassword != nil {
+		passStr := *(cmd.DecryptionPassword)
+		if passStr != "" {
+			passwordAsBytes := []byte(passStr)
+			decryptFn = func(r io.Reader) (io.ReadCloser, error) {
+				return dcrypto.NewDecrypter(r, passwordAsBytes)
+			}
+		}
+	}
+
 	options := &drive.Options{
 		Path:              path,
 		Sources:           sources,
@@ -721,6 +736,7 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Match:             *cmd.Matches,
 		InTrash:           *cmd.InTrash,
 		ExponentialBackoffRetryCount: retryCount,
+		Decrypter:                    decryptFn,
 	}
 
 	if *cmd.Matches || *cmd.Starred {
@@ -764,6 +780,7 @@ type pushCmd struct {
 	FixClashes                   *bool   `json:"fix-clashes"`
 	Destination                  *string `json:"dest"`
 	ExponentialBackoffRetryCount *int    `json:"retry-count"`
+	EncryptionPassword           *string `json:"encryption-password"`
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -788,6 +805,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.FixClashes = fs.Bool(drive.CLIOptionFixClashesKey, false, drive.DescFixClashes)
 	cmd.Destination = fs.String(drive.CLIOptionPushDestination, "", drive.DescPushDestination)
 	cmd.ExponentialBackoffRetryCount = fs.Int(drive.CLIOptionRetryCount, drive.MaxFailedRetryCount, drive.DescExponentialBackoffRetryCount)
+	cmd.EncryptionPassword = fs.String(drive.CLIEncryptionPassword, "", drive.DescEncryptionPassword)
 
 	return fs
 }
@@ -939,6 +957,17 @@ func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[str
 		retryCount = *(cmd.ExponentialBackoffRetryCount)
 	}
 
+	var encryptFn func(io.Reader) (io.Reader, error)
+	if cmd.EncryptionPassword != nil {
+		passStr := *(cmd.EncryptionPassword)
+		if passStr != "" {
+			passwordAsBytes := []byte(passStr)
+			encryptFn = func(r io.Reader) (io.Reader, error) {
+				return dcrypto.NewEncrypter(r, passwordAsBytes)
+			}
+		}
+	}
+
 	opts := &drive.Options{
 		Force:                        *cmd.Force,
 		Hidden:                       *cmd.Hidden,
@@ -957,6 +986,7 @@ func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[str
 		Depth:                        *cmd.Depth,
 		FixClashes:                   *cmd.FixClashes,
 		Destination:                  *cmd.Destination,
+		Encrypter:                    encryptFn,
 		ExponentialBackoffRetryCount: retryCount,
 	}
 

@@ -85,6 +85,8 @@ func errCannotMkdirAll(p string) error {
 type Remote struct {
 	client       *http.Client
 	service      *drive.Service
+	encrypter    func(io.Reader) (io.Reader, error)
+	decrypter    func(io.Reader) (io.ReadCloser, error)
 	progressChan chan int
 }
 
@@ -569,6 +571,15 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 		}
 	}
 
+	if r.decrypter != nil && body != nil {
+		decR, err := r.decrypter(body)
+		_ = body.Close()
+		if err != nil {
+			return nil, err
+		}
+		body = decR
+	}
+
 	return body, err
 }
 
@@ -664,6 +675,15 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 
 	if args.src.IsDir {
 		uploaded.MimeType = DriveFolderMimeType
+	}
+
+	if r.encrypter != nil && body != nil {
+		encR, encErr := r.encrypter(body)
+		if encErr != nil {
+			err = encErr
+			return
+		}
+		body = encR
 	}
 
 	if args.src.MimeType != "" {

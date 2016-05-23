@@ -191,6 +191,8 @@ const (
 	DescSkipContentCheck             = "skip diffing actual body content, show only name, time, type changes"
 	DescPushDestination              = "specify the final destination of the contents of an operation"
 	DescExponentialBackoffRetryCount = "max number of retries for exponential backoff"
+	DescEncryptionPassword           = "encryption password"
+	DescDecryptionPassword           = "decryption password"
 )
 
 const (
@@ -234,6 +236,8 @@ const (
 	CLIOptionRenameLocal        = "local"
 	CLIOptionRenameRemote       = "remote"
 	CLIOptionRetryCount         = "retry-count"
+	CLIEncryptionPassword       = "encryption-password"
+	CLIDecryptionPassword       = "decryption-password"
 )
 
 const (

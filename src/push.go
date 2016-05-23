@@ -35,6 +35,9 @@ var mkdirAllMu = sync.Mutex{}
 // directory, it recursively pushes to the remote if there are local changes.
 // It doesn't check if there are local changes if isForce is set.
 func (g *Commands) Push() (err error) {
+	g.rem.encrypter = g.opts.Encrypter
+	g.rem.decrypter = g.opts.Decrypter
+
 	defer g.clearMountPoints()
 
 	var cl []*Change
@@ -181,6 +184,9 @@ func (g *Commands) resolveConflicts(cl []*Change, push bool) (*[]*Change, *[]*Ch
 }
 
 func (g *Commands) PushPiped() (err error) {
+	g.rem.encrypter = g.opts.Encrypter
+	g.rem.decrypter = g.opts.Decrypter
+
 	// Cannot push asynchronously because the push order must be maintained
 	for _, relToRootPath := range g.opts.Sources {
 		rem, resErr := g.rem.FindByPath(relToRootPath)

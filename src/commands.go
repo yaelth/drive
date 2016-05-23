@@ -16,6 +16,7 @@ package drive
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -92,6 +93,9 @@ type Options struct {
 	Destination                  string
 	RenameMode                   RenameMode
 	ExponentialBackoffRetryCount int
+
+	Encrypter func(io.Reader) (io.Reader, error)
+	Decrypter func(io.Reader) (io.ReadCloser, error)
 }
 
 type Commands struct {

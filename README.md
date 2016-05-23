@@ -16,6 +16,7 @@
 - [Usage](#usage)
   - [Initializing](#initializing)
   - [De Initializing](#de-initializing)
+  - [End to End Encryption](#end-to-end-encryption)
   - [Traversal Depth](#traversal-depth)
   - [Pulling](#pulling)
     - [Exporting Docs](#exporting-docs)
@@ -221,6 +222,14 @@ Run it without any arguments to pull all of the files from the current path:
 $ drive pull
 ```
 
+To pull and decrypt your data that is stored encrypted at rest on Google Drive, use flag `--decryption-password`:
+
+See [Issue #543](https://github.com/odeke-em/issues/543)
+
+```shell
+$ drive pull --decryption-password "$JiME5Umf" influx.txt
+```
+
 Pulling by matches is also supported
 
 ```shell
@@ -359,6 +368,13 @@ Note: To ignore checksum verification during a push:
 $ drive push -ignore-checksum
 ```
 
+To keep your data encrypted at rest remotely on Google Drive:
+
+```shell
+$ drive push --encryption-password "$JiME5Umf" influx.txt
+```
+For E2E discussions, see [issue #543](https://github.com/odeke-em/issues/543):
+
 drive also supports pushing content piped from stdin which can be accomplished by:
 
 ```shell
@@ -469,6 +485,39 @@ default count of 20:
 ```shell
 $ drive push --retry-count 4 a/bc/def terms
 ```
+
+### End to End Encryption
+
+See [Issue #543](https://github.com/odeke-em/issues/543)
+
+This can be toggled when you supply a non-empty password ie
+
+- `--encryption-password` for a push.
+- `--decryption-password` for a pull.
+
+When you supply argument `--encryption-password` during a push, drive will encrypt your data
+and store it remotely encrypted(stored encrypted at rest), it can only be decrypted by you when you
+perform a pull with the respective arg `--decryption-password`.
+
+```shell
+$ drive push --encryption-password "$400lsGO1Di3" few-ones.mp4 newest.mkv
+```
+
+```shell
+$ drive pull --decryption-password "$400lsGO1Di3" few-ones.mp4 newest.mkv
+```
+
+If you supply the wrong password, you'll be warned if it cannot be decrypted
+
+```shell
+$ drive pull --decryption-password "4nG5troM" few-ones.mp4 newest.mkv
+message corrupt or incorrect password
+```
+
+To pull normally push or pull your content, without attempting any *cryption attempts, skip
+passing in a password and no attempts will be made.
+
+
 
 ### Publishing
 
