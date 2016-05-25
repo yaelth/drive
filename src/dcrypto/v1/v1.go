@@ -75,8 +75,8 @@ var (
 	HeaderSize = 4 + saltSize + blockSize
 
 	// The overhead added to the file by using this library.
-	// OverHead + len(plaintext) == len(ciphertext)
-	OverHead = HeaderSize + hmacSize
+	// Overhead + len(plaintext) == len(ciphertext)
+	Overhead = HeaderSize + hmacSize
 )
 
 var DecryptErr = errors.New("message corrupt or incorrect password")

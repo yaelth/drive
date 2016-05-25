@@ -98,6 +98,10 @@ type Options struct {
 	Decrypter func(io.Reader) (io.ReadCloser, error)
 }
 
+func (opts *Options) CryptoEnabled() bool {
+	return opts.Decrypter != nil || opts.Encrypter != nil
+}
+
 type Commands struct {
 	context *config.Context
 	rem     *Remote
