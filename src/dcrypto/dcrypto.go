@@ -55,6 +55,9 @@ var hashers map[Version]hasher
 // a hash of a local file.
 var MaxHeaderSize = v1.HeaderSize + 4
 
+// Overhead is the overhead added by the preferred encryption library plus the version.
+var Overhead = v1.Overhead + 4
+
 func init() {
 	decrypters = map[Version]decrypter{
 		V1: v1.NewDecryptReader,

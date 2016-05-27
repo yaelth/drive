@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/odeke-em/drive/config"
+	"github.com/odeke-em/drive/src/dcrypto"
 	"github.com/odeke-em/log"
 )
 
@@ -463,6 +464,11 @@ func (g *Commands) changeSlice(cslArg *changeSliceArg) {
 		// Avoiding path.Join which normalizes '/+' to '/'
 		localBase := remotePathJoin(cslArg.localParent, l.Name())
 		remoteBase := remotePathJoin(cslArg.remoteParent, l.Name())
+
+		nonDirRemote := l.remote != nil && !l.remote.IsDir
+		if nonDirRemote && g.opts.CryptoEnabled() {
+			l.remote.Size -= int64(dcrypto.Overhead)
+		}
 
 		clr := &changeListResolve{
 			push:       push,
