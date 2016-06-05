@@ -20,6 +20,23 @@ $ sudo apt-get update
 $ sudo apt-get install drive
 ```
 
+### Debian, or Debian based distros.
+You may need to install the package software-properties-common to use apt-add-repository command.
+
+```sh
+sudo apt-get install software-properties-common
+```
+
+After installing software-properties-common, you can run these commands. Updates will be as normal with all debian packages.
+
+```sh
+sudo apt-add-repository 'deb http://shaggytwodope.github.io/repo ./'
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 7086E9CC7EC3233B
+sudo apt-key update
+sudo apt-get update
+sudo apt-get install drive
+```
+
 ### openSUSE distro. (may also work with fedora, CentOS, Red Hat)
 ```sh
 # install needed software tools
