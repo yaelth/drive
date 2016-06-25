@@ -1073,3 +1073,52 @@ func remoteOpToChangerTranslator(g *Commands, c *Change) func(*Change) error {
 	}
 	return fn
 }
+
+const (
+	// Since we'll be sharing `TypeMask` with other bit flags
+	// we'll need to avoid collisions with other args
+	InTrash int = 1 << (31 - 1 - iota)
+	Folder
+	Shared
+	Owners
+	Minimal
+	Starred
+	NonFolder
+	DiskUsageOnly
+	CurrentVersion
+)
+
+func folderExplicitly(mask int) bool    { return (mask & Folder) == Folder }
+func nonFolderExplicitly(mask int) bool { return (mask & NonFolder) == NonFolder }
+
+type driveFileFilter func(*File) bool
+
+func makeFileFilter(mask int) driveFileFilter {
+	return func(f *File) bool {
+		// TODO: Decide if nil files should be either a pass or fail?
+		if f == nil {
+			return true
+		}
+		truths := []bool{}
+		if nonFolderExplicitly(mask) {
+			truths = append(truths, !f.IsDir)
+		}
+		// Even though regular file & folder are mutually exclusive let's
+		// compare them separately in case we want this logical inconsistency
+		// instead of an if...else clause
+		if folderExplicitly(mask) {
+			truths = append(truths, f.IsDir)
+		}
+
+		return allTruthsHold(truths...)
+	}
+}
+
+func allTruthsHold(truths ...bool) bool {
+	for _, truth := range truths {
+		if !truth {
+			return false
+		}
+	}
+	return true
+}

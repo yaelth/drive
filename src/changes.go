@@ -171,6 +171,19 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, c
 	return
 }
 
+func directionalComplement(local, remote *File, push bool) *File {
+	first, other := remote, local
+	if push {
+		first, other = local, remote
+	}
+
+	// If the first == nil, then fall back to the other
+	if first != nil {
+		return first
+	}
+	return other
+}
+
 func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, push bool) (cl, clashes []*Change, err error) {
 	if l == nil && r == nil {
 		err = illogicalStateErr(fmt.Errorf("'%s' aka '%s' doesn't exist locally nor remotely",
@@ -197,6 +210,7 @@ func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, push b
 		push:       push,
 		remote:     r,
 		depth:      g.opts.Depth,
+		filter:     makeFileFilter(g.opts.TypeMask),
 	}
 
 	return g.resolveChangeListRecv(clr)
@@ -246,24 +260,30 @@ func (g *Commands) coercedMimeKey() (coerced string, ok bool) {
 }
 
 type changeListResolve struct {
-	dir                   string
-	localBase, remoteBase string
-	local                 *File
-	remote                *File
-	push                  bool
-	depth                 int
+	dir        string
+	filter     driveFileFilter
+	push       bool
+	depth      int
+	local      *File
+	remote     *File
+	localBase  string
+	remoteBase string
 }
 
 type changeSliceArg struct {
-	clashesMap                map[int][]*Change
-	id                        int
-	wg                        *sync.WaitGroup
-	depth                     int
-	push                      bool
-	localParent, remoteParent string
-	dirList                   []*dirList
-	changeListPtr             *[]*Change
-	mu                        *sync.Mutex
+	id     int
+	wg     *sync.WaitGroup
+	depth  int
+	push   bool
+	filter driveFileFilter
+
+	mu *sync.Mutex
+
+	dirList       []*dirList
+	localParent   string
+	remoteParent  string
+	clashesMap    map[int][]*Change
+	changeListPtr *[]*Change
 }
 
 func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []*Change, err error) {
@@ -327,7 +347,10 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 	}
 
 	if change.Op() != OpNone {
-		cl = append(cl, change)
+		subject := directionalComplement(l, r, clr.push)
+		if clr.filter(subject) {
+			cl = append(cl, change)
+		}
 	}
 
 	if !g.opts.Recursive {
@@ -431,6 +454,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 			changeListPtr: &cl,
 			clashesMap:    clashesMap,
 			mu:            mu,
+			filter:        clr.filter,
 		}
 
 		go g.changeSlice(&cslArgs)
@@ -478,6 +502,7 @@ func (g *Commands) changeSlice(cslArg *changeSliceArg) {
 			remote:     l.remote,
 			local:      l.local,
 			depth:      cslArg.depth,
+			filter:     cslArg.filter,
 		}
 
 		childChanges, childClashes, cErr := g.resolveChangeListRecv(clr)
