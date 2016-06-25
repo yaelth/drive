@@ -21,18 +21,6 @@ import (
 	"github.com/odeke-em/log"
 )
 
-const (
-	InTrash = 1 << iota
-	Folder
-	Shared
-	Owners
-	Minimal
-	Starred
-	NonFolder
-	DiskUsageOnly
-	CurrentVersion
-)
-
 type attribute struct {
 	minimal       bool
 	mask          int
@@ -397,7 +385,7 @@ func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 
 	spin.play()
 
-	onlyFiles := (g.opts.TypeMask & NonFolder) != 0
+	onlyFiles := nonFolderExplicitly(g.opts.TypeMask)
 
 	iterCount := uint64(0)
 

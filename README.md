@@ -296,6 +296,15 @@ $ drive pull --starred --all --trashed # Pull all the starred files in the trash
 
 Like most commands [.driveignore](#driveignore) can be used to filter which files to pull.
 
+To selectively pull by type e.g file vs directory/folder, you can use flags
+- `files`
+- `directories`
+
+```shell
+$ drive pull --files a1/b2
+$ drive pull --directories tf1
+```
+
 ## Note: Checksum verification:
 
 * By default checksum-ing is turned off because it was deemed to be quite vigorous and unnecessary for most cases.
@@ -395,6 +404,15 @@ drive also supports pushing content piped from stdin which can be accomplished b
 
 ```shell
 $ drive push -piped path
+```
+
+To selectively push by type e.g file vs directory/folder, you can use flags
+- `files`
+- `directories`
+
+```shell
+$ drive push --files a1/b2
+$ drive push --directories tf1
 ```
 
 Like most commands [.driveignore](#driveignore) can be used to filter which files to push.

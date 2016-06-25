@@ -636,6 +636,9 @@ type pullCmd struct {
 	InTrash                      *bool   `json:"trashed"`
 	ExponentialBackoffRetryCount *int    `json:"retry-count"`
 	DecryptionPassword           *string `json:"decryption-password"`
+
+	Files       *bool `json:"files"`
+	Directories *bool `json:"directories"`
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -665,6 +668,9 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.InTrash = fs.Bool(drive.TrashedKey, false, "pull content in the trash")
 	cmd.ExponentialBackoffRetryCount = fs.Int(drive.CLIOptionRetryCount, drive.MaxFailedRetryCount, drive.DescExponentialBackoffRetryCount)
 	cmd.DecryptionPassword = fs.String(drive.CLIDecryptionPassword, "", drive.DescDecryptionPassword)
+
+	cmd.Files = fs.Bool(drive.CLIOptionFiles, false, "pull only files")
+	cmd.Directories = fs.Bool(drive.CLIOptionDirectories, false, "pull only directories")
 
 	return fs
 }
@@ -711,6 +717,16 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		}
 	}
 
+	typeMask := 0
+	if *cmd.Directories {
+		typeMask |= drive.Folder
+	}
+	if *cmd.Files {
+		typeMask |= drive.NonFolder
+	}
+
+	exitIfIllogicalFileAndFolder(typeMask)
+
 	options := &drive.Options{
 		Path:              path,
 		Sources:           sources,
@@ -737,6 +753,7 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		InTrash:           *cmd.InTrash,
 		ExponentialBackoffRetryCount: retryCount,
 		Decrypter:                    decryptFn,
+		TypeMask:                     typeMask,
 	}
 
 	if *cmd.Matches || *cmd.Starred {
@@ -781,6 +798,9 @@ type pushCmd struct {
 	Destination                  *string `json:"dest"`
 	ExponentialBackoffRetryCount *int    `json:"retry-count"`
 	EncryptionPassword           *string `json:"encryption-password"`
+
+	Files       *bool `json:"files"`
+	Directories *bool `json:"directories"`
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -806,6 +826,8 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Destination = fs.String(drive.CLIOptionPushDestination, "", drive.DescPushDestination)
 	cmd.ExponentialBackoffRetryCount = fs.Int(drive.CLIOptionRetryCount, drive.MaxFailedRetryCount, drive.DescExponentialBackoffRetryCount)
 	cmd.EncryptionPassword = fs.String(drive.CLIEncryptionPassword, "", drive.DescEncryptionPassword)
+	cmd.Files = fs.Bool(drive.CLIOptionFiles, false, "push only files")
+	cmd.Directories = fs.Bool(drive.CLIOptionDirectories, false, "push only directories")
 
 	return fs
 }
@@ -921,6 +943,13 @@ func (cmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	}
 }
 
+func exitIfIllogicalFileAndFolder(mask int) {
+	fileAndFolder := drive.NonFolder | drive.Folder
+	if (mask & fileAndFolder) == fileAndFolder {
+		exitWithError(fmt.Errorf("cannot request for both file and folder"))
+	}
+}
+
 func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[string]*flag.Flag) (*drive.Options, error) {
 	cmd := pushCmd{}
 	df := defaultsFiller{
@@ -940,6 +969,15 @@ func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[str
 	if *cmd.Ocr {
 		mask |= drive.OptOCR
 	}
+
+	if *cmd.Directories {
+		mask |= drive.Folder
+	}
+	if *cmd.Files {
+		mask |= drive.NonFolder
+	}
+
+	exitIfIllogicalFileAndFolder(mask)
 
 	meta := map[string][]string{
 		drive.CoercedMimeKeyKey: drive.NonEmptyTrimmedStrings(*cmd.CoercedMimeKey),
