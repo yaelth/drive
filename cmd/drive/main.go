@@ -1440,6 +1440,7 @@ type shareCmd struct {
 	Notify      *bool   `json:"notify"`
 	Quiet       *bool   `json:"quiet"`
 	Verbose     *bool   `json:"verbose"`
+	WithLink    *bool   `json:"with-link"`
 }
 
 func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -1448,6 +1449,7 @@ func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Role = fs.String(drive.RoleKey, "", "role to set to receipients of share. Possible values: "+drive.DescRoles)
 	cmd.AccountType = fs.String(drive.TypeKey, "", "scope of accounts to share files with. Possible values: "+drive.DescAccountTypes)
 	cmd.Notify = fs.Bool(drive.CLIOptionNotify, true, "toggle whether to notify receipients about share")
+	cmd.WithLink = fs.Bool(drive.CLIOptionWithLink, false, drive.DescWithLink)
 	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "disables the prompt")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
@@ -1468,7 +1470,10 @@ func (cmd *shareCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 
 	mask := drive.NoopOnShare
 	if *cmd.Notify {
-		mask = drive.Notify
+		mask |= drive.Notify
+	}
+	if *cmd.WithLink {
+		mask |= drive.WithLink
 	}
 
 	exitWithError(drive.New(context, &drive.Options{

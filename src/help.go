@@ -193,6 +193,7 @@ const (
 	DescExponentialBackoffRetryCount = "max number of retries for exponential backoff"
 	DescEncryptionPassword           = "encryption password"
 	DescDecryptionPassword           = "decryption password"
+	DescWithLink                     = "turn off file indexing so that only those with the link can view it"
 )
 
 const (
@@ -238,6 +239,7 @@ const (
 	CLIOptionRetryCount         = "retry-count"
 	CLIEncryptionPassword       = "encryption-password"
 	CLIDecryptionPassword       = "decryption-password"
+	CLIOptionWithLink           = "with-link"
 )
 
 const (

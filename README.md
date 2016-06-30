@@ -602,6 +602,13 @@ $ drive share -emails drive-mailing-list@gmail.com -message "Here is the drive c
 $ drive share --emails developers@developers.devs --message "Developers, developers developers" --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
++ You can also share a file to only those with the link. As per [https://github.com/odeke-em/drive/issues/568](https://github.com/odeke-em/drive/issues/568), this file won't be publicly indexed. To turn this option on when sharing the file,
+use flag `--with-link`.
+
+```shell
+$ drive share --with-link ComedyPunchlineDrumSound.mp3
+```
+
 ### Unsharing
 
 The `unshare` command revokes access of a specific accountType to a set of files.

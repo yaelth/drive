@@ -45,6 +45,7 @@ const (
 const (
 	NoopOnShare = 1 << iota
 	Notify
+	WithLink
 )
 
 type shareChange struct {
@@ -55,6 +56,9 @@ type shareChange struct {
 	files        []*File
 	revoke       bool
 	notify       bool
+	// withLink turns off public file indexing so that
+	// the file will only be shared to those with the link
+	withLink bool
 }
 
 type permission struct {
@@ -63,7 +67,9 @@ type permission struct {
 	message     string
 	role        Role
 	accountType AccountType
-	notify      bool
+
+	notify   bool
+	withLink bool
 }
 
 func (r *Role) String() string {
@@ -295,10 +301,12 @@ func (c *Commands) playShareChanges(change *shareChange) (err error) {
 					perm := permission{
 						fileId:      file.Id,
 						value:       email,
-						message:     change.emailMessage,
-						notify:      change.notify,
 						role:        role,
 						accountType: accountType,
+
+						notify:   change.notify,
+						message:  change.emailMessage,
+						withLink: change.withLink,
 					}
 
 					if err := fn(&perm); err != nil {
@@ -375,25 +383,34 @@ func (c *Commands) share(revoke, byId bool) (err error) {
 		emails = append(emails, "")
 	}
 
-	notify := (c.opts.TypeMask & Notify) != 0
-
+	anyoneAlreadySet := false
 	// Now here we have to match up emails with roles
 	// See Issue #568. If we've requested say `anyone`, this role needs no email
 	// address, so we should add an empty "" to the list of emails
 	for _, accountType := range accountTypes {
 		if accountType == Anyone {
+			anyoneAlreadySet = true
 			emails = append(emails, "")
 		}
 	}
 
 	change := shareChange{
+		files:  files,
+		revoke: revoke,
+		roles:  roles,
+
 		accountTypes: accountTypes,
 		emailMessage: emailMessage,
-		emails:       emails,
-		files:        files,
-		revoke:       revoke,
-		roles:        roles,
-		notify:       notify,
+
+		notify:   (c.opts.TypeMask & Notify) == Notify,
+		withLink: (c.opts.TypeMask & WithLink) == WithLink,
+	}
+
+	if len(change.emails) < 1 && change.withLink { // They've basically requested a share to everyone but with link
+		change.emails = append(change.emails, "")
+		if !anyoneAlreadySet {
+			change.accountTypes = append(change.accountTypes, Anyone)
+		}
 	}
 
 	return c.playShareChanges(&change)

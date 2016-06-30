@@ -400,8 +400,9 @@ func (r *Remote) listPermissions(id string) ([]*drive.Permission, error) {
 
 func (r *Remote) insertPermissions(permInfo *permission) (*drive.Permission, error) {
 	perm := &drive.Permission{
-		Role: permInfo.role.String(),
-		Type: permInfo.accountType.String(),
+		Role:     permInfo.role.String(),
+		Type:     permInfo.accountType.String(),
+		WithLink: permInfo.withLink,
 	}
 
 	if permInfo.value != "" {
