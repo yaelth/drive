@@ -198,7 +198,6 @@ func splitAndStrip(line string, resolveFromEnv bool) (kv keyValue, err error) {
 
 func JSONStringifySiftedCLITags(from interface{}, rcSourcePath string, defined map[string]bool) (string, error) {
 	rcMappings, err := ResourceMappings(rcSourcePath)
-
 	if err != nil && !NotExist(err) {
 		return "", err
 	}
@@ -209,5 +208,5 @@ func JSONStringifySiftedCLITags(from interface{}, rcSourcePath string, defined m
 		AlreadyDefined: defined,
 	}
 
-	return SiftCliTags(&cs), err
+	return SiftCliTags(&cs), nil
 }
