@@ -231,11 +231,11 @@ func (r *Remote) FindByIdM(id string) chan *File {
 	return wrapInChan(f, err)
 }
 
-func (r *Remote) FindById(id string) (file *File, err error) {
+func (r *Remote) FindById(id string) (*File, error) {
 	req := r.service.Files.Get(id)
-	var f *drive.File
-	if f, err = req.Do(); err != nil {
-		return
+	f, err := req.Do()
+	if err != nil {
+		return nil, err
 	}
 	return NewRemoteFile(f), nil
 }
@@ -279,7 +279,7 @@ func (r *Remote) findByPath(p string, trashed bool) (*File, error) {
 	return finder("root", parts[1:])
 }
 
-func (r *Remote) FindByPath(p string) (file *File, err error) {
+func (r *Remote) FindByPath(p string) (*File, error) {
 	return r.findByPath(p, false)
 }
 
@@ -287,7 +287,7 @@ func (r *Remote) FindByPathM(p string) chan *File {
 	return r.findByPathM(p, false)
 }
 
-func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
+func (r *Remote) FindByPathTrashed(p string) (*File, error) {
 	return r.findByPath(p, true)
 }
 
@@ -350,7 +350,7 @@ func _reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination, nilOn
 	return fileChan
 }
 
-func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileChan chan *File) {
+func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) chan *File {
 	req := r.service.Files.List()
 	req.Q(fmt.Sprintf("%s in parents and trashed=%v", customQuote(parentId), trashed))
 	return reqDoPage(req, hidden, false)
@@ -946,7 +946,7 @@ func (r *Remote) findChildren(parentId string, trashed bool) chan *File {
 	return reqDoPage(req, true, false)
 }
 
-func (r *Remote) About() (about *drive.About, err error) {
+func (r *Remote) About() (*drive.About, error) {
 	return r.service.About.Get().Do()
 }
 
@@ -1016,7 +1016,7 @@ func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) c
 	return resolvedResults
 }
 
-func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (file *File, err error) {
+func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (*File, error) {
 	// find the file or directory under parentId and titled with p[0]
 	req := r.service.Files.List()
 	// TODO: use field selectors

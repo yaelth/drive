@@ -29,7 +29,7 @@ func (g *Commands) Url(byId bool) error {
 	return nil
 }
 
-func (g *Commands) urler(byId bool, sources []string) (kvChan chan *keyValue) {
+func (g *Commands) urler(byId bool, sources []string) (chan *keyValue) {
 	fileUrler := func(f *File) interface{} {
 		if f == nil {
 			return ""

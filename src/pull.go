@@ -120,7 +120,7 @@ func pull(g *Commands, pt pullType) error {
 
 	nonConflicts := *nonConflictsPtr
 
-	clArg := changeListArg{
+	clArg := &changeListArg{
 		logy:       g.log,
 		changes:    nonConflicts,
 		noPrompt:   !g.opts.canPrompt(),
@@ -128,7 +128,7 @@ func pull(g *Commands, pt pullType) error {
 		canPreview: g.opts.canPreview(),
 	}
 
-	status, opMap := printChangeList(&clArg)
+	status, opMap := printChangeList(clArg)
 	if !accepted(status) {
 		return status.Error()
 	}
@@ -674,7 +674,7 @@ func isLocalFile(f *File) bool {
 	return f != nil && f.Etag == ""
 }
 
-func (g *Commands) download(change *Change, exports []string) (err error) {
+func (g *Commands) download(change *Change, exports []string) error {
 	if change.Src == nil {
 		return illogicalStateErr(fmt.Errorf("tried to download nil change.Src"))
 	}
@@ -692,7 +692,7 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 	// We need to touch the empty file to
 	// ensure consistency during a push.
-	if err = touchFile(destAbsPath); err != nil {
+	if err := touchFile(destAbsPath); err != nil {
 		return err
 	}
 
@@ -746,7 +746,7 @@ func (g *Commands) singleDownload(dlArg *downloadArg) (err error) {
 	// close fo on exit and check for its returned error
 	defer func() {
 		fErr := fo.Close()
-		if fErr != nil {
+		if err == nil && fErr != nil {
 			g.log.LogErrf("fErr", fErr)
 			err = fErr
 		}

@@ -148,7 +148,7 @@ func (g *Commands) playFetchChanges(cl []*Change, opMap *map[Operation]sizeCount
 	return nil
 }
 
-func (g *Commands) addIndex(wg *sync.WaitGroup, f *File) (err error) {
+func (g *Commands) addIndex(wg *sync.WaitGroup, f *File) error {
 	defer loneCountRegister(wg, g.rem.progressChan)
 
 	indexErr := g.createIndex(f)
@@ -160,15 +160,14 @@ func (g *Commands) addIndex(wg *sync.WaitGroup, f *File) (err error) {
 	return indexErr
 }
 
-func (g *Commands) removeIndex(wg *sync.WaitGroup, f *File) (err error) {
-	err = g.context.CreateIndicesBucket()
-	if err != nil {
+func (g *Commands) removeIndex(wg *sync.WaitGroup, f *File) error {
+	if err := g.context.CreateIndicesBucket(); err != nil {
 		return err
 	}
 
 	defer loneCountRegister(wg, g.rem.progressChan)
 	if f.Id == "" {
-		return
+		return nil
 	}
 
 	index := f.ToIndex()
@@ -307,7 +306,7 @@ func (g *Commands) pruneStaleIndices() (deletions chan string, err error) {
 	return
 }
 
-func (g *Commands) createIndex(f *File) (err error) {
+func (g *Commands) createIndex(f *File) error {
 	if f == nil {
 		return config.ErrDerefNilIndex
 	}

@@ -18,13 +18,13 @@ import (
 	"fmt"
 )
 
-func (c *Commands) Publish(byId bool) (err error) {
+func (c *Commands) Publish(byId bool) error {
 	for _, relToRoot := range c.opts.Sources {
 		if pubErr := c.pub(relToRoot, byId); pubErr != nil {
 			c.log.LogErrf("\033[91mPub\033[00m %s:  %v\n", relToRoot, pubErr)
 		}
 	}
-	return
+	return nil
 }
 
 func (c *Commands) remFileResolve(relToRoot string, byId bool) (*File, error) {
@@ -36,16 +36,15 @@ func (c *Commands) remFileResolve(relToRoot string, byId bool) (*File, error) {
 	return resolver(relToRoot)
 }
 
-func (c *Commands) pub(relToRoot string, byId bool) (err error) {
+func (c *Commands) pub(relToRoot string, byId bool) error {
 	file, err := c.remFileResolve(relToRoot, byId)
 	if err != nil || file == nil {
 		return err
 	}
 
-	var link string
-	link, err = c.rem.Publish(file.Id)
+	link, err := c.rem.Publish(file.Id)
 	if err != nil {
-		return
+		return err
 	}
 
 	link = file.Url()
@@ -55,7 +54,7 @@ func (c *Commands) pub(relToRoot string, byId bool) (err error) {
 	}
 
 	c.log.Logf("%s published on %s\n", relToRoot, link)
-	return
+	return nil
 }
 
 func (c *Commands) Unpublish(byId bool) error {

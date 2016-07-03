@@ -103,10 +103,10 @@ func (c *Context) Cwd() string {
 	return cwd
 }
 
-func (c *Context) Read() (err error) {
-	var data []byte
-	if data, err = ioutil.ReadFile(credentialsPath(c.AbsPath)); err != nil {
-		return
+func (c *Context) Read() error {
+	data, err := ioutil.ReadFile(credentialsPath(c.AbsPath))
+	if err != nil {
+		return err
 	}
 	return json.Unmarshal(data, c)
 }
@@ -150,9 +150,9 @@ func (c *Context) DeserializeIndex(key string) (*Index, error) {
 
 func (c *Context) ListKeys(dir, bucketName string) (chan string, error) {
 	keysChan := make(chan string)
-	if creationErr := c.CreateIndicesBucket(); creationErr != nil {
+	if err := c.CreateIndicesBucket(); err != nil {
 		close(keysChan)
-		return keysChan, creationErr
+		return keysChan, err
 	}
 
 	db, err := c.OpenDB()
@@ -255,15 +255,13 @@ func (c *Context) CreateIndicesBucket() error {
 	})
 }
 
-func (c *Context) SerializeIndex(index *Index) (err error) {
-	var data []byte
-	var db *bolt.DB
-
-	if data, err = json.Marshal(index); err != nil {
-		return
+func (c *Context) SerializeIndex(index *Index) error {
+	data, err := json.Marshal(index)
+	if err != nil {
+		return err
 	}
 
-	db, err = c.OpenDB()
+	db, err := c.OpenDB()
 	if err != nil {
 		return err
 	}
@@ -281,15 +279,15 @@ func (c *Context) SerializeIndex(index *Index) (err error) {
 	})
 }
 
-func (c *Context) Write() (err error) {
-	var data []byte
-	if data, err = json.Marshal(c); err != nil {
-		return
+func (c *Context) Write() error {
+	data, err := json.Marshal(c)
+	if err != nil {
+		return err
 	}
 	return ioutil.WriteFile(credentialsPath(c.AbsPath), data, 0600)
 }
 
-func (c *Context) DeInitialize(prompter func(...interface{}) bool, returnOnAnyError bool) (err error) {
+func (c *Context) DeInitialize(prompter func(...interface{}) bool, returnOnAnyError bool) error {
 	rootDir := c.AbsPathOf("")
 	pathsToRemove := []string{
 		credentialsPath(rootDir),
@@ -313,10 +311,9 @@ func (c *Context) DeInitialize(prompter func(...interface{}) bool, returnOnAnyEr
 	return nil
 }
 
-func (c *Context) OpenDB() (db *bolt.DB, err error) {
+func (c *Context) OpenDB() (*bolt.DB, error) {
 	dbPath := DbSuffixedPath(c.AbsPathOf(""))
-	db, err = bolt.Open(dbPath, O_RWForAll, nil)
-
+	db, err := bolt.Open(dbPath, O_RWForAll, nil)
 	if err != nil {
 		return db, err
 	}
@@ -330,7 +327,7 @@ func (c *Context) OpenDB() (db *bolt.DB, err error) {
 
 // Discovers the gd directory, if no gd directory or credentials
 // could be found for the path, returns ErrNoContext.
-func Discover(currentAbsPath string) (context *Context, err error) {
+func Discover(currentAbsPath string) (*Context, error) {
 	p := currentAbsPath
 	found := false
 	for {
@@ -349,11 +346,11 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 	if !found {
 		return nil, ErrNoDriveContext
 	}
-	context = &Context{AbsPath: p}
-	if err = context.Read(); err != nil {
+	context := &Context{AbsPath: p}
+	if err := context.Read(); err != nil {
 		return nil, err
 	}
-	return
+	return context, nil
 }
 
 func Initialize(absPath string) (pathGD string, firstInit bool, c *Context, err error) {
@@ -415,9 +412,9 @@ func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool
 	createdMountDir := false
 	shortestMountRoot := ""
 
-	_, fErr := os.Stat(contextAbsPath)
-	if fErr != nil {
-		if !os.IsNotExist(fErr) {
+	_, err := os.Stat(contextAbsPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
 			return
 		}
 
@@ -430,9 +427,8 @@ func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool
 			}
 		}
 
-		mkErr := os.MkdirAll(contextAbsPath, os.ModeDir|0755)
-		if mkErr != nil {
-			fmt.Fprintf(os.Stderr, "mountpoint: %v\n", mkErr)
+		if err := os.MkdirAll(contextAbsPath, os.ModeDir|0755); err != nil {
+			fmt.Fprintf(os.Stderr, "mountpoint: %v\n", err)
 			return
 		}
 

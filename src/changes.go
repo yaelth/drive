@@ -635,6 +635,27 @@ func resolveConflicts(conflicts []*Change, push bool, indexFiler func(string) *c
 	return
 }
 
+func (g *Commands) resolveConflicts(cl []*Change, push bool) (*[]*Change, *[]*Change) {
+	if g.opts.IgnoreConflict {
+		return &cl, nil
+	}
+
+	nonConflicts, conflicts := sift(cl)
+	resolved, unresolved := resolveConflicts(conflicts, push, g.deserializeIndex)
+	if conflictsPersist(unresolved) {
+		return &resolved, &unresolved
+	}
+
+	for _, ch := range unresolved {
+		resolved = append(resolved, ch)
+	}
+
+	for _, ch := range resolved {
+		nonConflicts = append(nonConflicts, ch)
+	}
+	return &nonConflicts, nil
+}
+
 func sift(changes []*Change) (nonConflicts, conflicts []*Change) {
 	// Firstly detect the conflicting changes and if present return false
 	for _, c := range changes {

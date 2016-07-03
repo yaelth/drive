@@ -196,12 +196,11 @@ func splitAndStrip(line string, resolveFromEnv bool) (kv keyValue, err error) {
 	return
 }
 
-func JSONStringifySiftedCLITags(from interface{}, rcSourcePath string, defined map[string]bool) (repr string, err error) {
-	rcMappings, rErr := ResourceMappings(rcSourcePath)
+func JSONStringifySiftedCLITags(from interface{}, rcSourcePath string, defined map[string]bool) (string, error) {
+	rcMappings, err := ResourceMappings(rcSourcePath)
 
-	if rErr != nil && !NotExist(rErr) {
-		err = rErr
-		return
+	if err != nil && !NotExist(err) {
+		return "", err
 	}
 
 	cs := CliSifter{

@@ -16,10 +16,11 @@ package drive
 
 import (
 	"fmt"
-	"github.com/odeke-em/log"
-	drive "google.golang.org/api/drive/v2"
 	"path/filepath"
 	"strings"
+
+	"github.com/odeke-em/log"
+	drive "google.golang.org/api/drive/v2"
 )
 
 type keyValue struct {

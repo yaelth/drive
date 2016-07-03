@@ -34,7 +34,7 @@ var mkdirAllMu = sync.Mutex{}
 // Pushes to remote if local path exists and in a gd context. If path is a
 // directory, it recursively pushes to the remote if there are local changes.
 // It doesn't check if there are local changes if isForce is set.
-func (g *Commands) Push() (err error) {
+func (g *Commands) Push() error {
 	g.rem.encrypter = g.opts.Encrypter
 	g.rem.decrypter = g.opts.Decrypter
 
@@ -162,28 +162,7 @@ func (g *Commands) Push() (err error) {
 	return g.playPushChanges(nonConflicts, opMap)
 }
 
-func (g *Commands) resolveConflicts(cl []*Change, push bool) (*[]*Change, *[]*Change) {
-	if g.opts.IgnoreConflict {
-		return &cl, nil
-	}
-
-	nonConflicts, conflicts := sift(cl)
-	resolved, unresolved := resolveConflicts(conflicts, push, g.deserializeIndex)
-	if conflictsPersist(unresolved) {
-		return &resolved, &unresolved
-	}
-
-	for _, ch := range unresolved {
-		resolved = append(resolved, ch)
-	}
-
-	for _, ch := range resolved {
-		nonConflicts = append(nonConflicts, ch)
-	}
-	return &nonConflicts, nil
-}
-
-func (g *Commands) PushPiped() (err error) {
+func (g *Commands) PushPiped() error {
 	g.rem.encrypter = g.opts.Encrypter
 	g.rem.decrypter = g.opts.Decrypter
 
@@ -225,7 +204,7 @@ func (g *Commands) PushPiped() (err error) {
 			fauxSrc.ModTime = time.Now()
 		}
 
-		args := upsertOpt{
+		args := &upsertOpt{
 			parentId:       parent.Id,
 			fsAbsPath:      relToRootPath,
 			src:            fauxSrc,
@@ -236,7 +215,7 @@ func (g *Commands) PushPiped() (err error) {
 			retryCount:     g.opts.ExponentialBackoffRetryCount,
 		}
 
-		rem, _, rErr := g.rem.upsertByComparison(os.Stdin, &args)
+		rem, _, rErr := g.rem.upsertByComparison(os.Stdin, args)
 		if rErr != nil {
 			g.log.LogErrf("%s: %v\n", relToRootPath, rErr)
 			return rErr
@@ -254,7 +233,8 @@ func (g *Commands) PushPiped() (err error) {
 			g.log.LogErrf("serializeIndex %s: %v\n", rem.Name, wErr)
 		}
 	}
-	return
+
+	return nil
 }
 
 func (g *Commands) deserializeIndex(identifier string) *config.Index {
@@ -432,7 +412,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		return
 	}
 
-	args := upsertOpt{
+	args := &upsertOpt{
 		parentId:       parent.Id,
 		fsAbsPath:      absPath,
 		src:            change.Src,
@@ -450,7 +430,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		args.mimeKey = filepath.Ext(args.src.Name)
 	}
 
-	rem, err := g.rem.UpsertByComparison(&args)
+	rem, err := g.rem.UpsertByComparison(args)
 	if err != nil {
 		g.log.LogErrf("%s: %v\n", change.Path, err)
 		return
@@ -468,19 +448,18 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 	return
 }
 
-func (g *Commands) remoteAdd(change *Change) (err error) {
+func (g *Commands) remoteAdd(change *Change) error {
 	return g.remoteMod(change)
 }
 
-func (g *Commands) remoteUntrash(change *Change) (err error) {
+func (g *Commands) remoteUntrash(change *Change) error {
 	target := change.Src
 	defer func() {
 		g.taskAdd(target.Size)
 	}()
 
-	err = g.rem.Untrash(target.Id)
-	if err != nil {
-		return
+	if err := g.rem.Untrash(target.Id); err != nil {
+		return err
 	}
 
 	index := target.ToIndex()
@@ -490,17 +469,16 @@ func (g *Commands) remoteUntrash(change *Change) (err error) {
 	if wErr != nil {
 		g.log.LogErrf("serializeIndex %s: %v\n", target.Name, wErr)
 	}
-	return
+	return nil
 }
 
-func remoteRemover(g *Commands, change *Change, fn func(string) error) (err error) {
+func remoteRemover(g *Commands, change *Change, fn func(string) error) error {
 	defer func() {
 		g.taskAdd(change.Dest.Size)
 	}()
 
-	err = fn(change.Dest.Id)
-	if err != nil {
-		return
+	if err := fn(change.Dest.Id); err != nil {
+		return err
 	}
 
 	if change.Dest.IsDir {
@@ -510,14 +488,13 @@ func remoteRemover(g *Commands, change *Change, fn func(string) error) (err erro
 	}
 
 	index := change.Dest.ToIndex()
-	err = g.context.RemoveIndex(index, g.context.AbsPathOf(""))
-
+	err := g.context.RemoveIndex(index, g.context.AbsPathOf(""))
 	if err != nil {
 		if change.Src != nil {
 			g.log.LogErrf("%s \"%s\": remove indexfile %v\n", change.Path, change.Dest.Id, err)
 		}
 	}
-	return
+	return err
 }
 
 func (g *Commands) remoteTrash(change *Change) error {
@@ -528,7 +505,7 @@ func (g *Commands) remoteDelete(change *Change) error {
 	return remoteRemover(g, change, g.rem.Delete)
 }
 
-func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
+func (g *Commands) remoteMkdirAll(d string) (*File, error) {
 	mkdirAllMu.Lock()
 
 	cachedValue, ok := g.mkdirAllCache.Get(d)
