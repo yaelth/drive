@@ -348,7 +348,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 
 	if change.Op() != OpNone {
 		subject := directionalComplement(l, r, clr.push)
-		if clr.filter(subject) {
+		if clr.filter == nil || clr.filter(subject) {
 			cl = append(cl, change)
 		}
 	}
