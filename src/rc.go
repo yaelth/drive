@@ -105,6 +105,7 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 				CLIOptionUnified, CLIOptionDiffBaseLocal,
 				ExportsKey, ExcludeOpsKey, CLIOptionUnifiedShortKey,
 				CLIOptionNotOwner, ExportsDirKey, CLIOptionExactTitle, AddressKey,
+				CLIEncryptionPassword, CLIDecryptionPassword,
 			},
 		},
 		{
