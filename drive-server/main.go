@@ -118,7 +118,7 @@ func presentQRCode(pl meddler.Payload, res http.ResponseWriter, req *http.Reques
 	}
 
 	pngImage := code.PNG()
-	fmt.Fprintf(res, "%s", pngImage)
+	res.Write(pngImage)
 }
 
 func errorPrint(fmt_ string, args ...interface{}) {
