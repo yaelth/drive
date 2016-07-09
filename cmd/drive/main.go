@@ -804,7 +804,7 @@ type pushCmd struct {
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.NoClobber = fs.Bool(drive.CLIOptionNoClobber, false, "allows overwriting of old content")
+	cmd.NoClobber = fs.Bool(drive.CLIOptionNoClobber, false, "prevents overwriting of old content")
 	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "allows pushing of hidden paths")
 	cmd.Recursive = fs.Bool(drive.RecursiveKey, true, "performs the push action recursively")
 	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the push action")
