@@ -593,12 +593,19 @@ func touchFile(path string) (err error) {
 	return
 }
 
+func (g *Commands) makeExportsDir(segments ...string) string {
+	if !g.opts.ExportsDumpToSameDirectory {
+		segments = append(segments, "exports")
+	}
+	return sepJoin("_", segments...)
+}
+
 func (g *Commands) export(f *File, destAbsPath string, exports []string) (manifest []string, err error) {
 	if len(exports) < 1 || f == nil {
 		return
 	}
 
-	dirPath := sepJoin("_", destAbsPath, "exports")
+	dirPath := g.makeExportsDir(destAbsPath)
 	if err = os.MkdirAll(dirPath, os.ModeDir|0755); err != nil {
 		return
 	}
@@ -721,7 +728,11 @@ func (g *Commands) download(change *Change, exports []string) error {
 
 	exportDirPath := destAbsPath
 	if g.opts.ExportsDir != "" {
-		exportDirPath = path.Join(g.opts.ExportsDir, change.Src.Name)
+		if g.opts.ExportsDumpToSameDirectory {
+			exportDirPath = g.opts.ExportsDir
+		} else {
+			exportDirPath = path.Join(g.opts.ExportsDir, change.Src.Name)
+		}
 	}
 
 	manifest, exportErr := g.export(change.Src, exportDirPath, exports)

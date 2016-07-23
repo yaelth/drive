@@ -610,35 +610,40 @@ func (cmd *indexCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 }
 
 type pullCmd struct {
-	ById              *bool   `json:"by-id"`
-	ExportsDir        *string `json:"exports-dir"`
-	Export            *string `json:"export"`
-	ExcludeOps        *string `json:"exclude-ops"`
-	Force             *bool   `json:"force"`
-	Hidden            *bool   `json:"hidden"`
-	Matches           *bool   `json:"matches"`
-	NoPrompt          *bool   `json:"no-prompt"`
-	NoClobber         *bool   `json:"no-clobber"`
-	Recursive         *bool   `json:"recursive"`
-	IgnoreChecksum    *bool   `json:"ignore-checksum"`
-	IgnoreConflict    *bool   `json:"ignore-conflict"`
-	Piped             *bool   `json:"piped"`
-	Quiet             *bool   `json:"quiet"`
-	IgnoreNameClashes *bool   `json:"ignore-name-clashes"`
-	SkipMimeKey       *string `json:"skip-mime"`
-	ExplicitlyExport  *bool   `json:"explicitly-export"`
-	FixClashes        *bool   `json:"fix-clashes"`
+	ById   *bool   `json:"by-id"`
+	Files  *bool   `json:"files"`
+	Piped  *bool   `json:"piped"`
+	Quiet  *bool   `json:"quiet"`
+	Force  *bool   `json:"force"`
+	Depth  *int    `json:"depth"`
+	Hidden *bool   `json:"hidden"`
+	Export *string `json:"export"`
 
-	Verbose                      *bool   `json:"verbose"`
-	Depth                        *int    `json:"depth"`
-	Starred                      *bool   `json:"starred"`
-	AllStarred                   *bool   `json:"all-starred"`
-	InTrash                      *bool   `json:"trashed"`
-	ExponentialBackoffRetryCount *int    `json:"retry-count"`
-	DecryptionPassword           *string `json:"decryption-password"`
+	Starred *bool `json:"starred"`
+	Verbose *bool `json:"verbose"`
+	InTrash *bool `json:"trashed"`
+	Matches *bool `json:"matches"`
 
-	Files       *bool `json:"files"`
-	Directories *bool `json:"directories"`
+	NoPrompt  *bool `json:"no-prompt"`
+	NoClobber *bool `json:"no-clobber"`
+	Recursive *bool `json:"recursive"`
+
+	AllStarred  *bool   `json:"all-starred"`
+	FixClashes  *bool   `json:"fix-clashes"`
+	Directories *bool   `json:"directories"`
+	ExportsDir  *string `json:"exports-dir"`
+	ExcludeOps  *string `json:"exclude-ops"`
+	SkipMimeKey *string `json:"skip-mime"`
+
+	IgnoreChecksum    *bool `json:"ignore-checksum"`
+	IgnoreConflict    *bool `json:"ignore-conflict"`
+	ExplicitlyExport  *bool `json:"explicitly-export"`
+	IgnoreNameClashes *bool `json:"ignore-name-clashes"`
+
+	DecryptionPassword *string `json:"decryption-password"`
+
+	ExponentialBackoffRetryCount *int  `json:"retry-count"`
+	ExportsDumpToSameDirectory   *bool `json:"same-exports-dir"`
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -653,7 +658,10 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.IgnoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
 	cmd.IgnoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.IgnoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
+
 	cmd.ExportsDir = fs.String(drive.ExportsDirKey, "", "directory to place exports")
+	cmd.ExportsDumpToSameDirectory = fs.Bool(drive.CLIOptionExportsDumpToSameDirectory, false, "exports are put in the same directory")
+
 	cmd.Matches = fs.Bool(drive.MatchesKey, false, "search by prefix")
 	cmd.Piped = fs.Bool(drive.CLIOptionPiped, false, drive.DescPiped)
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
@@ -728,32 +736,36 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	exitIfIllogicalFileAndFolder(typeMask)
 
 	options := &drive.Options{
-		Path:              path,
-		Sources:           sources,
-		Exports:           uniqOrderedStr(exports),
-		ExportsDir:        strings.Trim(*cmd.ExportsDir, " "),
-		Force:             *cmd.Force,
-		Hidden:            *cmd.Hidden,
+		Path:       path,
+		Sources:    sources,
+		Exports:    uniqOrderedStr(exports),
+		ExportsDir: strings.TrimSpace(*cmd.ExportsDir),
+
+		Force:      *cmd.Force,
+		Hidden:     *cmd.Hidden,
+		NoPrompt:   *cmd.NoPrompt,
+		NoClobber:  *cmd.NoClobber,
+		Recursive:  *cmd.Recursive,
+		Piped:      *cmd.Piped,
+		Quiet:      *cmd.Quiet,
+		Meta:       &meta,
+		Verbose:    *cmd.Verbose,
+		Depth:      *cmd.Depth,
+		FixClashes: *cmd.FixClashes,
+		Starred:    *cmd.Starred,
+		Match:      *cmd.Matches,
+		InTrash:    *cmd.InTrash,
+		Decrypter:  decryptFn,
+		TypeMask:   typeMask,
+
 		IgnoreChecksum:    *cmd.IgnoreChecksum,
 		IgnoreConflict:    *cmd.IgnoreConflict,
-		NoPrompt:          *cmd.NoPrompt,
-		NoClobber:         *cmd.NoClobber,
-		Recursive:         *cmd.Recursive,
-		Piped:             *cmd.Piped,
-		Quiet:             *cmd.Quiet,
-		IgnoreNameClashes: *cmd.IgnoreNameClashes,
 		ExcludeCrudMask:   excludeCrudMask,
 		ExplicitlyExport:  *cmd.ExplicitlyExport,
-		Meta:              &meta,
-		Verbose:           *cmd.Verbose,
-		Depth:             *cmd.Depth,
-		FixClashes:        *cmd.FixClashes,
-		Starred:           *cmd.Starred,
-		Match:             *cmd.Matches,
-		InTrash:           *cmd.InTrash,
+		IgnoreNameClashes: *cmd.IgnoreNameClashes,
+
+		ExportsDumpToSameDirectory:   *cmd.ExportsDumpToSameDirectory,
 		ExponentialBackoffRetryCount: retryCount,
-		Decrypter:                    decryptFn,
-		TypeMask:                     typeMask,
 	}
 
 	if *cmd.Matches || *cmd.Starred {

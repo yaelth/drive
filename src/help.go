@@ -240,6 +240,8 @@ const (
 	CLIEncryptionPassword       = "encryption-password"
 	CLIDecryptionPassword       = "decryption-password"
 	CLIOptionWithLink           = "with-link"
+
+	CLIOptionExportsDumpToSameDirectory = "same-exports-dir"
 )
 
 const (

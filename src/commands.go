@@ -41,6 +41,11 @@ type Options struct {
 	// ExportsDir is the directory to put the exported Google Docs + Sheets.
 	// If not provided, will export them to the same dir as the source files are
 	ExportsDir string
+
+	// ExportsDumpToSameDirectory when set, requests that all exports be put in the
+	// same directory instead of in a directory that is prefixed first by the file name
+	ExportsDumpToSameDirectory bool
+
 	// Force once set always converts NoChange into an Addition
 	Force bool
 	// Hidden discovers hidden paths if set

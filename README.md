@@ -349,6 +349,24 @@ By default, the exported files will be placed in a new directory suffixed by `\_
 $ drive pull -export pdf,rtf,docx,txt -export-dir ~/Desktop/exports
 ```
 
+Otherwise, you can export files to the same directory as requested in [issue #660](https://github.com/odeke-em/drive/issues/660),
+by using pull flag `--same-exports-dir`. For example:
+```shell
+ drive pull --explicitly-export --exports-dir ~/Desktop/exp --export pdf,txt,odt --same-exports-dir 
+Resolving...
++ /test-exports/few.docs
++ /test-exports/few
++ /test-exports/influx
+Addition count 3
+Proceed with the changes? [Y/n]:y
+Exported '/Users/emmanuelodeke/emm.odeke@gmail.com/test-exports/influx' to '/Users/emmanuelodeke/Desktop/exp/influx.pdf'
+Exported '/Users/emmanuelodeke/emm.odeke@gmail.com/test-exports/influx' to '/Users/emmanuelodeke/Desktop/exp/influx.txt'
+Exported '/Users/emmanuelodeke/emm.odeke@gmail.com/test-exports/few' to '/Users/emmanuelodeke/Desktop/exp/few.pdf'
+Exported '/Users/emmanuelodeke/emm.odeke@gmail.com/test-exports/few.docs' to '/Users/emmanuelodeke/Desktop/exp/few.docs.txt'
+Exported '/Users/emmanuelodeke/emm.odeke@gmail.com/test-exports/few.docs' to '/Users/emmanuelodeke/Desktop/exp/few.docs.odt'
+Exported '/Users/emmanuelodeke/emm.odeke@gmail.com/test-exports/few.docs' to '/Users/emmanuelodeke/Desktop/exp/few.docs.pdf'
+```
+
 **Supported formats:**
 
 * doc, docx
