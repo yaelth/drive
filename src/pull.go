@@ -681,6 +681,11 @@ func isLocalFile(f *File) bool {
 	return f != nil && f.Etag == ""
 }
 
+func (g *Commands) shouldCreateURLLinkedFiles() bool {
+	// TODO: Add the equivalents here for other OSes
+	return g.opts.AllowURLLinkedFiles && runtime.GOOS == OSLinuxKey
+}
+
 func (g *Commands) download(change *Change, exports []string) error {
 	if change.Src == nil {
 		return illogicalStateErr(fmt.Errorf("tried to download nil change.Src"))
@@ -703,8 +708,8 @@ func (g *Commands) download(change *Change, exports []string) error {
 		return err
 	}
 
-	// For our Linux kin that need .desktop files
-	if runtime.GOOS == OSLinuxKey {
+	// For our kin that need .desktop files
+	if g.shouldCreateURLLinkedFiles() {
 		f := change.Src
 
 		urlMExt := urlMimeTypeExt{

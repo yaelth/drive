@@ -644,6 +644,8 @@ type pullCmd struct {
 
 	ExponentialBackoffRetryCount *int  `json:"retry-count"`
 	ExportsDumpToSameDirectory   *bool `json:"same-exports-dir"`
+
+	AllowURLLinkedFiles *bool `json:"desktop-links"`
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -679,6 +681,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 	cmd.Files = fs.Bool(drive.CLIOptionFiles, false, "pull only files")
 	cmd.Directories = fs.Bool(drive.CLIOptionDirectories, false, "pull only directories")
+	cmd.AllowURLLinkedFiles = fs.Bool(drive.CLIOptionDesktopLinks, true, drive.DescAllowDesktopLinks)
 
 	return fs
 }
@@ -764,6 +767,7 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		ExplicitlyExport:  *cmd.ExplicitlyExport,
 		IgnoreNameClashes: *cmd.IgnoreNameClashes,
 
+		AllowURLLinkedFiles:          *cmd.AllowURLLinkedFiles,
 		ExportsDumpToSameDirectory:   *cmd.ExportsDumpToSameDirectory,
 		ExponentialBackoffRetryCount: retryCount,
 	}

@@ -101,6 +101,12 @@ type Options struct {
 
 	Encrypter func(io.Reader) (io.Reader, error)
 	Decrypter func(io.Reader) (io.ReadCloser, error)
+
+	// AllowURLLinkedFiles when set signifies that the user
+	// depending on their OS, wants us to create for them
+	// clickable files where applicable.
+	// See issue #697.
+	AllowURLLinkedFiles bool
 }
 
 func (opts *Options) CryptoEnabled() bool {

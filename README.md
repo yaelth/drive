@@ -1141,7 +1141,13 @@ $ cat << $ >> ~/emm.odeke-drive/fall2015Classes/.driverc
 
 As previously mentioned, Google Docs, Drawings, Presentations, Sheets etc and all files affiliated
 with docs.google.com cannot be downloaded raw but only exported. Due to popular demand, Linux users
-desire the ability to have \*.desktop files that enable the file to be opened appropriately by an external opener. Thus by default on Linux, drive will create \*.desktop files for files that fall into this category.
+desire the ability to have \*.desktop files that enable the file to be opened appropriately by an external opener.
+Thus by default on Linux, drive will create \*.desktop files for files that fall into this category.
+
+To turn off this behavior, you can set flag `--desktop-links` to false e.g
+```shell
+$ drive pull --desktop-links=false
+```
 
 ## Command Aliases
 

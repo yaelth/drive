@@ -194,6 +194,7 @@ const (
 	DescEncryptionPassword           = "encryption password"
 	DescDecryptionPassword           = "decryption password"
 	DescWithLink                     = "turn off file indexing so that only those with the link can view it"
+	DescAllowDesktopLinks            = "allows docs + sheets to be pulled as .desktop files or URL linked files"
 )
 
 const (
@@ -240,6 +241,7 @@ const (
 	CLIEncryptionPassword       = "encryption-password"
 	CLIDecryptionPassword       = "decryption-password"
 	CLIOptionWithLink           = "with-link"
+	CLIOptionDesktopLinks       = "desktop-links"
 
 	CLIOptionExportsDumpToSameDirectory = "same-exports-dir"
 )
