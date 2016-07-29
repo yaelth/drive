@@ -170,8 +170,6 @@ func (g *Commands) List(byId bool) error {
 	resolver := g.rem.FindByPath
 	if byId {
 		resolver = g.rem.FindById
-	} else if g.opts.InTrash {
-		resolver = g.rem.FindByPathTrashed
 	}
 
 	mq := g.createMatchQuery(true)
