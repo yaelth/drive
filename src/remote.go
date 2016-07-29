@@ -142,11 +142,7 @@ func (r *Remote) changes(startChangeId int64) (chan *drive.Change, error) {
 func buildExpression(parentId string, typeMask int, inTrash bool) string {
 	var exprBuilder []string
 
-	if inTrash || (typeMask&InTrash) != 0 {
-		exprBuilder = append(exprBuilder, "trashed=true")
-	} else {
-		exprBuilder = append(exprBuilder, fmt.Sprintf("'%s' in parents", parentId), "trashed=false")
-	}
+	exprBuilder = append(exprBuilder, fmt.Sprintf("'%s' in parents and trashed=%t", parentId, inTrash))
 
 	// Folder and NonFolder are mutually exclusive.
 	if (typeMask & Folder) != 0 {
