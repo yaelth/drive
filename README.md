@@ -306,11 +306,9 @@ $ drive pull --directories tf1
 ```
 
 ## Note: Checksum verification:
+Due to popular demand, by default, checksum verification is turned off. It was deemed to be quite vigorous and unnecessary for most cases, in which size + modTime differences are sufficient to detect file changes. The discussion stemmed from issue [#117](https://github.com/odeke-em/drive/issues/117).
 
-* By default checksum-ing is turned off because it was deemed to be quite vigorous and unnecessary for most cases.
-* Due to popular demand to cover the common case in which size + modTime differences are sufficient to detect file changes. The discussion stemmed from issue [#117](https://github.com/odeke-em/drive/issues/117).
-
-   To turn checksum verification back on:
+To turn checksum verification back on:
 
 ```shell
 $ drive pull -ignore-checksum=false
@@ -405,10 +403,10 @@ $ drive push --destination a1/b2/c3 music/Travi$+Future integrals/complex/compil
 ```
 
 
-Note: To ignore checksum verification during a push:
+To enable checksum verification during a push:
 
 ```shell
-$ drive push -ignore-checksum
+$ drive push -ignore-checksum=false
 ```
 
 To keep your data encrypted at rest remotely on Google Drive:
