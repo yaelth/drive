@@ -663,6 +663,24 @@ func togglePropertiesUpdateCall(req *drive.FilesUpdateCall, mask int) *drive.Fil
 	return req
 }
 
+// shouldUploadBody tells whether a body of content should
+// be uploaded. It rejects local directories.
+// It returns true if the content is nonStatable e.g piped input
+// or if the destination on the cloud is nil
+// and also if there are checksum differences.
+// For other changes such as modTime only varying, we can
+// just change the modTime on the cloud as an operation of its own.
+func (args *upsertOpt) shouldUploadBody() bool {
+	if args.src.IsDir {
+		return false
+	}
+	if args.dest == nil || args.nonStatable {
+		return true
+	}
+	mask := fileDifferences(args.src, args.dest, args.ignoreChecksum)
+	return checksumDiffers(mask)
+}
+
 func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, mediaInserted bool, err error) {
 	uploaded := &drive.File{
 		// Must ensure that the path is prepared for a URL upload
@@ -719,14 +737,9 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 	// We always want it to match up with the local time
 	req.SetModifiedDate(true)
 
-	if !args.src.IsDir {
-		if args.dest == nil || args.nonStatable {
-			req = req.Media(body)
-			mediaInserted = true
-		} else if mask := fileDifferences(args.src, args.dest, args.ignoreChecksum); checksumDiffers(mask) {
-			mediaInserted = true
-			req = req.Media(body)
-		}
+	if args.shouldUploadBody() {
+		req = req.Media(body)
+		mediaInserted = true
 	}
 
 	// Next toggle the appropriate properties
@@ -815,6 +828,8 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	}
 
 	var body io.Reader
+	var cleanUp func() error
+
 	if !args.src.IsDir {
 		// In relation to issue #612, since we are not only resolving
 		// relative to the current working directory, we should try reading
@@ -824,9 +839,17 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 		if fsAbsPath == "" {
 			fsAbsPath = args.fsAbsPath
 		}
-		body, err = os.Open(fsAbsPath)
-		if err != nil {
-			return
+
+		if args.shouldUploadBody() {
+			file, err := os.Open(fsAbsPath)
+			if err != nil {
+				return nil, err
+			}
+
+			// We need to make sure that we close all open handles.
+			// See Issue https://github.com/odeke-em/drive/issues/711.
+			cleanUp = file.Close
+			body = file
 		}
 	}
 
@@ -842,6 +865,10 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	resultLoad := make(chan *tuple)
 
 	go func() {
+		if cleanUp != nil {
+			defer cleanUp()
+		}
+
 		emitter := func() (interface{}, error) {
 			f, mediaInserted, err := r.upsertByComparison(bd, args)
 			return &tuple{first: f, second: mediaInserted, last: err}, err
