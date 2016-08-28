@@ -81,6 +81,17 @@ func (g *Commands) Push() error {
 		}
 	}
 
+	mount := g.opts.Mount
+	if mount != nil {
+		for _, mt := range mount.Points {
+			ccl, cclashes, cerr := g.changeListResolve(mt.Name, mt.MountPath, true)
+			if cerr == nil {
+				cl = append(cl, ccl...)
+			}
+			clashes = append(clashes, cclashes...)
+		}
+	}
+
 	if len(clashes) >= 1 {
 		if g.opts.FixClashes {
 			err := autoRenameClashes(g, clashes)
@@ -92,16 +103,6 @@ func (g *Commands) Push() error {
 
 		warnClashesPersist(g.log, clashes)
 		return ErrClashesDetected
-	}
-
-	mount := g.opts.Mount
-	if mount != nil {
-		for _, mt := range mount.Points {
-			ccl, _, cerr := lonePush(g, rootAbsPath, mt.Name, mt.MountPath)
-			if cerr == nil {
-				cl = append(cl, ccl...)
-			}
-		}
 	}
 
 	spin.stop()
@@ -317,48 +318,6 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 
 	g.taskFinish()
 	return err
-}
-
-func lonePush(g *Commands, parent, absPath, path string) (cl, clashes []*Change, err error) {
-	remotesChan := g.rem.FindByPathM(absPath)
-
-	var l *File
-	localinfo, _ := os.Stat(path)
-	if localinfo != nil {
-		l = NewLocalFile(path, localinfo)
-	}
-
-	iterCount := uint64(0)
-	noClashThreshold := uint64(1)
-
-	for r := range remotesChan {
-		if r != nil {
-			iterCount++
-		}
-
-		clr := &changeListResolve{
-			remote:    r,
-			local:     l,
-			push:      true,
-			dir:       parent,
-			localBase: absPath,
-			depth:     g.opts.Depth,
-		}
-
-		ccl, cclashes, cErr := g.resolveChangeListRecv(clr)
-		cl = append(cl, ccl...)
-		clashes = append(clashes, cclashes...)
-		if cErr != nil {
-			err = combineErrors(err, cErr)
-		}
-	}
-
-	if iterCount > noClashThreshold && len(clashes) < 1 {
-		clashes = append(clashes, cl...)
-		err = combineErrors(err, ErrClashesDetected)
-	}
-
-	return
 }
 
 func (g *Commands) pathSplitter(absPath string) (dir, base string) {

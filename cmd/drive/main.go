@@ -851,6 +851,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *pushCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	if *cmd.MountedPush {
 		exitWithError(cmd.pushMounted(args, definedFlags))
+		return
 	}
 
 	sources, context, path := preprocessArgs(args)
@@ -1056,7 +1057,7 @@ func (cmd *pushCmd) pushMounted(args []string, definedFlags map[string]*flag.Fla
 	// Expectation is that at least one path has to be passed in
 	if argc < 2 {
 		cwd, cerr := os.Getwd()
-		if cerr != nil {
+		if cerr == nil {
 			contextArgs = append(contextArgs, cwd)
 		}
 		rest = args
