@@ -163,7 +163,7 @@ const (
 		"\n\t* Are on a low power device"
 	DescIgnoreConflict               = "turns off the conflict resolution safety"
 	DescIgnoreNameClashes            = "ignore name clashes"
-	DescSort                         = "sort items in the order\n\t* md5.\n\t* name.\n\t* size.\n\t* type.\n\t* version"
+	DescSort                         = "sort items by a combination of attributes\n\t* modtime.\n\t* md5.\n\t* name.\n\t* size.\n\t* type.\n\t* version\ncomma separated e.g modtime,md5_r,name"
 	DescSkipMime                     = "skip elements with mimeTypes derived from these extensions"
 	DescMatchMime                    = "get elements with the exact mimeTypes derived from extensions"
 	DescMatchTitle                   = "elements with matching titles"

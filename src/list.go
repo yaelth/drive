@@ -39,17 +39,30 @@ type traversalSt struct {
 	matchQuery       *matchQuery
 }
 
-func sorters(opts *Options) (sortKeys []string) {
+func sorters(opts *Options) []string {
 	if opts == nil || opts.Meta == nil {
-		return
+		return nil
 	}
 
 	meta := *(opts.Meta)
 	retr, ok := meta[SortKey]
 	if !ok {
-		return
+		return nil
 	}
-	return retr
+
+	// Keys sent it via meta need to be comma split
+	// first, space trimmed then added.
+	// See Issue https://github.com/odeke-em/drive/issues/714.
+	var sortKeys []string
+	for _, attr := range retr {
+		splits := strings.Split(attr, ",")
+		for _, split := range splits {
+			trimmedAttr := strings.TrimSpace(split)
+			sortKeys = append(sortKeys, trimmedAttr)
+		}
+	}
+
+	return sortKeys
 }
 
 func (g *Commands) ListMatches() error {
