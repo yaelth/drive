@@ -37,7 +37,7 @@ sudo apt-get update
 sudo apt-get install drive
 ```
 
-### openSUSE distro. (may also work with fedora, CentOS, Red Hat)
+### openSUSE distro. (may also work with CentOS, Red Hat)
 ```sh
 # install needed software tools
 sudo yum install go mercurial git hg-git
@@ -52,6 +52,22 @@ $ go get github.com/odeke-em/drive/cmd/drive
 # run drive with this command:
 $ $GOPATH/bin/drive
 ```
+
+### Fedora
+Fedora rpms are available from the Fedora Copr project [here](https://copr.fedorainfracloud.org/coprs/vaughan/drive-google/)
+
+Enable the copr repository:
+
+```
+$ dnf copr enable vaughan/drive-google
+```
+
+Install the package (drive-google):
+
+```
+$ dnf install drive-google
+```
+
 ### Packages Provided By
 
 Platform | Author |
@@ -59,4 +75,5 @@ Platform | Author |
 [Arch Linux](https://aur.archlinux.org/packages/drive) | [Jonathan Jenkins](https://github.com/shaggytwodope)
 [Ubuntu Linux](https://launchpad.net/~twodopeshaggy/+archive/ubuntu/drive) | [Jonathan Jenkins](https://github.com/shaggytwodope)
 [openSUSE Linux]() | [Grant Rostig](https://github.com/grantrostig)
+[Fedora](https://copr.fedorainfracloud.org/coprs/vaughan/drive-google/) | [Vaughan Agrez](https://github.com/agrez)
 
