@@ -40,6 +40,7 @@ const (
 	StatusInvalidArguments            ErrorStatus = 21
 	StatusNamedPipeReadAttempt        ErrorStatus = 22
 	StatusContentTooLarge             ErrorStatus = 23
+	StatusClashesFixed                ErrorStatus = 24
 )
 
 type Error struct {
@@ -150,4 +151,8 @@ func namedPipeReadAttemptErr(err error) *Error {
 
 func contentTooLargeErr(err error) *Error {
 	return makeError(err, StatusContentTooLarge)
+}
+
+func clashesFixedErr(err error) *Error {
+	return makeError(err, StatusClashesFixed)
 }

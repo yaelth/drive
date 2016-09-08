@@ -15,6 +15,7 @@
 package drive
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -102,7 +103,7 @@ func pull(g *Commands, pt pullType) error {
 		} else {
 			err := autoRenameClashes(g, clashes)
 			if err == nil {
-				g.log.Logln(MsgClashesFixedNowRetry)
+				return clashesFixedErr(errors.New(MsgClashesFixedNowRetry))
 			}
 			return err
 		}
