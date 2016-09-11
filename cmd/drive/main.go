@@ -920,6 +920,10 @@ type touchCmd struct {
 	Matches   *bool `json:"matches"`
 	Quiet     *bool `json:"quiet"`
 	Verbose   *bool `json:"verbose"`
+
+	TouchTimeStr        *string `json:"time"`
+	OffsetDurationStr   *string `json:"duration"`
+	TimeFormatSpecifier *string `json:"format"`
 }
 
 func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -930,6 +934,10 @@ func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "share by id instead of path")
 	cmd.Depth = fs.Int(drive.DepthKey, drive.DefaultMaxTraversalDepth, "max traversal depth")
 	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, true, drive.DescVerbose)
+
+	cmd.TouchTimeStr = fs.String(drive.TouchModTimeKey, "", drive.DescTouchTimeStr)
+	cmd.OffsetDurationStr = fs.String(drive.TouchOffsetDurationKey, "", drive.DescTouchOffsetDuration)
+	cmd.TimeFormatSpecifier = fs.String(drive.TouchTimeFmtSpecifierKey, drive.DefaultTouchTimeSpecifier, drive.DescTouchTimeFmtSpecifier)
 
 	return fs
 }
@@ -952,6 +960,14 @@ func (cmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Match:     *cmd.Matches,
 		Verbose:   *cmd.Verbose,
 	}
+
+	meta := map[string][]string{
+		drive.TouchModTimeKey:          drive.NonEmptyTrimmedStrings(*cmd.TouchTimeStr),
+		drive.TouchOffsetDurationKey:   drive.NonEmptyTrimmedStrings(*cmd.OffsetDurationStr),
+		drive.TouchTimeFmtSpecifierKey: drive.NonEmptyTrimmedStrings(*cmd.TimeFormatSpecifier),
+	}
+
+	opts.Meta = &meta
 
 	if *cmd.Matches {
 		exitWithError(drive.New(context, &opts).TouchByMatch())

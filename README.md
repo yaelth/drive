@@ -697,6 +697,30 @@ $ drive touch --depth -1 --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9k
 $ drive touch --depth 1 --matches $(seq 0 9)
 ```
 
++ You can also touch and explicitly set the modification time for files by:
+```shell
+$ drive touch --time 20120202120000 ComedyPunchlineDrumSound.mp3
+/share-testing/ComedyPunchlineDrumSound.mp3: 2012-02-02 12:00:00 +0000 UTC
+```
+
++ Specify the time format that you'd like to use when specifying the time e.g
+```shell
+$ drive touch --format "2006-01-02-15:04:05.0000Z" --time "2016-02-03-08:12:15.0070Z" outf.go
+/share-testing/outf.go: 2016-02-03 08:12:15 +0000 UTC
+```
+The mentioned time format has to be relative to how you would represent
+"Mon Jan 2 15:04:05 -0700 MST 2006".
+See the documentation for time formatting here [time.Parse](https://golang.org/pkg/time/#Parse)
+
++ Specify the touch time offset from the clock on your machine where:
+- minus(-) means ago e.g 30 hours ago -> -30h
+- blank or plus(+) means from now e.g 10 minutes -> 10m or +10m
+```shell
+$ drive touch --duration -30h ComedyPunchlineDrumSound.mp3 outf.go
+/share-testing/outf.go: 2016-09-10 08:06:39 +0000 UTC
+/share-testing/ComedyPunchlineDrumSound.mp3: 2016-09-10 08:06:39 +0000 UTC
+```
+
 ### Trashing and Untrashing
 
 Files can be trashed using the `trash` command:

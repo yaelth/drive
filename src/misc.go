@@ -1122,3 +1122,27 @@ func allTruthsHold(truths ...bool) bool {
 	}
 	return true
 }
+
+func parseDate(dateStr string, fmtSpecifiers ...string) (*time.Time, error) {
+	var err error
+
+	for _, fmtSpecifier := range fmtSpecifiers {
+		var t time.Time
+		t, err = time.Parse(fmtSpecifier, dateStr)
+		if err == nil {
+			return &t, err
+		}
+	}
+
+	return nil, err
+}
+
+func parseDurationOffsetFromNow(durationOffsetStr string) (*time.Time, error) {
+	d, err := time.ParseDuration(durationOffsetStr)
+	if err != nil {
+		return nil, err
+	}
+
+	offsetFromNow := time.Now().Add(d)
+	return &offsetFromNow, nil
+}

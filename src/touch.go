@@ -51,18 +51,51 @@ func (g *Commands) Touch(byId bool) (err error) {
 	throttle := time.Tick(1e9 / 10)
 
 	chanMap := map[int]chan *keyValue{}
+	touchModTime, err := g.requestedTouchModTime()
+	if err != nil {
+		return err
+	}
 
 	for i, relToRootPath := range g.opts.Sources {
 		fileId := ""
 		if byId {
 			fileId = relToRootPath
 		}
-		chanMap[i] = g.touch(relToRootPath, fileId, g.opts.Depth)
+		chanMap[i] = g.touch(relToRootPath, fileId, g.opts.Depth, touchModTime)
 		<-throttle
 	}
 
 	multiplexOnChanMapResults(g, chanMap)
 	return
+}
+
+const (
+	DefaultTouchTimeSpecifier = "20060102150405"
+)
+
+func (g *Commands) requestedTouchModTime() (*time.Time, error) {
+	var requestedModTime *time.Time
+	metaPtr := g.opts.Meta
+	if metaPtr == nil {
+		return requestedModTime, nil
+	}
+
+	meta := *metaPtr
+
+	formatSpecifiers := meta[TouchTimeFmtSpecifierKey]
+	formatSpecifiers = append(formatSpecifiers, DefaultTouchTimeSpecifier)
+	modDateStrL, ok := meta[TouchModTimeKey]
+	if ok && len(modDateStrL) >= 1 {
+		return parseDate(modDateStrL[0], formatSpecifiers...)
+	}
+
+	// Otherwise for last resort try parsing by duration
+	durationOffsetStrL, ok := meta[TouchOffsetDurationKey]
+	if ok && len(durationOffsetStrL) >= 1 {
+		return parseDurationOffsetFromNow(durationOffsetStrL[0])
+	}
+
+	return requestedModTime, nil
 }
 
 func (g *Commands) TouchByMatch() (err error) {
@@ -72,6 +105,11 @@ func (g *Commands) TouchByMatch() (err error) {
 		titleSearches: []fuzzyStringsValuePair{
 			{fuzzyLevel: Like, values: g.opts.Sources, inTrash: false},
 		},
+	}
+
+	touchModTime, err := g.requestedTouchModTime()
+	if err != nil {
+		return err
 	}
 
 	matches, err := g.rem.FindMatches(&mq)
@@ -88,7 +126,7 @@ func (g *Commands) TouchByMatch() (err error) {
 			continue
 		}
 
-		chanMap[i] = g.touch(g.opts.Path+"/"+match.Name, match.Id, g.opts.Depth)
+		chanMap[i] = g.touch(g.opts.Path+"/"+match.Name, match.Id, g.opts.Depth, touchModTime)
 		<-throttle
 		i += 1
 	}
@@ -97,7 +135,22 @@ func (g *Commands) TouchByMatch() (err error) {
 	return
 }
 
-func (g *Commands) touch(relToRootPath, fileId string, depth int) chan *keyValue {
+// resolveTouch figures out which function to invoke
+// in order to perform a touch/modTime change of a file.
+func (g *Commands) resolveTouch(fileId, relToRootPath string, modTime *time.Time) (*File, error) {
+	if fileId == "" {
+		return g.touchByPath(relToRootPath, modTime)
+	}
+
+	// Now dealing with only fileId
+	if modTime == nil {
+		return g.rem.Touch(fileId)
+	}
+
+	return g.rem.SetModTime(fileId, *modTime)
+}
+
+func (g *Commands) touch(relToRootPath, fileId string, depth int, modTime *time.Time) chan *keyValue {
 	fileChan := make(chan *keyValue)
 
 	go func() {
@@ -111,11 +164,7 @@ func (g *Commands) touch(relToRootPath, fileId string, depth int) chan *keyValue
 			close(fileChan)
 		}()
 
-		f, arg := g.rem.Touch, fileId
-		if fileId == "" {
-			f, arg = g.touchByPath, relToRootPath
-		}
-		file, err := f(arg)
+		file, err := g.resolveTouch(fileId, relToRootPath, modTime)
 
 		if err != nil {
 			kv.value = err
@@ -140,7 +189,7 @@ func (g *Commands) touch(relToRootPath, fileId string, depth int) chan *keyValue
 			go func() {
 				defer close(childResults)
 				for child := range childrenChan {
-					childResults <- g.touch(relToRootPath+"/"+child.Name, child.Id, depth)
+					childResults <- g.touch(relToRootPath+"/"+child.Name, child.Id, depth, modTime)
 					<-throttle
 				}
 			}()
@@ -156,7 +205,7 @@ func (g *Commands) touch(relToRootPath, fileId string, depth int) chan *keyValue
 	return fileChan
 }
 
-func (g *Commands) touchByPath(relToRootPath string) (*File, error) {
+func (g *Commands) touchByPath(relToRootPath string, modTime *time.Time) (*File, error) {
 	file, err := g.rem.FindByPath(relToRootPath)
 	if err != nil {
 		return nil, err
@@ -164,5 +213,9 @@ func (g *Commands) touchByPath(relToRootPath string) (*File, error) {
 	if file == nil {
 		return nil, ErrPathNotExists
 	}
-	return g.rem.Touch(file.Id)
+	if modTime == nil {
+		return g.rem.Touch(file.Id)
+	}
+
+	return g.rem.SetModTime(file.Id, *modTime)
 }

@@ -591,6 +591,29 @@ func (r *Remote) Touch(id string) (*File, error) {
 	return NewRemoteFile(f), err
 }
 
+// SetModTime is an explicit command to just set the modification
+// time of a remote file. It serves the purpose of Touch but with
+// a custom time instead of the time on the remote server.
+// See Issue https://github.com/odeke-em/drive/issues/726.
+func (r *Remote) SetModTime(fileId string, modTime time.Time) (*File, error) {
+	repr := &drive.File{}
+
+	// Ensure that the ModifiedDate is retrieved from local
+	repr.ModifiedDate = toUTCString(modTime)
+
+	req := r.service.Files.Update(fileId, repr)
+
+	// We always want it to match up with the local time
+	req.SetModifiedDate(true)
+
+	retrieved, err := req.Do()
+	if err != nil {
+		return nil, err
+	}
+
+	return NewRemoteFile(retrieved), nil
+}
+
 func toUTCString(t time.Time) string {
 	utc := t.UTC().Round(time.Second)
 	// Ugly but straight forward formatting as time.Parse is such a prima donna
