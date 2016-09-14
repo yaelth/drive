@@ -551,13 +551,8 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	var url string
 	var body io.ReadCloser
 
-	if len(exportURL) < 1 {
-		url = DriveResourceHostURL + id
-	} else {
-		url = exportURL
-	}
+	resp, err := r.service.Files.Get(id).Download()
 
-	resp, err := r.client.Get(url)
 	if err == nil {
 		if resp == nil {
 			err = illogicalStateErr(fmt.Errorf("bug on: download for url \"%s\". resp and err are both nil", url))
