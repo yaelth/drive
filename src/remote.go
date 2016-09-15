@@ -551,7 +551,14 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	var url string
 	var body io.ReadCloser
 
-	resp, err := r.service.Files.Get(id).Download()
+	var resp *http.Response
+	var err error
+
+	if len(exportURL) < 1 {
+		resp, err = r.service.Files.Get(id).Download()
+	} else {
+		resp, err = r.client.Get(exportURL)
+	}
 
 	if err == nil {
 		if resp == nil {
