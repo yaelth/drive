@@ -449,9 +449,10 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 
 	results := semalim.Run(jobsChan, uint64(n))
 	for result := range results {
-		res, err := result.Value(), result.Err()
-		if err != nil {
-			g.log.LogErrf("pull: %s err: %v\n", res, err)
+		res, rErr := result.Value(), result.Err()
+		if rErr != nil {
+			msg := fmt.Sprintf("%v err: %v\n", res, rErr)
+			err = reComposeError(err, msg)
 		}
 	}
 
@@ -602,13 +603,17 @@ func (g *Commands) makeExportsDir(segments ...string) string {
 }
 
 func (g *Commands) export(f *File, destAbsPath string, exports []string) (manifest []string, err error) {
-	if len(exports) < 1 || f == nil {
-		return
+	if len(exports) < 1 {
+		return nil, nil
+	}
+
+	if f == nil {
+		return nil, fmt.Errorf("nil file dereference")
 	}
 
 	dirPath := g.makeExportsDir(destAbsPath)
-	if err = os.MkdirAll(dirPath, os.ModeDir|0755); err != nil {
-		return
+	if err := os.MkdirAll(dirPath, os.ModeDir|0755); err != nil {
+		return nil, err
 	}
 
 	var ok bool
@@ -631,15 +636,17 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 	}
 
 	n := len(waitables)
-	doneAck := make(chan bool, n)
+	errsChan := make(chan error, n)
 
 	basePath := filepath.Base(f.Name)
 	baseDir := path.Join(dirPath, basePath)
 
 	for _, exportee := range waitables {
-		go func(baseDirPath, id string, urlMExt *urlMimeTypeExt) error {
+		go func(baseDirPath, id string, urlMExt *urlMimeTypeExt) {
+			var err error
+
 			defer func() {
-				doneAck <- true
+				errsChan <- err
 			}()
 
 			exportPath := sepJoin(".", baseDirPath, urlMExt.ext)
@@ -661,20 +668,21 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 				exportURL:       urlMExt.url,
 			}
 
-			err := g.singleDownload(&dlArg)
+			err = g.singleDownload(&dlArg)
 			if err == nil {
 				manifest = append(manifest, exportPath)
 			}
-
-			return err
 		}(baseDir, f.Id, exportee)
 	}
 
 	for i := 0; i < n; i++ {
-		<-doneAck
+		ithErr := <-errsChan
+		if ithErr != nil {
+			err = reComposeError(err, ithErr.Error())
+		}
 	}
 
-	return
+	return manifest, err
 }
 
 func isLocalFile(f *File) bool {
