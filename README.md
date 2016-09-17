@@ -308,11 +308,17 @@ $ drive pull --directories tf1
 ## Note: Checksum verification:
 Due to popular demand, by default, checksum verification is turned off. It was deemed to be quite vigorous and unnecessary for most cases, in which size + modTime differences are sufficient to detect file changes. The discussion stemmed from issue [#117](https://github.com/odeke-em/drive/issues/117).
 
+However, modTime differences on their own do not warrant a resync of the contents of file.
+Modification time changes are operations of their own and can be made:
++ locally by, touching a file (chtimes).
++ remotely by just changing the modTime meta data.
+
 To turn checksum verification back on:
 
 ```shell
 $ drive pull -ignore-checksum=false
 ```
+
 
 
 drive also supports piping pulled content to stdout which can be accomplished by:
