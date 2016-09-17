@@ -189,91 +189,112 @@ func matchQuerier(g *Commands, pt pullType) *matchQuery {
 }
 
 func (g *Commands) pullAllStarred() (cl, clashes []*Change, err error) {
-	starredFilesChan, sErr := g.rem.FindStarred(g.opts.InTrash, g.opts.Hidden)
-	if sErr != nil {
-		err = sErr
-		return
-	}
+	pagePair := g.rem.FindStarred(g.opts.InTrash, g.opts.Hidden)
+	starredFilesChan := pagePair.filesChan
+	errsChan := pagePair.errsChan
 
-	for stF := range starredFilesChan {
-		if stF == nil {
-			continue
-		}
-
-		fullPaths, _ := g.rem.FindBackPaths(stF.Id)
-		for _, p := range fullPaths {
-			relToRoot := filepath.Join(DriveRemoteSep, p)
-			fsPath := g.context.AbsPathOf(relToRoot)
-
-			ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, stF, false)
-
-			if cErr != nil {
-				if cErr != ErrClashesDetected {
-					return cl, clashes, cErr
-				} else {
-					clashes = append(clashes, cclashes...)
-				}
+	working := true
+	for working {
+		select {
+		case err := <-errsChan:
+			if err != nil {
+				return cl, clashes, err
+			}
+		case stF, stillHasContent := <-starredFilesChan:
+			if !stillHasContent {
+				working = false
+				break
+			}
+			if stF == nil {
+				continue
 			}
 
-			cl = append(cl, ccl...)
+			fullPaths, _ := g.rem.FindBackPaths(stF.Id)
+			for _, p := range fullPaths {
+				relToRoot := filepath.Join(DriveRemoteSep, p)
+				fsPath := g.context.AbsPathOf(relToRoot)
+
+				ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, stF, false)
+
+				if cErr != nil {
+					if cErr != ErrClashesDetected {
+						return cl, clashes, cErr
+					} else {
+						clashes = append(clashes, cclashes...)
+					}
+				}
+
+				cl = append(cl, ccl...)
+			}
 		}
 	}
 
 	return
 }
 
+func clCombiner(from, to *[]*Change, done chan bool) {
+	*to = append(*to, *from...)
+	done <- true
+}
+
 func (g *Commands) pullLikeMatchesResolver(pt pullType) (cl, clashes []*Change, err error) {
 	mq := matchQuerier(g, pt)
-	matches, err := g.rem.FindMatches(mq)
-
-	if err != nil {
-		return
-	}
+	pagePair := g.rem.FindMatches(mq)
+	errsChan := pagePair.errsChan
+	matchesChan := pagePair.filesChan
 
 	p := g.opts.Path
 	if p == "/" {
 		p = ""
 	}
 
-	combiner := func(from, to *[]*Change, done chan bool) {
-		*to = append(*to, *from...)
-		done <- true
+	working := true
+	for working {
+		select {
+		case err := <-errsChan:
+			if err != nil {
+				return cl, clashes, err
+			}
+		case match, stillHasContent := <-matchesChan:
+			if !stillHasContent {
+				working = false
+				break
+			}
+
+			if match == nil {
+				continue
+			}
+			relToRoot := filepath.Join(g.opts.Path, match.Name)
+			fsPath := g.context.AbsPathOf(relToRoot)
+
+			ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
+			if cErr != nil {
+				err = cErr
+				return cl, clashes, err
+			}
+
+			combines := []struct {
+				from, to *[]*Change
+			}{
+				{from: &ccl, to: &cl},
+				{from: &cclashes, to: &clashes},
+			}
+
+			nCombines := len(combines)
+			done := make(chan bool, nCombines)
+
+			for i := 0; i < nCombines; i++ {
+				curCombine := combines[i]
+				go clCombiner(curCombine.from, curCombine.to, done)
+			}
+
+			for i := 0; i < nCombines; i++ {
+				<-done
+			}
+		}
 	}
 
-	for match := range matches {
-		if match == nil {
-			continue
-		}
-		relToRoot := filepath.Join(g.opts.Path, match.Name)
-		fsPath := g.context.AbsPathOf(relToRoot)
-
-		ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
-		if cErr != nil {
-			err = cErr
-			return
-		}
-
-		combines := []struct {
-			from, to *[]*Change
-		}{
-			{from: &ccl, to: &cl},
-			{from: &cclashes, to: &clashes},
-		}
-
-		nCombines := len(combines)
-		done := make(chan bool, nCombines)
-
-		for i := 0; i < nCombines; i++ {
-			curCombine := combines[i]
-			go combiner(curCombine.from, curCombine.to, done)
-		}
-
-		for i := 0; i < nCombines; i++ {
-			<-done
-		}
-	}
-
-	return
+	return cl, clashes, nil
 }
 
 func (g *Commands) PullPiped(byId bool) (err error) {
@@ -288,19 +309,45 @@ func (g *Commands) PullPiped(byId bool) (err error) {
 	// TODO: (@odeke-em) allow pull-trashed
 
 	for _, relToRootPath := range g.opts.Sources {
-		matches := resolver(relToRootPath)
-		for rem := range matches {
+		if err := g.pullPipedPerResolver(relToRootPath, resolver); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (g *Commands) pullPipedPerResolver(arg string, resolver func(string) *paginationPair) error {
+	pagePair := resolver(arg)
+	errsChan := pagePair.errsChan
+	matchesChan := pagePair.filesChan
+
+	var err error
+
+	working := true
+	for working {
+		select {
+		case pageErr := <-errsChan:
+			if pageErr != nil {
+				return pageErr
+			}
+		case rem, stillHasContent := <-matchesChan:
+			if !stillHasContent {
+				working = false
+				break
+			}
 			if rem == nil {
-				err = reComposeError(err, fmt.Sprintf("%s doesnot exist", customQuote(relToRootPath)))
+				err = reComposeError(err, fmt.Sprintf("%s doesnot exist", customQuote(arg)))
 				continue
 			}
 
-			err = g.pullAndDownload(relToRootPath, os.Stdout, rem, true)
+			err = g.pullAndDownload(arg, os.Stdout, rem, true)
 			if err != nil {
 				return err
 			}
+
 		}
 	}
+
 	return nil
 }
 

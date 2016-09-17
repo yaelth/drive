@@ -112,23 +112,34 @@ func (g *Commands) TouchByMatch() (err error) {
 		return err
 	}
 
-	matches, err := g.rem.FindMatches(&mq)
-	if err != nil {
-		return err
-	}
+	pagePair := g.rem.FindMatches(&mq)
+	errsChan := pagePair.errsChan
+	matchesChan := pagePair.filesChan
 
 	throttle := time.Tick(1e9 / 10)
 	chanMap := map[int]chan *keyValue{}
 
 	i := 0
-	for match := range matches {
-		if match == nil {
-			continue
-		}
+	working := true
+	for working {
+		select {
+		case err := <-errsChan:
+			if err != nil {
+				return err
+			}
+		case match, stillHasContent := <-matchesChan:
+			if !stillHasContent {
+				working = false
+				break
+			}
+			if match == nil {
+				continue
+			}
 
-		chanMap[i] = g.touch(g.opts.Path+"/"+match.Name, match.Id, g.opts.Depth, touchModTime)
-		<-throttle
-		i += 1
+			chanMap[i] = g.touch(g.opts.Path+"/"+match.Name, match.Id, g.opts.Depth, touchModTime)
+			<-throttle
+			i += 1
+		}
 	}
 
 	multiplexOnChanMapResults(g, chanMap)
@@ -184,13 +195,31 @@ func (g *Commands) touch(relToRootPath, fileId string, depth int, modTime *time.
 			childResults := make(chan chan *keyValue)
 			// Arbitrary value for rate limiter
 			throttle := time.Tick(1e9 * 2)
-			childrenChan := g.rem.FindByParentId(file.Id, g.opts.Hidden)
+			childrenPagePair := g.rem.FindByParentId(file.Id, g.opts.Hidden)
+			errsChan := childrenPagePair.errsChan
+			childrenChan := childrenPagePair.filesChan
 
 			go func() {
 				defer close(childResults)
-				for child := range childrenChan {
-					childResults <- g.touch(relToRootPath+"/"+child.Name, child.Id, depth, modTime)
-					<-throttle
+
+				working := true
+				for working {
+					select {
+					case err := <-errsChan:
+						g.log.LogErrf("%v", err)
+					case child, stillHasContent := <-childrenChan:
+						if !stillHasContent {
+							working = false
+							break
+						}
+						if child == nil {
+							working = false
+							break
+						}
+
+						childResults <- g.touch(relToRootPath+"/"+child.Name, child.Id, depth, modTime)
+						<-throttle
+					}
 				}
 			}()
 

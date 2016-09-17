@@ -75,38 +75,49 @@ func (g *Commands) ListMatches() error {
 		fuzzyLevel: Like, values: g.opts.Sources, inTrash: inTrash, joiner: Or,
 	})
 
-	matches, err := g.rem.FindMatches(mq)
-	if err != nil {
-		return err
-	}
+	pagePair := g.rem.FindMatches(mq)
 
 	spin := g.playabler()
 	spin.play()
+	defer spin.stop()
 
 	traversalCount := 0
 
-	for match := range matches {
-		if match == nil {
-			continue
-		}
+	matches := pagePair.filesChan
+	errsChan := pagePair.errsChan
 
-		travSt := traversalSt{
-			depth:    g.opts.Depth,
-			file:     match,
-			headPath: g.opts.Path,
-			inTrash:  g.opts.InTrash,
-			mask:     g.opts.TypeMask,
-			sorters:  sorters(g.opts),
-		}
+	working := true
+	for working {
+		select {
+		case err := <-errsChan:
+			if err != nil {
+				return err
+			}
+		case match, stillHasContent := <-matches:
+			if !stillHasContent {
+				working = false
+				break
+			}
+			if match == nil {
+				continue
+			}
 
-		traversalCount += 1
+			travSt := traversalSt{
+				depth:    g.opts.Depth,
+				file:     match,
+				headPath: g.opts.Path,
+				inTrash:  g.opts.InTrash,
+				mask:     g.opts.TypeMask,
+				sorters:  sorters(g.opts),
+			}
 
-		if !g.breadthFirst(travSt, spin) {
-			break
+			traversalCount += 1
+
+			if !g.breadthFirst(travSt, spin) {
+				break
+			}
 		}
 	}
-
-	spin.stop()
 
 	if traversalCount < 1 {
 		g.log.LogErrln("no matches found!")
@@ -244,41 +255,67 @@ func (g *Commands) List(byId bool) error {
 	return nil
 }
 
-func (g *Commands) ListShared() (err error) {
+func (g *Commands) listSharedPerPath(relToRootPath string) ([]*keyValue, error) {
+	pagePair := g.rem.FindByPathShared(relToRootPath)
+	errsChan := pagePair.errsChan
+	sharedRemotes := pagePair.filesChan
+
 	var kvList []*keyValue
 
-	for _, relPath := range g.opts.Sources {
-		sharedRemotes, sErr := g.rem.FindByPathShared(relPath)
-		if sErr != nil {
-			g.log.LogErrf("%v: '%s'\n", sErr, relPath)
-			return sErr
-		}
+	working := true
+	for working {
+		select {
+		case err := <-errsChan:
+			if err != nil {
+				g.log.LogErrf("%v: '%s'\n", err, relToRootPath)
+				return kvList, err
+			}
+		case s, stillHasContent := <-sharedRemotes:
+			if !stillHasContent {
+				working = false
+				break
+			}
 
-		parentPath := g.parentPather(relPath)
+			parentPath := g.parentPather(relToRootPath)
 
-		if remoteRootLike(parentPath) {
-			parentPath = ""
-		}
+			if remoteRootLike(parentPath) {
+				parentPath = ""
+			}
 
-		if rootLike(parentPath) {
-			parentPath = ""
-		}
-
-		for s := range sharedRemotes {
-			if remoteRootLike(s.Name) {
-				s.Name = ""
+			if rootLike(parentPath) {
+				parentPath = ""
 			}
 
 			if s == nil {
 				continue
 			}
 
+			if remoteRootLike(s.Name) {
+				s.Name = ""
+			}
+
 			kvList = append(kvList, &keyValue{key: parentPath, value: s})
 		}
 	}
 
+	return kvList, nil
+}
+
+func (g *Commands) ListShared() (err error) {
 	spin := g.playabler()
 	spin.play()
+	defer spin.stop()
+
+	var kvList []*keyValue
+
+	for _, relPath := range g.opts.Sources {
+		childKvList, err := g.listSharedPerPath(relPath)
+		if err != nil {
+			return err
+		}
+		kvList = append(kvList, childKvList...)
+	}
+
 	for _, kv := range kvList {
 		if kv == nil || kv.value == nil {
 			continue
@@ -392,8 +429,6 @@ func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 		canPrompt = g.opts.canPrompt()
 	}
 
-	fileChan := reqDoPage(req, g.opts.Hidden, canPrompt)
-
 	spin.play()
 
 	onlyFiles := nonFolderExplicitly(g.opts.TypeMask)
@@ -402,16 +437,32 @@ func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 
 	var collector []*File
 
-	for file := range fileChan {
-		if file == nil {
-			return false
-		}
+	pagePair := reqDoPage(req, g.opts.Hidden, canPrompt)
+	errsChan := pagePair.errsChan
+	filesChan := pagePair.filesChan
 
-		if isHidden(file.Name, g.opts.Hidden) {
-			continue
-		}
+	working := true
+	for working {
+		select {
+		case err := <-errsChan:
+			if err != nil {
+				g.log.LogErrf("%v", err)
+				return false
+			}
+		case file, stillHasContent := <-filesChan:
+			if !stillHasContent {
+				working = false
+				break
+			}
+			if file == nil {
+				return false
+			}
 
-		collector = append(collector, file)
+			if !isHidden(file.Name, g.opts.Hidden) {
+				collector = append(collector, file)
+			}
+
+		}
 	}
 
 	if len(travSt.sorters) >= 1 {

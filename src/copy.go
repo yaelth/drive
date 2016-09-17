@@ -125,16 +125,32 @@ func (g *Commands) copy(src *File, destPath string) (*File, error) {
 		return nil, destErr
 	}
 
-	children := g.rem.findChildren(src.Id, false)
+	pagePair := g.rem.findChildren(src.Id, false)
 
-	for child := range children {
-		// TODO: add concurrency after retry scheme is added
-		// because could suffer from rate limit restrictions
-		chName := sepJoin("/", destPath, child.Name)
-		_, chErr := g.copy(child, chName)
+	children := pagePair.filesChan
+	errsChan := pagePair.errsChan
 
-		if chErr != nil {
-			g.log.LogErrf("copy: %s: %v\n", chName, chErr)
+	working := true
+	for working {
+		select {
+		case err := <-errsChan:
+			if err != nil {
+				// TODO: What should we do here? Should we continue?
+				return nil, err
+			}
+		case child, stillHasContent := <-children:
+			if !stillHasContent {
+				working = false
+				break
+			}
+			// TODO: add concurrency after retry scheme is added
+			// because could suffer from rate limit restrictions
+			chName := sepJoin("/", destPath, child.Name)
+			_, chErr := g.copy(child, chName)
+
+			if chErr != nil {
+				g.log.LogErrf("copy: %s: %v\n", chName, chErr)
+			}
 		}
 	}
 

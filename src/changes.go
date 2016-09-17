@@ -141,25 +141,40 @@ func (g *Commands) byRemoteResolve(relToRoot, fsPath string, r *File, push bool)
 }
 
 func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, clashes []*Change, err error) {
-
-	remotesChan := g.rem.FindByPathM(relToRoot)
+	pagePair := g.rem.FindByPathM(relToRoot)
 	iterCount := uint64(0)
 	noClashThreshold := uint64(1)
 
-	for rem := range remotesChan {
-		if rem != nil {
-			if anyMatch(g.opts.Ignorer, rem.Name) {
-				return
+	errsChan := pagePair.errsChan
+	remotesChan := pagePair.filesChan
+
+	working := true
+	for working {
+		select {
+		case rErr := <-errsChan:
+			if rErr != nil {
+				return nil, nil, rErr
 			}
-			iterCount++
-		}
+		case rem, stillHasContent := <-remotesChan:
+			if !stillHasContent {
+				working = false
+				break
+			}
 
-		ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, rem, push)
+			if rem != nil {
+				if anyMatch(g.opts.Ignorer, rem.Name) {
+					return
+				}
+				iterCount++
+			}
 
-		cl = append(cl, ccl...)
-		clashes = append(clashes, cclashes...)
-		if cErr != nil {
-			err = combineErrors(err, cErr)
+			ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, rem, push)
+
+			cl = append(cl, ccl...)
+			clashes = append(clashes, cclashes...)
+			if cErr != nil {
+				err = combineErrors(err, cErr)
+			}
 		}
 	}
 
@@ -394,14 +409,26 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 		}
 	}
 
-	var remoteChildren chan *File
+	var pagePair *paginationPair
+
 	if r != nil {
-		remoteChildren = g.rem.FindByParentId(r.Id, g.opts.Hidden)
+		pagePair = g.rem.FindByParentId(r.Id, g.opts.Hidden)
 	} else {
-		remoteChildren = make(chan *File)
-		close(remoteChildren)
+		// TODO: Figure out if the condition
+		// file == nil && err == nil
+		// is an inconsitent state.
+		errsChan := make(chan error)
+		go close(errsChan)
+		filesChan := make(chan *File)
+		go close(filesChan)
+
+		pagePair = &paginationPair{errsChan: errsChan, filesChan: filesChan}
 	}
-	dirlist, clashingFiles := merge(remoteChildren, localChildren, g.opts.IgnoreNameClashes)
+
+	dirlist, clashingFiles, err := merge(pagePair, localChildren, g.opts.IgnoreNameClashes)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	if !g.opts.IgnoreNameClashes && len(clashingFiles) >= 1 {
 		remoteBase := clr.remoteBase
@@ -523,7 +550,7 @@ func (g *Commands) changeSlice(cslArg *changeSliceArg) {
 	}
 }
 
-func merge(remotes, locals chan *File, ignoreClashes bool) (merged []*dirList, clashes []*File) {
+func merge(remotePagePair *paginationPair, locals chan *File, ignoreClashes bool) (merged []*dirList, clashes []*File, err error) {
 	localsMap := map[string]*File{}
 	remotesMap := map[string]*File{}
 
@@ -546,27 +573,49 @@ func merge(remotes, locals chan *File, ignoreClashes bool) (merged []*dirList, c
 		localsMap[l.Name] = l
 	}
 
-	for r := range remotes {
-		list := &dirList{remote: r}
+	working := true
+	for working {
+		select {
+		case err := <-remotePagePair.errsChan:
+			// It is imperative that as soon as we catch an error
+			// from the remote, let's immediately return
+			// otherwise we'll be reporting false results.
+			// See Issues:
+			//   https://github.com/odeke-em/drive/issues/480
+			//   https://github.com/odeke-em/drive/issues/668
+			//   https://github.com/odeke-em/drive/issues/728
+			//   https://github.com/odeke-em/drive/issues/738
+			// and a multitude of other issues that were caused by error responses
+			// from remote falsely being translated as "the file doesn't exist"
+			if err != nil {
+				return merged, clashes, err
+			}
+		case r, stillHasContent := <-remotePagePair.filesChan:
+			if !stillHasContent {
+				working = false
+				break
+			}
+			list := &dirList{remote: r}
 
-		if !ignoreClashes {
-			prev, present := remotesMap[r.Name]
-			if present {
-				registerClash(r)
-				registerClash(prev)
-				continue
+			if !ignoreClashes {
+				prev, present := remotesMap[r.Name]
+				if present {
+					registerClash(r)
+					registerClash(prev)
+					continue
+				}
+
+				remotesMap[r.Name] = r
 			}
 
-			remotesMap[r.Name] = r
+			l, ok := localsMap[r.Name]
+			// look for local
+			if ok && l != nil && l.IsDir == r.IsDir {
+				list.local = l
+				delete(localsMap, r.Name)
+			}
+			merged = append(merged, list)
 		}
-
-		l, ok := localsMap[r.Name]
-		// look for local
-		if ok && l != nil && l.IsDir == r.IsDir {
-			list.local = l
-			delete(localsMap, r.Name)
-		}
-		merged = append(merged, list)
 	}
 
 	// if anything left in locals, add to the dir listing

@@ -135,26 +135,39 @@ func (g *Commands) trashByMatch(inTrash, permanent bool) error {
 		},
 	}
 
-	matches, err := g.rem.FindMatches(&mq)
-	if err != nil {
-		return err
-	}
 	var cl []*Change
 	p := g.opts.Path
 	if p == "/" {
 		p = ""
 	}
-	for match := range matches {
-		if match == nil {
-			continue
+
+	pagePair := g.rem.FindMatches(&mq)
+	errsChan := pagePair.errsChan
+	matches := pagePair.filesChan
+
+	working := true
+	for working {
+		select {
+		case err := <-errsChan:
+			if err != nil {
+				return err
+			}
+		case match, stillHasContent := <-matches:
+			if !stillHasContent {
+				working = false
+				break
+			}
+			if match == nil {
+				continue
+			}
+			ch := &Change{Path: p + "/" + match.Name, g: g}
+			if inTrash {
+				ch.Src = match
+			} else {
+				ch.Dest = match
+			}
+			cl = append(cl, ch)
 		}
-		ch := &Change{Path: p + "/" + match.Name, g: g}
-		if inTrash {
-			ch.Src = match
-		} else {
-			ch.Dest = match
-		}
-		cl = append(cl, ch)
 	}
 
 	if len(cl) < 1 {

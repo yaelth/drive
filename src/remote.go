@@ -71,6 +71,8 @@ var (
 		CLIOptionIgnoreNameClashes, CLIOptionFixClashesKey))
 	ErrClashFixingAborted             = clashFixingAbortedErr(fmt.Errorf("clash fixing aborted"))
 	ErrGoogleAPIInvalidQueryHardCoded = invalidGoogleAPIQueryErr(fmt.Errorf("GoogleAPI: Error 400: Invalid query, invalid"))
+
+	errNilParent = nonExistantRemoteErr(fmt.Errorf("remote parent doesn't exist"))
 )
 
 var (
@@ -211,20 +213,26 @@ func (r *Remote) FindBackPaths(id string) (backPaths []string, err error) {
 	return
 }
 
-func wrapInChan(f *File, err error) chan *File {
-	ch := make(chan *File)
+func wrapInPaginationPair(f *File, err error) *paginationPair {
+	fChan := make(chan *File)
+	errsChan := make(chan error)
 
 	go func() {
-		defer close(ch)
-		ch <- f
+		defer close(fChan)
+		fChan <- f
 	}()
 
-	return ch
+	go func() {
+		defer close(errsChan)
+		errsChan <- err
+	}()
+
+	return &paginationPair{errsChan: errsChan, filesChan: fChan}
 }
 
-func (r *Remote) FindByIdM(id string) chan *File {
+func (r *Remote) FindByIdM(id string) *paginationPair {
 	f, err := r.FindById(id)
-	return wrapInChan(f, err)
+	return wrapInPaginationPair(f, err)
 }
 
 func (r *Remote) FindById(id string) (*File, error) {
@@ -249,7 +257,7 @@ func retryableChangeOp(fn func() (interface{}, error), debug bool, retryCount in
 	}
 }
 
-func (r *Remote) findByPathM(p string, trashed bool) chan *File {
+func (r *Remote) findByPathM(p string, trashed bool) *paginationPair {
 	if rootLike(p) {
 		return r.FindByIdM("root")
 	}
@@ -279,7 +287,7 @@ func (r *Remote) FindByPath(p string) (*File, error) {
 	return r.findByPath(p, false)
 }
 
-func (r *Remote) FindByPathM(p string) chan *File {
+func (r *Remote) FindByPathM(p string) *paginationPair {
 	return r.findByPathM(p, false)
 }
 
@@ -287,21 +295,30 @@ func (r *Remote) FindByPathTrashed(p string) (*File, error) {
 	return r.findByPath(p, true)
 }
 
-func (r *Remote) FindByPathTrashedM(p string) chan *File {
+func (r *Remote) FindByPathTrashedM(p string) *paginationPair {
 	return r.findByPathM(p, true)
 }
 
-func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) chan *File {
+func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) *paginationPair {
 	return _reqDoPage(req, hidden, promptOnPagination, false)
 }
 
-func _reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination, nilOnNoMatch bool) chan *File {
-	fileChan := make(chan *File)
+type paginationPair struct {
+	errsChan  chan error
+	filesChan chan *File
+}
+
+func _reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination, nilOnNoMatch bool) *paginationPair {
+	filesChan := make(chan *File)
+	errsChan := make(chan error)
 
 	throttle := time.Tick(1e7)
 
 	go func() {
-		defer close(fileChan)
+		defer func() {
+			close(errsChan)
+			close(filesChan)
+		}()
 
 		pageToken := ""
 		for pageIterCount := uint64(0); ; pageIterCount++ {
@@ -310,7 +327,7 @@ func _reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination, nilOn
 			}
 			results, err := req.Do()
 			if err != nil {
-				fmt.Println(err)
+				errsChan <- err
 				break
 			}
 
@@ -320,13 +337,14 @@ func _reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination, nilOn
 					continue
 				}
 				iterCount += 1
-				fileChan <- NewRemoteFile(f)
+				filesChan <- NewRemoteFile(f)
 			}
+
 			pageToken = results.NextPageToken
 			if pageToken == "" {
 				if nilOnNoMatch && len(results.Items) < 1 && pageIterCount < 1 {
 					// Item absolutely doesn't exist
-					fileChan <- nil
+					filesChan <- nil
 				}
 				break
 			}
@@ -337,26 +355,26 @@ func _reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination, nilOn
 			}
 
 			if promptOnPagination && !nextPage() {
-				fileChan <- nil
+				filesChan <- nil
 				break
 			}
 		}
 	}()
 
-	return fileChan
+	return &paginationPair{filesChan: filesChan, errsChan: errsChan}
 }
 
-func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) chan *File {
+func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) *paginationPair {
 	req := r.service.Files.List()
 	req.Q(fmt.Sprintf("%s in parents and trashed=%v", customQuote(parentId), trashed))
 	return reqDoPage(req, hidden, false)
 }
 
-func (r *Remote) FindByParentId(parentId string, hidden bool) chan *File {
+func (r *Remote) FindByParentId(parentId string, hidden bool) *paginationPair {
 	return r.findByParentIdRaw(parentId, false, hidden)
 }
 
-func (r *Remote) FindByParentIdTrashed(parentId string, hidden bool) chan *File {
+func (r *Remote) FindByParentIdTrashed(parentId string, hidden bool) *paginationPair {
 	return r.findByParentIdRaw(parentId, true, hidden)
 }
 
@@ -936,7 +954,7 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	return f, err
 }
 
-func (r *Remote) findShared(p []string) (chan *File, error) {
+func (r *Remote) findShared(p []string) *paginationPair {
 	req := r.service.Files.List()
 	expr := "sharedWithMe=true"
 	if len(p) >= 1 {
@@ -944,10 +962,10 @@ func (r *Remote) findShared(p []string) (chan *File, error) {
 	}
 	req = req.Q(expr)
 
-	return reqDoPage(req, false, false), nil
+	return reqDoPage(req, false, false)
 }
 
-func (r *Remote) FindByPathShared(p string) (chan *File, error) {
+func (r *Remote) FindByPathShared(p string) *paginationPair {
 	if p == "/" || p == "root" {
 		return r.findShared([]string{})
 	}
@@ -964,19 +982,20 @@ func (r *Remote) FindByPathShared(p string) (chan *File, error) {
 	return r.findShared(nonEmpty)
 }
 
-func (r *Remote) FindStarred(trashed, hidden bool) (chan *File, error) {
+func (r *Remote) FindStarred(trashed, hidden bool) *paginationPair {
 	req := r.service.Files.List()
 	expr := fmt.Sprintf("(starred=true) and (trashed=%v)", trashed)
 	req.Q(expr)
-	return reqDoPage(req, hidden, false), nil
+	return reqDoPage(req, hidden, false)
 }
 
-func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
+func (r *Remote) FindMatches(mq *matchQuery) *paginationPair {
 	parent, err := r.FindByPath(mq.dirPath)
-	filesChan := make(chan *File)
 	if err != nil || parent == nil {
-		close(filesChan)
-		return filesChan, err
+		if parent == nil && err == nil {
+			err = errNilParent
+		}
+		return wrapInPaginationPair(parent, err)
 	}
 
 	req := r.service.Files.List()
@@ -985,10 +1004,10 @@ func (r *Remote) FindMatches(mq *matchQuery) (chan *File, error) {
 	expr := sepJoinNonEmpty(" and ", parQuery, mq.Stringer())
 
 	req.Q(expr)
-	return reqDoPage(req, true, false), nil
+	return reqDoPage(req, true, false)
 }
 
-func (r *Remote) findChildren(parentId string, trashed bool) chan *File {
+func (r *Remote) findChildren(parentId string, trashed bool) *paginationPair {
 	req := r.service.Files.List()
 	req.Q(fmt.Sprintf("%s in parents and trashed=%v", customQuote(parentId), trashed))
 	return reqDoPage(req, true, false)
@@ -998,10 +1017,11 @@ func (r *Remote) About() (*drive.About, error) {
 	return r.service.About.Get().Do()
 }
 
-func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) chan *File {
-	chanOChan := make(chan chan *File)
+func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) *paginationPair {
+	chanOChan := make(chan *paginationPair)
 
-	resolvedResults := make(chan *File)
+	resolvedFilesChan := make(chan *File)
+	resolvedErrsChan := make(chan error)
 
 	go func() {
 		defer close(chanOChan)
@@ -1024,44 +1044,68 @@ func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) c
 		}
 
 		req.Q(expr)
-		resultsChan := _reqDoPage(req, true, false, true)
+		pager := _reqDoPage(req, true, false, true)
 
 		if len(rest) < 1 {
-			chanOChan <- resultsChan
+			chanOChan <- pager
 			return
 		}
 
-		/*
-			files, err := req.Do()
-			if err != nil {
-			    if err.Error() == ErrGoogleAPIInvalidQueryHardCoded.Error() { // Send the user back the query information
-				err = fmt.Errorf("err: %v query: `%s`", err, expr)
-			    }
+		resultsChan := pager.filesChan
+		errsChan := pager.errsChan
 
-			    return nil, err
+		working := true
+		for working {
+			select {
+			case err := <-errsChan:
+				if err != nil {
+					chanOChan <- wrapInPaginationPair(nil, err)
+				}
+			case f, stillHasContent := <-resultsChan:
+				if !stillHasContent {
+					working = false
+					break
+				}
+				if f != nil {
+					chanOChan <- r.findByPathRecvRawM(f.Id, rest, trashed)
+				}
 			}
-		*/
-		for f := range resultsChan {
-			if f == nil {
-				resolvedResults <- f
-				continue
-			}
-
-			chanOChan <- r.findByPathRecvRawM(f.Id, rest, trashed)
 		}
 	}()
 
 	go func() {
-		defer close(resolvedResults)
+		defer func() {
+			close(resolvedFilesChan)
+			close(resolvedErrsChan)
+		}()
 
-		for ch := range chanOChan {
-			for f := range ch {
-				resolvedResults <- f
+		for curPagePair := range chanOChan {
+			if curPagePair == nil {
+				continue
+			}
+
+			errsChan := curPagePair.errsChan
+			filesChan := curPagePair.filesChan
+
+			working := true
+			for working {
+				select {
+				case err := <-errsChan:
+					if err != nil {
+						resolvedErrsChan <- err
+					}
+				case f, stillHasContent := <-filesChan:
+					if !stillHasContent {
+						working = false
+						break
+					}
+					resolvedFilesChan <- f
+				}
 			}
 		}
 	}()
 
-	return resolvedResults
+	return &paginationPair{errsChan: resolvedErrsChan, filesChan: resolvedFilesChan}
 }
 
 func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (*File, error) {
@@ -1105,11 +1149,11 @@ func (r *Remote) findByPathRecv(parentId string, p []string) (*File, error) {
 	return r.findByPathRecvRaw(parentId, p, false)
 }
 
-func (r *Remote) findByPathRecvM(parentId string, p []string) chan *File {
+func (r *Remote) findByPathRecvM(parentId string, p []string) *paginationPair {
 	return r.findByPathRecvRawM(parentId, p, false)
 }
 
-func (r *Remote) findByPathTrashedM(parentId string, p []string) chan *File {
+func (r *Remote) findByPathTrashedM(parentId string, p []string) *paginationPair {
 	return r.findByPathRecvRawM(parentId, p, true)
 }
 

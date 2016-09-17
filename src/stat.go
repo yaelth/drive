@@ -162,8 +162,24 @@ func (g *Commands) stat(relToRootPath string, file *File, depth int) error {
 
 	var remoteChildren []*File
 
-	for child := range g.rem.FindByParentId(file.Id, g.opts.Hidden) {
-		remoteChildren = append(remoteChildren, child)
+	pagePair := g.rem.FindByParentId(file.Id, g.opts.Hidden)
+	errsChan := pagePair.errsChan
+	childrenChan := pagePair.filesChan
+
+	working := true
+	for working {
+		select {
+		case err := <-errsChan:
+			if err != nil {
+				return err
+			}
+		case child, stillHasContent := <-childrenChan:
+			if !stillHasContent {
+				working = false
+				break
+			}
+			remoteChildren = append(remoteChildren, child)
+		}
 	}
 
 	if g.opts.Md5sum {

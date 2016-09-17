@@ -35,7 +35,7 @@ func idPrintAndRecurse(g *Commands, parentId, relToRootPath string, depth int) (
 		return
 	}
 
-	children := g.rem.FindByParentId(parentId, g.opts.Hidden)
+	pagePair := g.rem.FindByParentId(parentId, g.opts.Hidden)
 
 	separatorPrefix := relToRootPath
 	if rootLike(separatorPrefix) {
@@ -43,35 +43,81 @@ func idPrintAndRecurse(g *Commands, parentId, relToRootPath string, depth int) (
 		separatorPrefix = ""
 	}
 
-	for child := range children {
-		if child == nil {
-			continue
-		}
-		childRelToRootPath := sepJoin(RemoteSeparator, separatorPrefix, child.Name)
-		cErr := idPrintAndRecurse(g, child.Id, childRelToRootPath, decrementedDepth)
-		if cErr != nil {
-			err = combineErrors(err, cErr)
+	errsChan := pagePair.errsChan
+	children := pagePair.filesChan
+
+	working := true
+	for working {
+		select {
+		case pageErr := <-errsChan:
+			if pageErr != nil {
+				return pageErr
+			}
+		case child, stillHasContent := <-children:
+			if !stillHasContent {
+				working = false
+				break
+			}
+
+			if child == nil {
+				continue
+			}
+			childRelToRootPath := sepJoin(RemoteSeparator, separatorPrefix, child.Name)
+			cErr := idPrintAndRecurse(g, child.Id, childRelToRootPath, decrementedDepth)
+			if cErr != nil {
+				err = combineErrors(err, cErr)
+			}
 		}
 	}
 
 	return err
 }
 
+var idTableHeader = fmt.Sprintf("%*s %s", int(fileIdWidth), "FileId", "Relative Path")
+
 func (g *Commands) Id() (err error) {
-	header := fmt.Sprintf("%*s %s", int(fileIdWidth), "FileId", "Relative Path")
 	headerPrinted := false
 
+	iterCount := uint64(0)
 	for _, relToRootPath := range g.opts.Sources {
-		remotes := g.rem.FindByPathM(relToRootPath)
-		iterCount := uint64(0)
-		for rem := range remotes {
+		ithIterCount, ithHeaderPrinted, ithErr := g.idPrintRecursePerPath(relToRootPath, headerPrinted)
+		if ithErr != nil {
+			err = reComposeError(err, ithErr.Error())
+		}
+		headerPrinted = ithHeaderPrinted
+		iterCount += ithIterCount
+	}
+
+	return err
+}
+
+func (g *Commands) idPrintRecursePerPath(relToRootPath string, headerPrinted bool) (uint64, bool, error) {
+	pagePair := g.rem.FindByPathM(relToRootPath)
+
+	iterCount := uint64(0)
+	remotes := pagePair.filesChan
+	errsChan := pagePair.errsChan
+	var err error
+
+	working := true
+	for working {
+		select {
+		case pageErr := <-errsChan:
+			if pageErr != nil {
+				return iterCount, headerPrinted, pageErr
+			}
+		case rem, stillHasContent := <-remotes:
+			if !stillHasContent {
+				working = false
+				break
+			}
 			if rem == nil {
 				err = reComposeError(err, fmt.Sprintf("%s does not exist remotely", customQuote(relToRootPath)))
 				continue
 			}
 
 			if !headerPrinted {
-				g.log.Logln(header)
+				g.log.Logln(idTableHeader)
 				headerPrinted = true
 			}
 
@@ -81,11 +127,11 @@ func (g *Commands) Id() (err error) {
 				err = combineErrors(err, cErr)
 			}
 		}
-
-		if iterCount < 1 {
-			err = reComposeError(err, fmt.Sprintf("%s not matched", customQuote(relToRootPath)))
-		}
 	}
 
-	return err
+	if iterCount < 1 {
+		err = reComposeError(err, fmt.Sprintf("%s not matched", customQuote(relToRootPath)))
+	}
+
+	return iterCount, headerPrinted, err
 }

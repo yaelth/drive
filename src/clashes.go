@@ -65,9 +65,10 @@ func findClashesForChildren(g *Commands, parentId, relToRootPath string, depth i
 	}
 
 	memoized := map[string][]*File{}
-	children := g.rem.FindByParentId(parentId, g.opts.Hidden)
+	pagePair := g.rem.FindByParentId(parentId, g.opts.Hidden)
 	decrementedDepth := decrementTraversalDepth(depth)
 
+	children := pagePair.filesChan
 	discoveryOrder := []string{}
 	for child := range children {
 		if child == nil {
@@ -80,6 +81,14 @@ func findClashesForChildren(g *Commands, parentId, relToRootPath string, depth i
 
 		cluster = append(cluster, child)
 		memoized[child.Name] = cluster
+	}
+
+	// Now ensure that no error ensued during pagination/retrieval
+	for rErr := range pagePair.errsChan {
+		if rErr != nil {
+			err = rErr
+			return clashes, err
+		}
 	}
 
 	separatorPrefix := relToRootPath
@@ -121,31 +130,51 @@ func findClashesByPath(g *Commands, relToRootPath string, depth int) (clashes []
 		return
 	}
 
-	remotes := g.rem.FindByPathM(relToRootPath)
-
 	iterCount := uint64(0)
 	clashThresholdCount := uint64(1)
 
 	cl := []*Change{}
 
-	for rem := range remotes {
-		if rem == nil {
-			continue
+	pagePair := g.rem.FindByPathM(relToRootPath)
+
+	working := true
+	for working {
+		select {
+		case err := <-pagePair.errsChan:
+			if err != nil {
+				return clashes, err
+			}
+		case rem, stillHasContent := <-pagePair.filesChan:
+			if !stillHasContent {
+				working = false
+				break
+			}
+			if rem == nil {
+				continue
+			}
+
+			iterCount++
+
+			change := &Change{
+				Src: rem, g: g,
+				Path:   relToRootPath,
+				Parent: g.opts.Path,
+			}
+
+			cl = append(cl, change)
 		}
-
-		iterCount++
-
-		change := &Change{
-			Src: rem, g: g,
-			Path:   relToRootPath,
-			Parent: g.opts.Path,
-		}
-
-		cl = append(cl, change)
 	}
 
 	if iterCount > clashThresholdCount {
 		clashes = append(clashes, cl...)
+	}
+
+	// Check for any errors that were
+	// encountered during remote file retrieval
+	for pageErr := range pagePair.errsChan {
+		if pageErr == nil {
+			return clashes, pageErr
+		}
 	}
 
 	decrementedDepth := decrementTraversalDepth(depth)
