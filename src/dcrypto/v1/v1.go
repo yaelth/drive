@@ -179,7 +179,7 @@ func newEncryptReader(r io.Reader, pass, salt []byte, iterations int32) (io.Read
 	return encrypter(r, aesKey, hmacKey, iv, header)
 }
 
-// encrypter returns the encrypted reader pased on the keys and IV provided.
+// encrypter returns the encrypted reader passed on the keys and IV provided.
 func encrypter(r io.Reader, aesKey, hmacKey, iv, header []byte) (io.Reader, error) {
 	b, err := aes.NewCipher(aesKey)
 	if err != nil {

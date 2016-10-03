@@ -416,7 +416,7 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 	} else {
 		// TODO: Figure out if the condition
 		// file == nil && err == nil
-		// is an inconsitent state.
+		// is an inconsistent state.
 		errsChan := make(chan error)
 		go close(errsChan)
 		filesChan := make(chan *File)

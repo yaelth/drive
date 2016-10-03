@@ -1300,8 +1300,8 @@ It takes flags `--title` `--body` `--piped`.
 A successful issue-filing request will open up the project's issue tracker in your web browser.
 
 ```
-$ drive issue --title "Can't open my file" --body "Drive trips out everytime"
-$ drive report-issue --title "Can't open my file" --body "Drive trips out everytime"
+$ drive issue --title "Can't open my file" --body "Drive trips out every time"
+$ drive report-issue --title "Can't open my file" --body "Drive trips out every time"
 $ cat bugReport.txt | drive issue --piped --title "push: dump on pushing from this directory"
 ```
 
