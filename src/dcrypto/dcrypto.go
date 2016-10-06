@@ -43,7 +43,7 @@ const (
 	V1 Version = iota
 )
 
-// PreferedVersion is the prefered version of encryption.
+// PreferedVersion is the preferred version of encryption.
 const PreferedVersion = V1
 
 var encrypters map[Version]encrypter
