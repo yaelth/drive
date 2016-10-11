@@ -398,6 +398,7 @@ func (c *Commands) share(revoke, byId bool) (err error) {
 		files:  files,
 		revoke: revoke,
 		roles:  roles,
+		emails: emails,
 
 		accountTypes: accountTypes,
 		emailMessage: emailMessage,
