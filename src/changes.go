@@ -372,7 +372,17 @@ func (g *Commands) resolveChangeListRecv(clr *changeListResolve) (cl, clashes []
 		return cl, clashes, nil
 	}
 
-	// TODO: handle cases where remote and local type don't match
+	// Let's handle the case where remote and local don't have
+	// the same dirType ie one is a file, the other is a directory.
+	// Note: This case currently is handled only when that
+	// specific object is directly addressed ie push <this> or pull <this>.
+	if l != nil && r != nil && !l.sameDirType(r) {
+		relPath := sepJoin("/", clr.remoteBase)
+		err := illogicalStateErr(fmt.Errorf("%s: local is a %v while remote is a %v",
+			relPath, l.dirTypeNomenclature(), r.dirTypeNomenclature()))
+		return cl, clashes, err
+	}
+
 	if !clr.push && r != nil && !r.IsDir {
 		return cl, clashes, nil
 	}

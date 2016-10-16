@@ -225,6 +225,13 @@ func fauxLocalFile(relToRootPath string) *File {
 	}
 }
 
+func (f *File) dirTypeNomenclature() string {
+	if f.IsDir {
+		return "directory"
+	}
+	return "file"
+}
+
 func (f *File) Url() (url string) {
 	if f == nil {
 		return
