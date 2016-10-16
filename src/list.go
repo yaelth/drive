@@ -437,7 +437,10 @@ func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 
 	var collector []*File
 
-	pagePair := reqDoPage(req, g.opts.Hidden, canPrompt)
+	// We shouldn't prompt in between the same page otherwise we get
+	// spurious prompts. See Issue https://github.com/odeke-em/drive/issues/724.
+	// We'll only make the prompts in between children.
+	pagePair := reqDoPage(req, g.opts.Hidden, false)
 	errsChan := pagePair.errsChan
 	filesChan := pagePair.filesChan
 
@@ -487,6 +490,15 @@ func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 	}
 
 	if !travSt.inTrash && !g.opts.InTrash {
+		// We'll only prompt when traversing children to avoid
+		// spurious prompts that result from asynchronous paging
+		// before children have been retrieved, sorted and printed.
+		// See Issue https://github.com/odeke-em/drive/issues/724.
+		canPage := travSt.depth != 0 && len(children) > 0
+		if canPage && canPrompt && !nextPage() {
+			return false
+		}
+
 		for _, file := range children {
 			childSt := traversalSt{
 				depth:            travSt.depth,

@@ -312,7 +312,7 @@ func _reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination, nilOn
 	filesChan := make(chan *File)
 	errsChan := make(chan error)
 
-	throttle := time.Tick(1e7)
+	throttle := time.Tick(1e8)
 
 	go func() {
 		defer func() {
@@ -349,8 +349,9 @@ func _reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination, nilOn
 				break
 			}
 
+			<-throttle
+
 			if iterCount < 1 {
-				<-throttle
 				continue
 			}
 
