@@ -243,7 +243,7 @@ To pull and decrypt your data that is stored encrypted at rest on Google Drive, 
 See [Issue #543](https://github.com/odeke-em/issues/543)
 
 ```shell
-drive pull --decryption-password "$JiME5Umf" influx.txt
+drive pull --decryption-password '$JiME5Umf' influx.txt
 ```
 
 Pulling by matches is also supported
@@ -418,7 +418,7 @@ drive push -ignore-checksum=false
 To keep your data encrypted at rest remotely on Google Drive:
 
 ```shell
-drive push --encryption-password "$JiME5Umf" influx.txt
+drive push --encryption-password '$JiME5Umf' influx.txt
 ```
 For E2E discussions, see [issue #543](https://github.com/odeke-em/issues/543):
 
@@ -556,11 +556,11 @@ and store it remotely encrypted(stored encrypted at rest), it can only be decryp
 perform a pull with the respective arg `--decryption-password`.
 
 ```shell
-drive push --encryption-password "$400lsGO1Di3" few-ones.mp4 newest.mkv
+drive push --encryption-password '$400lsGO1Di3' few-ones.mp4 newest.mkv
 ```
 
 ```shell
-drive pull --decryption-password "$400lsGO1Di3" few-ones.mp4 newest.mkv
+drive pull --decryption-password '$400lsGO1Di3' few-ones.mp4 newest.mkv
 ```
 
 If you supply the wrong password, you'll be warned if it cannot be decrypted
