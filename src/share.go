@@ -309,8 +309,8 @@ func (c *Commands) playShareChanges(change *shareChange) (err error) {
 						withLink: change.withLink,
 					}
 
-					if err := fn(&perm); err != nil {
-						err = reComposeError(err, fmt.Sprintf("%s err %s: %v\n", fnName, file.Name, err))
+					if ferr := fn(&perm); ferr != nil {
+						err = reComposeError(err, fmt.Sprintf("%s err %s: %v\n", fnName, file.Name, ferr))
 					} else {
 						successes += 1
 						if c.opts.Verbose {
@@ -323,11 +323,15 @@ func (c *Commands) playShareChanges(change *shareChange) (err error) {
 		}
 	}
 
+	if err != nil {
+		return err
+	}
+
 	if successes < 1 {
 		return noMatchesFoundErr(fmt.Errorf("no matches found!"))
 	}
 
-	return err
+	return nil
 }
 
 func (c *Commands) share(revoke, byId bool) (err error) {
@@ -337,7 +341,11 @@ func (c *Commands) share(revoke, byId bool) (err error) {
 	var emailMessage string
 
 	roles := []Role{}
-	accountTypes := []AccountType{}
+
+	// By default, if they don't specify any
+	// account types to invoke, let's assume User.
+	// See Issue https://github.com/odeke-em/drive/issues/747.
+	accountTypes := []AccountType{User}
 
 	if revoke {
 		// In case of unsharing, when a user doesn't specify the
@@ -345,7 +353,6 @@ func (c *Commands) share(revoke, byId bool) (err error) {
 		roles = append(roles, Reader, Writer, Commenter)
 	} else {
 		roles = append(roles, Reader)
-		accountTypes = append(accountTypes, User)
 	}
 
 	meta := *c.opts.Meta
