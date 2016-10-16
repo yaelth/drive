@@ -1085,6 +1085,16 @@ drive move photos/2015 angles library archives/storage
 drive move --id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U ../../new_location
 ```
 
+Google Drive supports multi-parent folder structure, where one file/folder can be placed in more than one parent folder.
+It consumes no extra disk space on the Cloud, but after pulling such structure it may double your files several times in your file structure.
+Pushing non deduplicated folder structures back may also break things, so be careful.
+
+To place file/folder into new parent folder, keeping old one as well, use `-keep-parent` option
+
+```shell
+$ drive move --keep-parent photos/2015 angles library second_parent_folder
+```
+
 
 ### DriveIgnore
 
