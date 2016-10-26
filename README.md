@@ -240,7 +240,7 @@ drive pull
 
 To pull and decrypt your data that is stored encrypted at rest on Google Drive, use flag `--decryption-password`:
 
-See [Issue #543](https://github.com/odeke-em/issues/543)
+See [Issue #543](https://github.com/odeke-em/drive/issues/543)
 
 ```shell
 drive pull --decryption-password '$JiME5Umf' influx.txt
@@ -544,7 +544,7 @@ drive push --retry-count 4 a/bc/def terms
 
 ### End to End Encryption
 
-See [Issue #543](https://github.com/odeke-em/issues/543)
+See [Issue #543](https://github.com/odeke-em/drive/issues/543)
 
 This can be toggled when you supply a non-empty password ie
 
