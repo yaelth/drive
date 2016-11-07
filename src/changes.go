@@ -73,6 +73,21 @@ func (t *sizeCounter) String() string {
 	return str
 }
 
+// There are operations for which the size of the target
+// is reported in the progress channel but absent for the
+// size counter for example OpDelete.
+// See Issue https://github.com/odeke-em/drive/issues/177.
+func (sc *sizeCounter) sizeByOperation(op Operation) int64 {
+	var size int64 = sc.src
+	switch op {
+	case OpDelete:
+		if sc.src == 0 && sc.dest > 0 {
+			size = sc.dest
+		}
+	}
+	return size
+}
+
 // Resolves the local path relative to the root directory
 // Returns the path relative to the remote, the abspath on disk and an error if any
 func (g *Commands) pathResolve() (relPath, absPath string, err error) {

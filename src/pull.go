@@ -442,8 +442,8 @@ func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Op
 	totalSize := int64(0)
 	ops := *opMap
 
-	for _, counter := range ops {
-		totalSize += counter.src
+	for op, counter := range ops {
+		totalSize += counter.sizeByOperation(op)
 	}
 
 	g.taskStart(totalSize)

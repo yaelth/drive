@@ -254,8 +254,8 @@ func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounte
 
 	totalSize := int64(0)
 	ops := *opMap
-	for _, counter := range ops {
-		totalSize += counter.src
+	for op, counter := range ops {
+		totalSize += counter.sizeByOperation(op)
 	}
 
 	g.taskStart(totalSize)
