@@ -806,6 +806,19 @@ func combineErrors(prevErr, supplementaryErr error) error {
 	return newErr
 }
 
+// copyErrStatus copies the error status code from fromErr
+// to toErr only if toErr and fromErr are both non-nil.
+func copyErrStatusCode(toErr, fromErr error) error {
+	if toErr == nil || fromErr == nil {
+		return toErr
+	}
+	codedErr, hasCode := fromErr.(*Error)
+	if hasCode {
+		toErr = makeError(toErr, ErrorStatus(codedErr.Code()))
+	}
+	return toErr
+}
+
 func reComposeError(prevErr error, messages ...string) error {
 	if len(messages) < 1 {
 		return prevErr

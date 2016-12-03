@@ -37,33 +37,34 @@ func (g *Commands) Stat() error {
 }
 
 func (g *Commands) statfn(fname string, fn func(string) (*File, error)) error {
+	var err error
 	for _, src := range g.opts.Sources {
-		f, err := fn(src)
-		if err != nil {
-			g.log.LogErrf("%s: %s err: %v\n", fname, src, err)
+		f, fErr := fn(src)
+		if fErr != nil {
+			msg := fmt.Sprintf("%s: %s err: %v\n", fname, src, fErr)
+			err = reComposeError(err, msg)
+			err = copyErrStatusCode(err, fErr)
 			continue
 		}
 
 		if g.opts.Md5sum {
-
 			src = f.Name // forces filename if -id is used
 
 			// md5sum with no arguments should do md5sum *
 			if f.IsDir && rootLike(g.opts.Path) {
 				src = ""
 			}
-
 		}
 
-		err = g.stat(src, f, g.opts.Depth)
-
-		if err != nil {
-			g.log.LogErrf("%s: %s err: %v\n", fname, src, err)
+		if fErr = g.stat(src, f, g.opts.Depth); fErr != nil {
+			msg := fmt.Sprintf("%s: %s err: %v\n", fname, src, fErr)
+			err = reComposeError(err, msg)
+			err = copyErrStatusCode(err, fErr)
 			continue
 		}
 	}
 
-	return nil
+	return err
 }
 
 func prettyPermission(logf log.Loggerf, perm *drive.Permission) {
