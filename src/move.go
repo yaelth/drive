@@ -47,7 +47,7 @@ func cannotRename(rmode RenameMode) bool {
 	return !(canRenameLocal(rmode) || canRenameRemote(rmode))
 }
 
-func (g *Commands) Move(byId, keepParent bool ) error {
+func (g *Commands) Move(byId, keepParent bool) error {
 	argc := len(g.opts.Sources)
 	if argc < 2 {
 		return invalidArgumentsErr(fmt.Errorf("move: expected <src> [src...] <dest>, instead got: %v", g.opts.Sources))

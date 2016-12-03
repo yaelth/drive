@@ -1562,9 +1562,9 @@ func (cmd *unshareCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 }
 
 type moveCmd struct {
-	Quiet       *bool `json:"quiet"`
-	ById        *bool `json:"by-id"`
-	KeepParent  *bool `json:"keep-parent"`
+	Quiet      *bool `json:"quiet"`
+	ById       *bool `json:"by-id"`
+	KeepParent *bool `json:"keep-parent"`
 }
 
 func (cmd *moveCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
