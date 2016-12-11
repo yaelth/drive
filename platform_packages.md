@@ -28,6 +28,7 @@ sudo apt-get install software-properties-common
 ```
 
 After installing software-properties-common, you can run these commands. Updates will be as normal with all debian packages.
+Note: The apt-key command is no longer required on apt 1.1 systems. It's safe to ignore any error presented.
 
 ```sh
 sudo apt-add-repository 'deb http://shaggytwodope.github.io/repo ./'
