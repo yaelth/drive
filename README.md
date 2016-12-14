@@ -1078,8 +1078,12 @@ drive clashes -list [-depth n] [paths...] # To be more explicit
 * To fix clashes, you can do:
 
 ```
-drive clashes -fix [-depth n] [paths...]
+drive clashes -fix [-fix-mode mode] [-depth n] [paths...]
 ```
+
+There are two available modes for `-fix-mode`:
+  * `rename`: this is the default behavior
+  * `trash`
 
 ### Move
 

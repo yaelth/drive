@@ -1720,19 +1720,23 @@ func (icmd *idCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 }
 
 type clashesCmd struct {
-	Fix    *bool `json:"fix"`
-	List   *bool `json:"list"`
-	ById   *bool `json:"by-id"`
-	Depth  *int  `json:"depth"`
-	Hidden *bool `json:"hidden"`
+	Fix      *bool   `json:"fix"`
+	FixMode  *string `json:"fix-mode"`
+	List     *bool   `json:"list"`
+	ById     *bool   `json:"by-id"`
+	Depth    *int    `json:"depth"`
+	Hidden   *bool   `json:"hidden"`
+	NoPrompt *bool   `json:"no-prompt"`
 }
 
 func (cmd *clashesCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Fix = fs.Bool(drive.CLIOptionFixClashes, false, drive.DescFixClashes)
+	cmd.FixMode = fs.String(drive.CLIOptionFixClashesMode, "rename", drive.DescFixClashesMode)
 	cmd.List = fs.Bool(drive.CLIOptionListClashes, true, drive.DescListClashes)
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, drive.DescClashesOpById)
 	cmd.Depth = fs.Int(drive.DepthKey, drive.InfiniteDepth, "maximum recursion depth")
 	cmd.Hidden = fs.Bool(drive.HiddenKey, true, "allows operation on hidden paths")
+	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before fixing clashes")
 
 	return fs
 }
@@ -1750,11 +1754,22 @@ func (ccmd *clashesCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		exitWithError(err)
 	}
 
+	var FixMode drive.FixClashesMode
+	if *cmd.FixMode == "rename" {
+		FixMode = drive.FixClashesRename
+	} else if *cmd.FixMode == "trash" {
+		FixMode = drive.FixClashesTrash
+	} else {
+		exitWithError(fmt.Errorf("Unknown fix mode: %s", *cmd.FixMode))
+	}
+
 	opts := &drive.Options{
-		Path:    path,
-		Sources: sources,
-		Depth:   *cmd.Depth,
-		Hidden:  *cmd.Hidden,
+		Path:           path,
+		Sources:        sources,
+		Depth:          *cmd.Depth,
+		Hidden:         *cmd.Hidden,
+		NoPrompt:       *cmd.NoPrompt,
+		FixClashesMode: FixMode,
 	}
 
 	driveInstance := drive.New(context, opts)
