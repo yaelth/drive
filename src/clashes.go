@@ -20,6 +20,13 @@ import (
 	"strings"
 )
 
+type FixClashesMode uint8
+
+const (
+	FixClashesRename FixClashesMode = 1 + iota
+	FixClashesTrash
+)
+
 func (g *Commands) ListClashes(byId bool) error {
 	spin := g.playabler()
 	spin.play()
@@ -56,7 +63,12 @@ func (g *Commands) FixClashes(byId bool) error {
 		return err
 	}
 
-	return autoRenameClashes(g, clashes)
+	fn := autoRenameClashes
+	if g.opts.FixClashesMode == FixClashesTrash {
+		fn = autoTrashClashes
+	}
+
+	return fn(g, clashes)
 }
 
 func findClashesForChildren(g *Commands, parentId, relToRootPath string, depth int) (clashes []*Change, err error) {
@@ -274,4 +286,28 @@ func autoRenameClashes(g *Commands, clashes []*Change) error {
 	}
 
 	return composedError
+}
+
+func autoTrashClashes(g *Commands, clashes []*Change) error {
+	for _, c := range clashes {
+		// Let's coerce this change to a deletion
+		c.Dest = c.Src
+		c.Src = nil
+	}
+
+	if g.opts.canPrompt() {
+		g.log.Logln("Some clashes found, trash them?")
+		for _, c := range clashes {
+			g.log.Logln(c.Symbol(), c.Path, c.Dest.Id)
+		}
+		if status := promptForChanges(); !accepted(status) {
+			return status.Error()
+		}
+	}
+
+	opt := trashOpt{
+		toTrash:   true,
+		permanent: false,
+	}
+	return g.playTrashChangeList(clashes, &opt)
 }

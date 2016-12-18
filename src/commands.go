@@ -87,6 +87,7 @@ type Options struct {
 	indexingOnly      bool
 	Verbose           bool
 	FixClashes        bool
+	FixClashesMode    FixClashesMode
 	Match             bool
 	Starred           bool
 	// BaseLocal when set, during a diff uses the local file
