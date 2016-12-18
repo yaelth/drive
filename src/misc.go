@@ -911,6 +911,8 @@ func SiftCliTags(cs *CliSifter) string {
 		switch elem.Kind() {
 		case reflect.String:
 			stringified = fmt.Sprintf("%q", elem)
+		case reflect.Invalid:
+			continue
 		default:
 			stringified = fmt.Sprintf("%v", elem.Interface())
 		}

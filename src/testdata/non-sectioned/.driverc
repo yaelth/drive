@@ -1,0 +1,5 @@
+depth=10
+verbose=true
+long=true
+no-prompt=false
+sort=name,date_r

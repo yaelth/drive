@@ -1154,7 +1154,8 @@ drive <command> -h
 drive push -h
 ```
 
-and the value is the argument that you'd ordinarily supply on the commandline
+and the value is the argument that you'd ordinarily supply on the commandline.
+.driverc configurations can be optionally grouped in sections. See https://github.com/odeke-em/drive/issues/778.
 
 For example:
 
@@ -1164,6 +1165,20 @@ cat << ! >> ~/.driverc
 > exports=doc,pdf
 > depth=100
 > no-prompt=true
+>
+> # For pushes
+> [list]
+> depth=2
+> long=true
+>
+> [push]
+> verbose=false
+>
+> [stat]
+> depth=3
+>
+> [pull/push]
+> no-clobber=true
 > !
 
 cat << ! >> ~/emm.odeke-drive/.driverc

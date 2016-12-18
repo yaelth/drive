@@ -1,0 +1,17 @@
+[global]
+depth=10
+verbose=false
+
+[push/pull]
+no-prompt=false
+
+[pull]
+depth=3
+verbose=true
+
+[push]
+# Last seen value overwrites in the same namespace
+no-prompt=true
+
+[list]
+long=true

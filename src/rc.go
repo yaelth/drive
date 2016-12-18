@@ -20,6 +20,8 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"github.com/odeke-em/namespace"
 )
 
 var (
@@ -36,47 +38,70 @@ var (
 	FsHomeDir       = os.Getenv(HomeEnvKey)
 )
 
-func kvifyCommentedFile(p, comment string) (kvMap map[string]string, err error) {
-	var clauses []string
-	kvMap = make(map[string]string)
-	clauses, err = readCommentedFile(p, comment)
+func kvifyCommentedFile(p, comment string) (map[string]map[string]string, error) {
+	clauses, err := readCommentedFile(p, comment)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	for i, clause := range clauses {
-		kvf, kvErr := splitAndStrip(clause, true)
-		if kvErr != nil {
-			err = kvErr
-			return
+	linesChan := make(chan string)
+	go func() {
+		defer close(linesChan)
+		for _, clause := range clauses {
+			linesChan <- clause
 		}
+	}()
 
-		value, ok := kvf.value.(string)
-		if !ok {
-			err = fmt.Errorf("clause %d: expected a string instead got %v", i, kvf.value)
-			return
-		}
-
-		kvMap[kvf.key] = value
+	ns, err := namespace.ParseCh(linesChan)
+	if err != nil {
+		return nil, err
 	}
-	return
+
+	gkvMap := make(map[string]map[string]string)
+	for key, clauses := range ns {
+		kvMap := make(map[string]string)
+		for i, clause := range clauses {
+			kvf, kvErr := splitAndStrip(clause, true)
+			if kvErr != nil {
+				return nil, kvErr
+			}
+
+			value, ok := kvf.value.(string)
+			if !ok {
+				err = fmt.Errorf("clause %d: expected a string instead got %v", i, kvf.value)
+				return nil, err
+			}
+
+			kvMap[kvf.key] = value
+		}
+		gkvMap[key] = kvMap
+	}
+	return gkvMap, nil
 }
 
-func ResourceMappings(rcPath string) (parsed map[string]interface{}, err error) {
+func ResourceMappings(rcPath string) (map[string]map[string]interface{}, error) {
 	beginOpts := Options{Path: rcPath}
 	rcPath, rcErr := beginOpts.rcPath()
 
 	if rcErr != nil {
-		err = rcErr
-		return
+		return nil, rcErr
 	}
 
-	rcMap, rErr := kvifyCommentedFile(rcPath, CommentStr)
+	nsRCMap, rErr := kvifyCommentedFile(rcPath, CommentStr)
 	if rErr != nil {
-		err = rErr
-		return
+		return nil, rErr
 	}
-	return parseRCValues(rcMap)
+
+	grouped := make(map[string]map[string]interface{})
+	for key, ns := range nsRCMap {
+		parsed, err := parseRCValues(ns)
+		if err != nil {
+			return nil, err
+		}
+		grouped[key] = parsed
+	}
+
+	return grouped, nil
 }
 
 func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{}, err error) {
@@ -105,7 +130,7 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 				CLIOptionUnified, CLIOptionDiffBaseLocal,
 				ExportsKey, ExcludeOpsKey, CLIOptionUnifiedShortKey,
 				CLIOptionNotOwner, ExportsDirKey, CLIOptionExactTitle, AddressKey,
-				CLIEncryptionPassword, CLIDecryptionPassword,
+				CLIEncryptionPassword, CLIDecryptionPassword, SortKey,
 			},
 		},
 		{
@@ -197,7 +222,7 @@ func splitAndStrip(line string, resolveFromEnv bool) (kv keyValue, err error) {
 	return
 }
 
-func JSONStringifySiftedCLITags(from interface{}, rcSourcePath string, defined map[string]bool) (string, error) {
+func JSONStringifySiftedCLITags(from interface{}, rcSourcePath string, defined map[string]bool, relevantNamespaces ...string) (string, error) {
 	rcMappings, err := ResourceMappings(rcSourcePath)
 	if err != nil && !NotExist(err) {
 		return "", err
@@ -205,9 +230,37 @@ func JSONStringifySiftedCLITags(from interface{}, rcSourcePath string, defined m
 
 	cs := CliSifter{
 		From:           from,
-		Defaults:       rcMappings,
+		Defaults:       mergeNamespaces(rcMappings, relevantNamespaces...),
 		AlreadyDefined: defined,
 	}
 
 	return SiftCliTags(&cs), nil
+}
+
+func copyAndOverWriteNs(from, to map[string]interface{}) {
+	for fK, fV := range from {
+		to[fK] = fV
+	}
+}
+
+func mergeNamespaces(ns map[string]map[string]interface{}, relevantKeys ...string) map[string]interface{} {
+	// Start with the global namespace and proceed overwriting from specific keys
+	var combinedNs map[string]interface{} = ns[namespace.GlobalNamespaceKey]
+	if combinedNs == nil {
+		combinedNs = make(map[string]interface{})
+	}
+
+	for _, key := range relevantKeys {
+		kNs := ns[key]
+		if len(kNs) < 1 {
+			// TODO: Decide if not setting anything in the namespace
+			// means exclude it entirely hence make combinedNs nil?
+			continue
+		}
+
+		// Now merge them: from -> to
+		copyAndOverWriteNs(kNs, combinedNs)
+	}
+
+	return combinedNs
 }

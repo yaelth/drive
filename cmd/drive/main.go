@@ -59,6 +59,7 @@ func translateKeyChecks(definedFlags map[string]*flag.Flag) map[string]bool {
 }
 
 type defaultsFiller struct {
+	command      string
 	from, to     interface{}
 	rcSourcePath string
 	definedFlags map[string]*flag.Flag
@@ -66,7 +67,7 @@ type defaultsFiller struct {
 
 func fillWithDefaults(df defaultsFiller) error {
 	alreadyDefined := translateKeyChecks(df.definedFlags)
-	jsonStringified, err := drive.JSONStringifySiftedCLITags(df.from, df.rcSourcePath, alreadyDefined)
+	jsonStringified, err := drive.JSONStringifySiftedCLITags(df.from, df.rcSourcePath, alreadyDefined, df.command)
 
 	if err != nil {
 		return err
@@ -352,7 +353,8 @@ func (lCmd *listCmd) _run(args []string, definedFlags map[string]*flag.Flag, dis
 	sources, context, path := preprocessArgsByToggle(args, (*lCmd.ById || *lCmd.Matches))
 	cmd := listCmd{}
 	df := defaultsFiller{
-		from: *lCmd, to: &cmd,
+		command: "list",
+		from:    *lCmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
 	}
@@ -690,7 +692,8 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, (*pCmd.ById || *pCmd.Matches || *pCmd.Starred))
 	cmd := pullCmd{}
 	df := defaultsFiller{
-		from: *pCmd, to: &cmd,
+		command: "pull",
+		from:    *pCmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
 	}
@@ -889,7 +892,8 @@ func (qCmd *qrLinkCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 
 	cmd := qrLinkCmd{}
 	df := defaultsFiller{
-		from: *qCmd, to: &cmd,
+		command: "qr",
+		from:    *qCmd, to: &cmd,
 		rcSourcePath: path,
 		definedFlags: definedFlags,
 	}
@@ -986,7 +990,8 @@ func exitIfIllogicalFileAndFolder(mask int) {
 func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[string]*flag.Flag) (*drive.Options, error) {
 	cmd := pushCmd{}
 	df := defaultsFiller{
-		from: *pCmd, to: &cmd,
+		command: "push",
+		from:    *pCmd, to: &cmd,
 		rcSourcePath: absEntryPath,
 		definedFlags: definedFlags,
 	}
@@ -1226,7 +1231,8 @@ func (uCmd *unpublishCmd) Run(args []string, definedFlags map[string]*flag.Flag)
 
 	cmd := unpublishCmd{}
 	df := defaultsFiller{
-		from: *uCmd, to: &cmd,
+		command: "unpublish",
+		from:    *uCmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
 	}
@@ -1700,7 +1706,8 @@ func (icmd *idCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgs(args)
 	cmd := idCmd{}
 	df := defaultsFiller{
-		from: *icmd, to: &cmd,
+		command: "id",
+		from:    *icmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
 	}
@@ -1741,7 +1748,8 @@ func (ccmd *clashesCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *ccmd.ById)
 	cmd := clashesCmd{}
 	df := defaultsFiller{
-		from: *ccmd, to: &cmd,
+		command: "clashes",
+		from:    *ccmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
 	}
