@@ -296,7 +296,7 @@ func autoTrashClashes(g *Commands, clashes []*Change) error {
 	}
 
 	if g.opts.canPrompt() {
-		g.log.Logln("Some clashes found, trash them?")
+		g.log.Logln("Some clashes found, trash them all?")
 		for _, c := range clashes {
 			g.log.Logln(c.Symbol(), c.Path, c.Dest.Id)
 		}
