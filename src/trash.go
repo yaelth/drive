@@ -210,8 +210,9 @@ func (g *Commands) DeleteByMatch() error {
 
 func (g *Commands) reduceForTrash(args []string, opt *trashOpt) error {
 	var cl []*Change
-	for _, relToRoot := range args {
+	for i, relToRoot := range args {
 		c, cErr := g.trasher(relToRoot, opt)
+		g.DebugPrintf("[reduceForTrash] #%d: relToRoot: %s\n", i, relToRoot)
 		if cErr != nil {
 			g.log.LogErrf("\033[91m'%s': %v\033[00m\n", relToRoot, cErr)
 		} else if c != nil {
@@ -248,14 +249,18 @@ func (g *Commands) playTrashChangeList(cl []*Change, opt *trashOpt) (err error) 
 	var fn func(*Change) error
 	if opt.permanent {
 		fn = g.remoteDelete
+		g.DebugPrintf("[playTrashChangeList] isPermanentOp. Selecting remoteDelete\n")
 	} else {
 		fn = g.remoteUntrash
 		if opt.toTrash {
 			fn = g.remoteTrash
 		}
+		g.DebugPrintf("[playTrashChangeList/nonPermanentOp]: toTrash: %v\n", opt.toTrash)
 	}
 
-	for _, c := range cl {
+	for i, c := range cl {
+		op := c.Op()
+		g.DebugPrintf("[playTrashChangeList] #%d op: %v change: %#v\n", i, op, c)
 		if c.Op() == OpNone {
 			continue
 		}

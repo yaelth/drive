@@ -183,6 +183,7 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, push bool) (cl, c
 				iterCount++
 			}
 
+			g.DebugPrintf("[changeListResolve] relToRoot: %s remoteFile: %#v isPush: %v\n", relToRoot, rem, push)
 			ccl, cclashes, cErr := g.byRemoteResolve(relToRoot, fsPath, rem, push)
 
 			cl = append(cl, ccl...)

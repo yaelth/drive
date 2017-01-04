@@ -1311,6 +1311,7 @@ type trashCmd struct {
 	Matches *bool `json:"matches"`
 	Quiet   *bool `json:"quiet"`
 	ById    *bool `json:"by-id"`
+	Verbose *bool `json:"verbose"`
 }
 
 func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -1318,6 +1319,7 @@ func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.Matches = fs.Bool(drive.MatchesKey, false, "search by prefix and trash")
 	cmd.Quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	cmd.ById = fs.Bool(drive.CLIOptionId, false, "trash by id instead of path")
+	cmd.Verbose = fs.Bool(drive.CLIOptionVerboseKey, false, drive.DescVerbose)
 
 	return fs
 }
@@ -1330,6 +1332,7 @@ func (cmd *trashCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Sources: sources,
 		Quiet:   *cmd.Quiet,
 		Match:   *cmd.Matches,
+		Verbose: *cmd.Verbose,
 	}
 
 	if !*cmd.Matches {
@@ -1849,7 +1852,9 @@ func initContext(args []string) *config.Context {
 
 func discoverContext(args []string) (*config.Context, string) {
 	var err error
-	context, err = config.Discover(getContextPath(args))
+	ctxPath := getContextPath(args)
+	context, err = config.Discover(ctxPath)
+	drive.DebugPrintf("contextPath: %q", ctxPath)
 	exitWithError(err)
 	relPath := ""
 	if len(args) > 0 {
@@ -1859,6 +1864,7 @@ func discoverContext(args []string) (*config.Context, string) {
 			relPath, err = filepath.Rel(context.AbsPath, headAbsArg)
 		}
 	}
+	drive.DebugPrintf("driveRoot: %q relToRoot: %q\n\n", context.AbsPath, relPath)
 
 	exitWithError(err)
 

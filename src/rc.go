@@ -15,6 +15,7 @@
 package drive
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -84,9 +85,11 @@ func ResourceMappings(rcPath string) (map[string]map[string]interface{}, error) 
 	rcPath, rcErr := beginOpts.rcPath()
 
 	if rcErr != nil {
+		DebugPrintf("tried to read from rcPath: %s got err: %v", rcPath, rcErr)
 		return nil, rcErr
 	}
 
+	DebugPrintf("RCPath: %s", rcPath)
 	nsRCMap, rErr := kvifyCommentedFile(rcPath, CommentStr)
 	if rErr != nil {
 		return nil, rErr
@@ -99,6 +102,12 @@ func ResourceMappings(rcPath string) (map[string]map[string]interface{}, error) 
 			return nil, err
 		}
 		grouped[key] = parsed
+	}
+
+	if jsonRepr, err := json.MarshalIndent(grouped, "", "  "); err == nil {
+		DebugPrintf("parsedContent from %q\n%s", rcPath, jsonRepr)
+	} else {
+		DebugPrintf("parsedContent from %q\n%s", rcPath, grouped)
 	}
 
 	return grouped, nil

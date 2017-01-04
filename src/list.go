@@ -198,8 +198,9 @@ func (g *Commands) List(byId bool) error {
 
 	mq := g.createMatchQuery(true)
 
-	for _, relPath := range g.opts.Sources {
+	for i, relPath := range g.opts.Sources {
 		r, rErr := resolver(relPath)
+		g.DebugPrintf("[Commands.List] #%d %q\n", i, relPath)
 		if rErr != nil && rErr != ErrPathNotExists {
 			return illogicalStateErr(fmt.Errorf("%v: '%s'", rErr, relPath))
 		}

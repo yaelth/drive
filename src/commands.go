@@ -135,6 +135,13 @@ func (opts *Options) canPrompt() bool {
 	return !opts.NoPrompt
 }
 
+func (c *Commands) DebugPrintf(fmt_ string, args ...interface{}) {
+	if !((Debug() || c.opts.Verbose) && c.opts.canPreview()) {
+		return
+	}
+	FDebugPrintf(c.log, fmt_, args...)
+}
+
 func (opts *Options) canPreview() bool {
 	if opts == nil || !opts.StdoutIsTty {
 		return false
