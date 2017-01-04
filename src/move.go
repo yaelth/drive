@@ -225,10 +225,12 @@ func (g *Commands) Rename(byId bool) error {
 	}
 
 	newName := g.opts.Sources[1]
+	renamedRemote := false
 	if canRenameRemote(g.opts.RenameMode) {
 		if err = g.renameRemote(remSrc.Id, parentPath, newName); err != nil {
 			return err
 		}
+		renamedRemote = true
 	}
 
 	if canRenameLocal(g.opts.RenameMode) {
@@ -236,8 +238,19 @@ func (g *Commands) Rename(byId bool) error {
 		oldRelToRootPath := sepJoin(RemoteSeparator, parentPath, remSrc.Name)
 		newRelToRootPath := sepJoin(RemoteSeparator, parentPath, newName)
 
-		if err = g.renameLocal(oldRelToRootPath, newRelToRootPath); err != nil {
-			return err
+		err = g.renameLocal(oldRelToRootPath, newRelToRootPath)
+
+		if err != nil {
+			switch {
+			// If a local path doesn't exist we shouldn't try to report an error if
+			// they've already just renamed the remote path.
+			// A common case is renaming a remote file that isn't on disk.
+			// See Issue https://github.com/odeke-em/drive/issues/826.
+			case NotExist(err) && renamedRemote:
+				err = nil
+			default:
+				return err
+			}
 		}
 	}
 
