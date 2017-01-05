@@ -12,7 +12,7 @@ a helper, you can find a list [here](https://wiki.archlinux.org/index.php/AUR_he
 
 
 ### Ubuntu, or Ubuntu based distros. 
-This includes Ubuntu, Mint, Linux Lite, etc. [List](http://distrowatch.com/search.php?basedon=Ubuntu)
+This [PPA](https://launchpad.net/~twodopeshaggy/+archive/ubuntu/drive) includes Ubuntu, Mint, Linux Lite, etc. [List](http://distrowatch.com/search.php?basedon=Ubuntu)
 
 ```sh
 sudo add-apt-repository ppa:twodopeshaggy/drive
