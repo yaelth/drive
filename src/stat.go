@@ -133,10 +133,6 @@ func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 }
 
 func (g *Commands) stat(relToRootPath string, file *File, depth int) error {
-	if depth == 0 {
-		return nil
-	}
-
 	if g.opts.Md5sum {
 		if file.Md5Checksum != "" {
 			g.log.Logf("%32s  %s\n", file.Md5Checksum, strings.TrimPrefix(relToRootPath, "/"))
@@ -151,6 +147,10 @@ func (g *Commands) stat(relToRootPath string, file *File, depth int) error {
 		for _, perm := range perms {
 			prettyPermission(g.log.Logf, perm)
 		}
+	}
+
+	if depth == 0 {
+		return nil
 	}
 
 	if !file.IsDir {
