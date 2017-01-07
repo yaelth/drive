@@ -1162,10 +1162,10 @@ func parseDurationOffsetFromNow(durationOffsetStr string) (*time.Time, error) {
 	return &offsetFromNow, nil
 }
 
-// Debug returns true if DEBUG is set in the environment.
-// Set it to anything non-empty, for example `DEBUG=true`.
+// Debug returns true if DRIVE_DEBUG is set in the environment.
+// Set it to anything non-empty, for example `DRIVE_DEBUG=true`.
 func Debug() bool {
-	return os.Getenv("DEBUG") != ""
+	return os.Getenv("DRIVE_DEBUG") != ""
 }
 
 func DebugPrintf(fmt_ string, args ...interface{}) {
@@ -1173,7 +1173,7 @@ func DebugPrintf(fmt_ string, args ...interface{}) {
 }
 
 // FDebugPrintf will only print output to the out writer if
-// environment variable `DEBUG` is set. It prints out a header
+// environment variable `DRIVE_DEBUG` is set. It prints out a header
 // on a newline containing the introspection of the callsite,
 // and then the formatted message you'd like,
 // appending an obligatory newline at the end.
