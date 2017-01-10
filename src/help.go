@@ -254,6 +254,8 @@ const (
 	CLIOptionDesktopLinks       = "desktop-links"
 	CLIOptionKeepParent         = "keep-parent"
 
+	CLIOptionUploadChunkSize = "upload-chunk-size"
+
 	CLIOptionExportsDumpToSameDirectory = "same-exports-dir"
 )
 

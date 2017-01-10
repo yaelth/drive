@@ -33,6 +33,7 @@ import (
 
 	expb "github.com/odeke-em/exponential-backoff"
 	drive "google.golang.org/api/drive/v2"
+	"google.golang.org/api/googleapi"
 )
 
 const (
@@ -660,17 +661,18 @@ func indexContent(mask int) bool {
 }
 
 type upsertOpt struct {
-	debug          bool
-	parentId       string
-	fsAbsPath      string
-	relToRootPath  string
-	src            *File
-	dest           *File
-	mask           int
-	ignoreChecksum bool
-	mimeKey        string
-	nonStatable    bool
-	retryCount     int
+	debug           bool
+	parentId        string
+	fsAbsPath       string
+	relToRootPath   string
+	src             *File
+	dest            *File
+	mask            int
+	ignoreChecksum  bool
+	mimeKey         string
+	nonStatable     bool
+	retryCount      int
+	uploadChunkSize int
 }
 
 func togglePropertiesInsertCall(req *drive.FilesInsertCall, mask int) *drive.FilesInsertCall {
@@ -756,11 +758,16 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 	// Ensure that the ModifiedDate is retrieved from local
 	uploaded.ModifiedDate = toUTCString(args.src.ModTime)
 
+	var mediaOptions []googleapi.MediaOption
+	if args.uploadChunkSize > 0 {
+		mediaOptions = append(mediaOptions, googleapi.ChunkSize(args.uploadChunkSize))
+	}
+
 	if args.src.Id == "" {
 		req := r.service.Files.Insert(uploaded)
 
 		if !args.src.IsDir && body != nil {
-			req = req.Media(body)
+			req = req.Media(body, mediaOptions...)
 			mediaInserted = true
 		}
 
@@ -782,7 +789,7 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, m
 	req.SetModifiedDate(true)
 
 	if args.shouldUploadBody() {
-		req = req.Media(body)
+		req = req.Media(body, mediaOptions...)
 		mediaInserted = true
 	}
 

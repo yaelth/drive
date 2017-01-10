@@ -108,6 +108,11 @@ type Options struct {
 	// clickable files where applicable.
 	// See issue #697.
 	AllowURLLinkedFiles bool
+
+	// Chunksize is the size per block of data uploaded.
+	// If not set, the default value from googleapi.DefaultUploadChunkSize
+	// is used instead.
+	UploadChunkSize int
 }
 
 func (opts *Options) CryptoEnabled() bool {

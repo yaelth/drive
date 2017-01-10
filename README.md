@@ -546,6 +546,12 @@ default count of 20:
 drive push -retry-count 4 a/bc/def terms
 ```
 
+* You can also specify the upload chunk size to be used to push each file, by using flag
+`-upload-chunk-size` whose value is in bytes. If you don't specify this flag, by default
+the internal Google APIs use a value of 8MiB from constant `googleapi.DefaultUploadChunkSize`.
+Please note that your value has to be a multiple of and atleast the minimum  upload chunksize
+of 256KiB from constant `googleapi.MinUploadChunkSize`. See https://godoc.org/google.golang.org/api/googleapi#pkg-constants
+
 ### End to End Encryption
 
 See [Issue #543](https://github.com/odeke-em/drive/issues/543)
