@@ -351,10 +351,10 @@ To explicitly export instead of using `-force`
 drive pull -export pdf,rtf,docx,txt -explicitly-export
 ```
 
-By default, the exported files will be placed in a new directory suffixed by `\_exports` in the same path. To export the files to a different directory, use the `-export-dir` option:
+By default, the exported files will be placed in a new directory suffixed by `\_exports` in the same path. To export the files to a different directory, use the `-exports-dir` option:
 
 ```shell
-drive pull -export pdf,rtf,docx,txt -export-dir ~/Desktop/exports
+drive pull -export pdf,rtf,docx,txt -exports-dir ~/Desktop/exports
 ```
 
 Otherwise, you can export files to the same directory as requested in [issue #660](https://github.com/odeke-em/drive/issues/660),
@@ -382,6 +382,7 @@ Exported '/Users/emmanuelodeke/emm.odeke@gmail.com/test-exports/few.docs' to '/U
 * gif
 * html
 * odt
+* ods
 * rtf
 * pdf
 * png
@@ -1172,7 +1173,7 @@ For example:
 ```shell
 cat << ! >> ~/.driverc
 > # My global .driverc file
-> exports=doc,pdf
+> export=doc,pdf
 > depth=100
 > no-prompt=true
 >
@@ -1202,7 +1203,7 @@ cat << ! >> ~/emm.odeke-drive/.driverc
 cat << $ >> ~/emm.odeke-drive/fall2015Classes/.driverc
 > # My global .driverc file
 > exports-dir=$HOME/Desktop/exports
-> exports=pdf,csv,txt
+> export=pdf,csv,txt
 > hidden=true
 > depth=10
 > exclude-ops=delete,update
