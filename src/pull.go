@@ -101,7 +101,8 @@ func pull(g *Commands, pt pullType) error {
 			warnClashesPersist(g.log, clashes)
 			return ErrClashesDetected
 		} else {
-			err := autoRenameClashes(g, clashes)
+			fn := g.opts.clashesHandler()
+			err := fn(g, clashes)
 			if err == nil {
 				return clashesFixedErr(errors.New(MsgClashesFixedNowRetry))
 			}

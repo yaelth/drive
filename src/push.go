@@ -94,7 +94,8 @@ func (g *Commands) Push() error {
 
 	if len(clashes) >= 1 {
 		if g.opts.FixClashes {
-			err := autoRenameClashes(g, clashes)
+			fn := g.opts.clashesHandler()
+			err := fn(g, clashes)
 			if err == nil {
 				g.log.Logln(MsgClashesFixedNowRetry)
 			}

@@ -612,14 +612,15 @@ func (cmd *indexCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 }
 
 type pullCmd struct {
-	ById   *bool   `json:"by-id"`
-	Files  *bool   `json:"files"`
-	Piped  *bool   `json:"piped"`
-	Quiet  *bool   `json:"quiet"`
-	Force  *bool   `json:"force"`
-	Depth  *int    `json:"depth"`
-	Hidden *bool   `json:"hidden"`
-	Export *string `json:"export"`
+	ById    *bool   `json:"by-id"`
+	Files   *bool   `json:"files"`
+	Piped   *bool   `json:"piped"`
+	Quiet   *bool   `json:"quiet"`
+	Force   *bool   `json:"force"`
+	Depth   *int    `json:"depth"`
+	Hidden  *bool   `json:"hidden"`
+	Export  *string `json:"export"`
+	FixMode *string `json:"fix-mode"`
 
 	Starred *bool `json:"starred"`
 	Verbose *bool `json:"verbose"`
@@ -662,6 +663,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.IgnoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, true, drive.DescIgnoreChecksum)
 	cmd.IgnoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.IgnoreNameClashes = fs.Bool(drive.CLIOptionIgnoreNameClashes, false, drive.DescIgnoreNameClashes)
+	cmd.FixMode = fs.String(drive.CLIOptionFixClashesMode, "rename", drive.DescFixClashesMode)
 
 	cmd.ExportsDir = fs.String(drive.ExportsDirKey, "", "directory to place exports")
 	cmd.ExportsDumpToSameDirectory = fs.Bool(drive.CLIOptionExportsDumpToSameDirectory, false, "exports are put in the same directory")
@@ -741,6 +743,11 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 
 	exitIfIllogicalFileAndFolder(typeMask)
 
+	fixMode, ok := translateFixMode(*cmd.FixMode)
+	if !ok {
+		exitWithError(fmt.Errorf("Unknown fix mode: %s", *cmd.FixMode))
+	}
+
 	options := &drive.Options{
 		Path:       path,
 		Sources:    sources,
@@ -764,6 +771,7 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Decrypter:  decryptFn,
 		TypeMask:   typeMask,
 
+		FixClashesMode:    fixMode,
 		IgnoreChecksum:    *cmd.IgnoreChecksum,
 		IgnoreConflict:    *cmd.IgnoreConflict,
 		ExcludeCrudMask:   excludeCrudMask,
@@ -791,13 +799,14 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 }
 
 type pushCmd struct {
-	NoClobber   *bool `json:"no-clobber"`
-	Hidden      *bool `json:"hidden"`
-	Force       *bool `json:"force"`
-	NoPrompt    *bool `json:"no-prompt"`
-	Recursive   *bool `json:"recursive"`
-	Piped       *bool `json:"piped"`
-	MountedPush *bool `json:"m"`
+	NoClobber   *bool   `json:"no-clobber"`
+	Hidden      *bool   `json:"hidden"`
+	Force       *bool   `json:"force"`
+	FixMode     *string `json:"fix-mode"`
+	NoPrompt    *bool   `json:"no-prompt"`
+	Recursive   *bool   `json:"recursive"`
+	Piped       *bool   `json:"piped"`
+	MountedPush *bool   `json:"m"`
 	// convert when set tells Google drive to convert the document into
 	// its appropriate Google Docs format
 	Convert *bool `json:"convert"`
@@ -827,6 +836,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.NoClobber = fs.Bool(drive.CLIOptionNoClobber, false, "prevents overwriting of old content")
 	cmd.Hidden = fs.Bool(drive.HiddenKey, false, "allows pushing of hidden paths")
 	cmd.Recursive = fs.Bool(drive.RecursiveKey, true, "performs the push action recursively")
+	cmd.FixMode = fs.String(drive.CLIOptionFixClashesMode, "rename", drive.DescFixClashesMode)
 	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before applying the push action")
 	cmd.Force = fs.Bool(drive.ForceKey, false, "forces a push even if no changes present")
 	cmd.MountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
@@ -1046,6 +1056,11 @@ func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[str
 		}
 	}
 
+	fixMode, ok := translateFixMode(*cmd.FixMode)
+	if !ok {
+		exitWithError(fmt.Errorf("Unknown fix mode: %s", *cmd.FixMode))
+	}
+
 	opts := &drive.Options{
 		Force:                        *cmd.Force,
 		Hidden:                       *cmd.Hidden,
@@ -1067,6 +1082,7 @@ func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[str
 		Encrypter:                    encryptFn,
 		ExponentialBackoffRetryCount: retryCount,
 		UploadChunkSize:              *cmd.UploadChunkSize,
+		FixClashesMode:               fixMode,
 	}
 
 	return opts, nil
@@ -1754,6 +1770,17 @@ func (cmd *clashesCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
+func translateFixMode(strFixMode string) (drive.FixClashesMode, bool) {
+	switch strings.ToLower(strFixMode) {
+	case "rename":
+		return drive.FixClashesRename, true
+	case "trash":
+		return drive.FixClashesTrash, true
+	default:
+		return 0, false
+	}
+}
+
 func (ccmd *clashesCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *ccmd.ById)
 	cmd := clashesCmd{}
@@ -1768,12 +1795,8 @@ func (ccmd *clashesCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		exitWithError(err)
 	}
 
-	var FixMode drive.FixClashesMode
-	if *cmd.FixMode == "rename" {
-		FixMode = drive.FixClashesRename
-	} else if *cmd.FixMode == "trash" {
-		FixMode = drive.FixClashesTrash
-	} else {
+	fixMode, ok := translateFixMode(*cmd.FixMode)
+	if !ok {
 		exitWithError(fmt.Errorf("Unknown fix mode: %s", *cmd.FixMode))
 	}
 
@@ -1783,7 +1806,7 @@ func (ccmd *clashesCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 		Depth:          *cmd.Depth,
 		Hidden:         *cmd.Hidden,
 		NoPrompt:       *cmd.NoPrompt,
-		FixClashesMode: FixMode,
+		FixClashesMode: fixMode,
 	}
 
 	driveInstance := drive.New(context, opts)

@@ -63,12 +63,21 @@ func (g *Commands) FixClashes(byId bool) error {
 		return err
 	}
 
+	fn := g.opts.clashesHandler()
+	return fn(g, clashes)
+}
+
+type clashesHandler func(g *Commands, clashes []*Change) error
+
+// clashesHandler returns the appropriate clashes handler depending
+// on the FixMode ie whether renaming or trashing is to be done.
+func (opts *Options) clashesHandler() clashesHandler {
 	fn := autoRenameClashes
-	if g.opts.FixClashesMode == FixClashesTrash {
+	if opts.FixClashesMode == FixClashesTrash {
 		fn = autoTrashClashes
 	}
 
-	return fn(g, clashes)
+	return fn
 }
 
 func findClashesForChildren(g *Commands, parentId, relToRootPath string, depth int) (clashes []*Change, err error) {
