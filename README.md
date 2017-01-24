@@ -1090,7 +1090,7 @@ drive clashes -fix [-fix-mode mode] [-depth n] [paths...]
 
 There are two available modes for `-fix-mode`:
   * `rename`: this is the default behavior
-  * `trash`
+  * `trash`: trashing *both* new and old files
 
 ### Move
 

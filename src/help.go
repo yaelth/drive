@@ -179,7 +179,7 @@ const (
 	DescOpen                         = "open a file in the appropriate filemanager or default browser"
 	DescUrl                          = "returns the remote URL of each file"
 	DescVerbose                      = "show step by step information verbosely"
-	DescFixClashes                   = "fix clashes by renaming or trashing files"
+	DescFixClashes                   = "fix clashes by renaming or trashing all files"
 	DescFixClashesMode               = "set fix policy to rename or trash"
 	DescListClashes                  = "list clashes"
 	DescDescription                  = "set the description"
