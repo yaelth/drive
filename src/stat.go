@@ -92,6 +92,7 @@ func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 		&keyValue{"FileId", file.Id},
 		&keyValue{"Bytes", fmt.Sprintf("%v", file.Size)},
 		&keyValue{"Size", prettyBytes(file.Size)},
+		&keyValue{"QuotaBytesUsed", fmt.Sprintf("%v", file.QuotaBytesUsed)},
 		&keyValue{"DirType", dirType},
 		&keyValue{"VersionNumber", fmt.Sprintf("%v", file.Version)},
 		&keyValue{"MimeType", file.MimeType},
