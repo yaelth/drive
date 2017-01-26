@@ -115,6 +115,7 @@ type File struct {
 	Labels                *drive.FileLabels
 	Description           string
 	Parents               []*ParentFile
+	QuotaBytesUsed        int64
 }
 
 func newParentFile(p *drive.ParentReference) *ParentFile {
@@ -166,6 +167,7 @@ func NewRemoteFile(f *drive.File) *File {
 		Labels:                f.Labels,
 		Description:           f.Description,
 		Parents:               parents,
+		QuotaBytesUsed:	       f.QuotaBytesUsed,
 	}
 }
 
@@ -198,6 +200,7 @@ func DupFile(f *File) *File {
 		OriginalFilename:   f.OriginalFilename,
 		Description:        f.Description,
 		Parents:            f.Parents,
+		QuotaBytesUsed:	       f.QuotaBytesUsed,
 	}
 }
 
