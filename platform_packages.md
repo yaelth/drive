@@ -24,7 +24,7 @@ sudo apt-get install drive
 You may need to install the package software-properties-common to use apt-add-repository command.
 
 ```sh
-sudo apt-get install software-properties-common
+sudo apt-get install software-properties-common dirmngr
 ```
 
 After installing software-properties-common, you can run these commands. Updates will be as normal with all debian packages.
