@@ -300,6 +300,8 @@ drive pull -starred -all -trashed # Pull all the starred files in the trash
 
 Like most commands [.driveignore](#driveignore) can be used to filter which files to pull.
 
++ Note: Use `drive pull -hidden` to also pull files starting with `.` like `.git`.
+
 To selectively pull by type e.g file vs directory/folder, you can use flags
 - `files`
 - `directories`
@@ -443,6 +445,8 @@ drive push -directories tf1
 ```
 
 Like most commands [.driveignore](#driveignore) can be used to filter which files to push.
+
++ Note: Use `drive push -hidden` to also push files starting with `.` like `.git`.
 
 Here is an example using drive to backup the current working directory. It pushes a tar.gz archive created on the fly. No archive file is made on the machine running the command, so it doesn't waste disk space.
 
