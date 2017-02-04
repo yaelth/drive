@@ -8,63 +8,72 @@
 
 ## Table of Contents
 
-- [Requirements](#requirements)
-- [Installation](#installation)
-  - [Platform Packages](#platform-packages)
+- [Installing](#installing)
+  - [Requirements](#requirements)
+  - [From sources](#from-sources)
   - [Godep](#godep)
+  - [Platform Packages](#platform-packages)
+    - [Automation Scripts](#automation-scripts)
   - [Cross Compilation](#cross-compilation)
-- [Configuration](#configuration)
+  - [API keys](#api-keys)
 - [Usage](#usage)
+  - [Hyphens: - vs --](#-vs--)
   - [Initializing](#initializing)
   - [De Initializing](#de-initializing)
-  - [End to End Encryption](#end-to-end-encryption)
   - [Traversal Depth](#traversal-depth)
+  - [Configuring General Settings](#configuring-general-settings)
+  - [Excluding And Including Objects](#excluding-and-including-objects)
+    - [Sample .driveignore with the exclude and include clauses combined](sample-.driveignore-with-the-exclude-and-include-clauses-combined)
   - [Pulling](#pulling)
+    - [Verifying Checksums] (#verifying-checksums)
     - [Exporting Docs](#exporting-docs)
   - [Pushing](#pushing)
+  - [Pulling And Pushing Notes](#pulling-and-pushing-notes)
+  - [End to End Encryption](#end-to-end-encryption)
   - [Publishing](#publishing)
   - [Unpublishing](#unpublishing)
   - [Sharing and Emailing](#sharing-and-emailing)
   - [Unsharing](#unsharing)
+  - [Starring Or Unstarring](#starring-or-unstarring)
   - [Diffing](#diffing)
   - [Touching](#touching)
-  - [Trashing and Untrashing](#trashing-and-untrashing)
-  - [Emptying the Trash](#emptying-the-trash)
+  - [Trashing And Untrashing](#trashing-and-untrashing)
+  - [Emptying The Trash](#emptying-the-trash)
   - [Deleting](#deleting)
-  - [Listing Files](#listing-files)
-  - [Stating Files](#stating-files)
-  - [Retrieving md5 checksums](#retrieving-md5-checksums)
+  - [Listing](#listing)
+  - [Stating](#stating)
+  - [Printing URL](#printing-url)
   - [Editing Description](#editing-description)
-  - [FileId Retrieval](#fileid-retrieval)
-  - [New File](#new-file)
-  - [Quota](#quota)
-  - [Features](#features)
-  - [About](#about)
-  - [Help](#help)
-  - [Move](#move)
-  - [Rename](#rename)
-  - [Clashes](#clashes)
-  - [DriveIgnore](#driveignore)
-  - [DriveRC](#driverc)
-  - [DesktopEntry](#desktopentry)
+  - [Retrieving MD5 Checksums](#retrieving-md5-checksums)
+  - [Retrieving FileId](#retrieving-fileid)
+  - [Retrieving Quota](#retrieving-quota)
+  - [Retrieving Features](#retrieving-features)
+  - [Creating](#creating)
+  - [Opening](#opening)
+  - [Copying](#copying)
+  - [Moving](#moving)
+  - [Renaming](#renaming)
   - [Command Aliases](#command-aliases)
-  - [Index Prune](#index-prune)
-  - [Url](#url)
-  - [Open](#open)
+  - [Detecting And Fixing Clashes](#detecting-and-fixing-clashes)
+  - [.desktop Files](#.desktop-files)
+  - [Fetching And Pruning Missing Index Files](#fetching-and-pruning-missing-index-files)
   - [Drive Server](#drive-server)
   - [QR Code Share](#qr-code-share)
-  - [Star Or Unstar](#star-or-unstar)
+  - [About](#about)
+  - [Help](#help)
   - [Filing Issues](#filing-issues)
 - [Revoking Account Access](#revoking-account-access)
 - [Uninstalling](#uninstalling)
-- [Applying patches](#applying-patches)
-- [Why another Google Drive client?](#why-another-google-drive-client)
-- [Known issues](#known-issues)
-- [Reach out](#reach-out)
+- [Applying Patches](#applying-patches)
+- [Why Another Google Drive Client?](#why-another-google-drive-client)
+- [Known Issues](#known-issues)
+- [Reaching Out](#reaching-out)
 - [Disclaimer](#disclaimer)
 - [LICENSE](#license)
 
-## Requirements
+## Installing
+
+### Requirements
 
 go 1.7.X or higher is required. See [here](https://golang.org/doc/install) for installation instructions and platform installers.
 
@@ -79,7 +88,7 @@ source ~/.bashrc # To reload the settings and get the newly set ones # Or open a
 ```
 The above setup will ensure that the drive binary after compilation can be invoked from your current path.
 
-## Installation
+### From sources
 
 To install from the latest source, run:
 
@@ -111,7 +120,6 @@ To bundle debug information with the binary, you can run:
 go get -u github.com/odeke-em/drive/drive-gen && drive-gen drive-google
 ```
 
-
 ### Godep
 
 + Using godep
@@ -126,12 +134,16 @@ cd $GOPATH/src/github.com/odeke-em/drive/drive-gen && godep restore
 
 Please see file `drive-gen/README.md` for more information.
 
-
 ### Platform Packages
 
-For curated packages on your favorite platform, please see file [Platform Packages.md](https://github.com/odeke-em/drive/blob/master/platform_packages.md).
+For packages on your favorite platform, please see file [Platform Packages.md](https://github.com/odeke-em/drive/blob/master/platform_packages.md).
 
 Is your platform missing a package? Feel free to prepare / contribute an installation package and then submit a PR to add it in.
+
+#### Automation Scripts
+
+You can install scripts for automating major drive commands and syncing from [drive-google wiki](https://gitlab.com/jean-christophe-manciot/Drive/wikis/home), also described in [platform_packages.md](https://github.com/odeke-em/drive/blob/master/platform_packages.md)).
+Some screenshots are available [here](https://gitlab.com/jean-christophe-manciot/Drive/wikis/home#drive-menu-screenshots).
 
 ### Cross Compilation
 
@@ -147,16 +159,15 @@ See file `Makefile` which currently supports cross compilation. Just run `make` 
 
 Also inspect file `bin/md5Sums.txt` after the cross compilation.
 
-
-## Configuration
+### API keys
 
 Optionally set the `GOOGLE_API_CLIENT_ID` and `GOOGLE_API_CLIENT_SECRET` environment variables to use your own API keys.
 
 ## Usage
 
-### Note
+### Hyphens: - vs --
 
-A single hypen `-` can be used to specify options. However two hypen's `--` can be used with any options in the provided examples below.
+A single hypen `-` can be used to specify options. However two hypens `--` can be used with any options in the provided examples below.
 
 ### Initializing
 
@@ -176,7 +187,6 @@ drive deinit [-no-prompt]
 ```
 
 For a complete deinit-ialization, don't forget to revoke account access, [please see revoking account access](#revoking-account-access)
-
 
 ### Traversal Depth
 
@@ -223,7 +233,6 @@ Given:
 						| - Music
 						| - Summary.txt
 
-
 + No items are within the reach of  `depth -1` relative to B/ since B/ has no children.
 
 + Items within the reach of `depth -` relative to CTX/ are:
@@ -231,7 +240,99 @@ Given:
 				| - Music
 				| - Summary.txt
 
+### Configuring General Settings
 
+drive supports resource configuration files (.driverc) that you can place both globally (in your home directory)
+and locally(in the mounted drive dir) or in the directory that you are running an operation from, relative to the root.
+The entries for a .driverc file is in the form a key-value pair where the key is any of the arguments that you'd get
+from running
+```shell
+drive <command> -h
+# e.g
+drive push -h
+```
+
+and the value is the argument that you'd ordinarily supply on the commandline.
+.driverc configurations can be optionally grouped in sections. See https://github.com/odeke-em/drive/issues/778.
+
+For example:
+
+```shell
+cat << ! >> ~/.driverc
+> # My global .driverc file
+> export=doc,pdf
+> depth=100
+> no-prompt=true
+>
+> # For lists
+> [list]
+> depth=2
+> long=true
+>
+> # For pushes
+> [push]
+> verbose=false
+>
+> # For stats
+> [stat]
+> depth=3
+>
+> # For pulls and pushes
+> [pull/push]
+> no-clobber=true
+> !
+
+cat << ! >> ~/emm.odeke-drive/.driverc
+> # The root main .driverc
+> depth=-1
+> hidden=false
+> no-clobber=true
+> exports-dir=$HOME/exports
+> !
+
+cat << $ >> ~/emm.odeke-drive/fall2015Classes/.driverc
+> # My global .driverc file
+> exports-dir=$HOME/Desktop/exports
+> export=pdf,csv,txt
+> hidden=true
+> depth=10
+> exclude-ops=delete,update
+> $
+```
+
+### Excluding and Including Objects
+
+drive allows you to specify a '.driveignore' file similar to your .gitignore, in the root
+directory of the mounted drive. Blank lines and those prefixed by '#' are considered as comments and skipped.
+
+For example:
+
+```shell
+cat << $ >> .driveignore
+> # My drive ignore file
+> \.gd$
+> \.so$
+> \.swp$
+> $
+```
+
+Note:
+  * Pattern matching and suffixes are done by regular expression matching so make sure to use a valid regular expression suffix.
+
+  * Go doesn't have a negative lookahead mechanism ie `exclude all but` which would
+    normally be achieved in other languages or regex engines by "?!". See https://groups.google.com/forum/#!topic/golang-nuts/7qgSDWPIh_E.
+    This was reported and requested in [issue #535](https://github.com/odeke-em/drive/issues/535).
+    A use case might be ignoring all but say .bashrc files or .dotfiles.
+    To enable this, prefix "!" at the beginning of the path to achieve this behavior.
+
+#### Sample .driveignore with the exclude and include clauses combined
+```shell
+cat << $ >> .driveignore
+> ^\.
+> !^\.bashrc # .bashrc files won't be ignored
+> _export$ # _export files are to be ignored
+> !must_export$ # the exception to the clause anything with "must_export"$ won't be ignored
+```
 
 ### Pulling
 
@@ -298,7 +399,7 @@ drive pull -starred -all # Pull all the starred files that aren't in the trash
 drive pull -starred -all -trashed # Pull all the starred files in the trash
 ```
 
-Like most commands [.driveignore](#driveignore) can be used to filter which files to pull.
+Like most commands [.driveignore](#excluding-and-including-objects) can be used to filter which files to pull.
 
 To selectively pull by type e.g file vs directory/folder, you can use flags
 - `files`
@@ -309,7 +410,7 @@ drive pull -files a1/b2
 drive pull -directories tf1
 ```
 
-## Note: Checksum verification:
+#### Verifying Checksums
 Due to popular demand, by default, checksum verification is turned off. It was deemed to be quite vigorous and unnecessary for most cases, in which size + modTime differences are sufficient to detect file changes. The discussion stemmed from issue [#117](https://github.com/odeke-em/drive/issues/117).
 
 However, modTime differences on their own do not warrant a resync of the contents of file.
@@ -322,8 +423,6 @@ To turn checksum verification back on:
 ```shell
 drive pull -ignore-checksum=false
 ```
-
-
 
 drive also supports piping pulled content to stdout which can be accomplished by:
 
@@ -413,7 +512,6 @@ For example to push the content of `music/Travi$+Future`, `integrals/complex/com
 drive push -destination a1/b2/c3 music/Travi$+Future integrals/complex/compilations
 ```
 
-
 To enable checksum verification during a push:
 
 ```shell
@@ -442,7 +540,7 @@ drive push -files a1/b2
 drive push -directories tf1
 ```
 
-Like most commands [.driveignore](#driveignore) can be used to filter which files to push.
+Like most commands [.driveignore](#excluding-and-including-objects) can be used to filter which files to push.
 
 Here is an example using drive to backup the current working directory. It pushes a tar.gz archive created on the fly. No archive file is made on the machine running the command, so it doesn't waste disk space.
 
@@ -513,7 +611,7 @@ Note: To use OCR, your account should have this feature. You can find out if you
 drive features
 ```
 
-## Note:
+### Pulling And Pushing Notes
 
 + MimeType inference is from the file's extension.
 
@@ -583,8 +681,6 @@ message corrupt or incorrect password
 
 To pull normally push or pull your content, without attempting any *cryption attempts, skip
 passing in a password and no attempts will be made.
-
-
 
 ### Publishing
 
@@ -663,6 +759,20 @@ drive unshare -emails  emm.odeke@gmail.com,odeke@ualberta.ca -type user,group -r
 
 ```shell
 drive unshare -type group -id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
+```
+
+### Starring Or Unstarring
+
+To star or unstar documents,
+
+```shell
+drive star information quest/A/B/C
+drive star -id 0fM9rt0Yc9RTPaDdsNzg1dXVjM0E 0fM9rt0Yc9RTPaTVGc1pzODN1NjQ 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU
+```
+
+```shell
+drive unstar information quest/A/B/C
+drive unstar -id 0fM9rt0Yc9RTPaDdsNzg1dXVjM0E 0fM9rt0Yc9RTPaTVGc1pzODN1NjQ 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU
 ```
 
 ### Diffing
@@ -744,7 +854,7 @@ drive touch -duration -30h ComedyPunchlineDrumSound.mp3 outf.go
 /share-testing/ComedyPunchlineDrumSound.mp3: 2016-09-10 08:06:39 +0000 UTC
 ```
 
-### Trashing and Untrashing
+### Trashing And Untrashing
 
 Files can be trashed using the `trash` command:
 
@@ -779,8 +889,7 @@ drive trash -id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 drive untrash -id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
-
-### Emptying the Trash
+### Emptying The Trash
 
 Emptying the trash will permanently delete all trashed files. Caution: They cannot be recovered after running this command.
 
@@ -806,8 +915,7 @@ drive delete -matches onyx swp
 drive delete -id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
-
-### Listing Files
+### Listing
 
 The `list` command shows a paginated list of files present remotely.
 
@@ -863,7 +971,7 @@ drive list -match-mime xls,docx
 drive list -exact-title url_test,Photos
 ```
 
-### Stating Files
+### Stating
 
 The `stat` commands show detailed file information for example people with whom it is shared, their roles and accountTypes, and
 fileId etc. It is useful to help determine whom and what you want to be set when performing share/unshare
@@ -890,7 +998,31 @@ OR
 drive stat -depth 4 -id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U
 ```
 
-### Retrieving md5 Checksums
+### Printing URL
+
+The url command prints out the url of a file. It allows you to specify multiple paths relative to root or even by id
+
+```shell
+drive url Photos/2015/07/Releases intros/flux
+drive url -id  0Bz5qQkvRAeVEV0JtZl4zVUZFWWx  1Pwu8lzYc9RTPTEpwYjhRMnlSbDQ 0Cz5qUrvDBeX4RUFFbFZ5UXhKZm8
+```
+
+### Editing Description
+
+You can edit the description of a file like this
+
+```shell
+drive edit-desc -description "This is a new file description" freshFolders/1.txt commonCore/
+drive edit-description -description "This is a new file description" freshFolders/1.txt commonCore/
+```
+
+Even more conveniently by piping content
+
+```shell
+cat fileDescriptions | drive edit-desc -piped  targetFile influx/1.txt
+```
+
+### Retrieving MD5 Checksums
 
 The `md5sum` command quickly retrieves the md5 checksums of the files on your drive. The result can be fed into the "md5sum -c" shell command to validate the integrity of the files on Drive versus the local copies.
 
@@ -920,38 +1052,7 @@ Compare across two different Drive accounts, including subfolders
 
 * Note: Running the 'drive md5sum' command retrieves pre-computed md5 sums from Drive; its speed is proportional to the number of files on Drive. Running the shell 'md5sum' command on local files requires reading through the files; its speed is proportional to the size of the files._
 
-
-### New File
-
-drive allows you to create an empty file or folder remotely
-Sample usage:
-
-```shell
-drive new -folder flux
-drive new -mime-key doc bofx
-drive new -mime-key folder content
-drive new -mime-key presentation ProjectsPresentation
-drive new -mime-key sheet Hours2015Sept
-drive new -mime-key form taxForm2016 taxFormCounty
-drive new flux.txt oxen.pdf # Allow auto type resolution from the extension
-```
-
-### Editing Description
-
-You can edit the description of a file like this
-
-```shell
-drive edit-desc -description "This is a new file description" freshFolders/1.txt commonCore/
-drive edit-description -description "This is a new file description" freshFolders/1.txt commonCore/
-```
-
-Even more conveniently by piping content
-
-```shell
-cat fileDescriptions | drive edit-desc -piped  targetFile influx/1.txt
-```
-
-### FileId Retrieval
+### Retrieving FileId
 
 You can retrieve just the fileId for specified paths
 ```shell
@@ -974,7 +1075,7 @@ FileId                                           Relative Path
 "1xmXPziMPEgq2dK-JqaUytKz_By8S_7_RVY79ceRoZwv"	 "info-bulletins"
 ```
 
-### Quota
+### Retrieving Quota
 
 The `quota` command prints information about your drive, such as the account type, bytes used/free, and the total amount of storage available.
 
@@ -982,7 +1083,7 @@ The `quota` command prints information about your drive, such as the account typ
 drive quota
 ```
 
-### Features
+### Retrieving Features
 
 The `features` command provides information about the features present on the
 drive being queried and the request limit in queries per second
@@ -990,6 +1091,212 @@ drive being queried and the request limit in queries per second
 ```shell
 drive features
 ```
+
+### Creating
+
+drive allows you to create an empty file or folder remotely
+Sample usage:
+
+```shell
+drive new -folder flux
+drive new -mime-key doc bofx
+drive new -mime-key folder content
+drive new -mime-key presentation ProjectsPresentation
+drive new -mime-key sheet Hours2015Sept
+drive new -mime-key form taxForm2016 taxFormCounty
+drive new flux.txt oxen.pdf # Allow auto type resolution from the extension
+```
+
+### Opening
+
+The open command allows for files to be opened by the default file browser, default web browser, either by path or by id for paths that exist atleast remotely
+
+```shell
+drive open -file-browser=false -web-browser f1/f2/f3 jamaican.mp4
+drive open -file-browser -id 0Bz8qQkpZAeV9T1PObvs2Y3BMQEj 0Y9jtQkpXAeV9M1PObvs4Y3BNRFk
+```
+
+### Copying
+
+drive allows you to copy content remotely without having to explicitly download and then reupload.
+
+```shell
+drive copy -r blobStore.py mnt flagging
+```
+
+```shell
+drive copy blobStore.py blobStoreDuplicated.py
+```
+
++ Also supports copying by fileIds
+
+```shell
+drive copy -r -id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U ../content
+```
+
+### Moving
+
+drive allows you to move content remotely between folders. To do so:
+
+```shell
+drive move photos/2015 angles library archives/storage
+```
+
++ Also supports moving by fileId
+
+```shell
+drive move -id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U ../../new_location
+```
+
+Google Drive supports multi-parent folder structure, where one file/folder can be placed in more than one parent folder.
+It consumes no extra disk space on the Cloud, but after pulling such structure it may double your files several times in your file structure.
+Pushing non deduplicated folder structures back may also break things, so be careful.
+
+To place file/folder into new parent folder, keeping old one as well, use `-keep-parent` option
+
+```shell
+$ drive move -keep-parent photos/2015 angles library second_parent_folder
+```
+
+### Renaming
+
+drive allows you to rename a file/folder remotely.
+Two arguments are required to rename ie `<relativePath/To/source or Id>` `<newName>`.
+
+To perform a rename:
+
+```shell
+drive rename url_test url_test_results
+drive rename openSrc/2015 2015-Contributions
+```
+
++ Also supports renaming by fileId
+
+```shell
+drive rename 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 fluxing
+```
+
+To turn off renaming locally or remotely, use flags
+`-local=false` or `-remote=false`. By default both are turned on.
+
+For example
+
+```shell
+drive rename -local=false -remote=true a/b/c/d/e/f flux
+```
+
+### Command Aliases
+
+`drive` supports a few aliases to make usage familiar to the utilities in your shell e.g:
++ cp : copy
++ ls : list 
++ mv : move
++ rm : delete
+
+### Detecting And Fixing Clashes
+
+You can deal with clashes by using command `drive clashes`.
+
+* To list clashes, you can do
+
+```shell
+drive clashes [-depth n] [paths...]
+drive clashes -list [-depth n] [paths...] # To be more explicit
+```
+
+* To fix clashes, you can do:
+
+```
+drive clashes -fix [-fix-mode mode] [-depth n] [paths...]
+```
+
+There are two available modes for `-fix-mode`:
+  * `rename`: this is the default behavior
+  * `trash`: trashing *both* new and old files
+
+## .desktop Files
+
+As previously mentioned, Google Docs, Drawings, Presentations, Sheets etc and all files affiliated
+with docs.google.com cannot be downloaded raw but only exported. Due to popular demand, Linux users
+desire the ability to have \*.desktop files that enable the file to be opened appropriately by an external opener.
+Thus by default on Linux, drive will create \*.desktop files for files that fall into this category.
+
+To turn off this behavior, you can set flag `-desktop-links` to false e.g
+```shell
+drive pull -desktop-links=false
+```
+
+### Fetching And Pruning Missing Index Files
+
+* index 
+
+If you would like to fetch missing index files for files that would otherwise not need any modifications, run:
+
+```shell
+drive index path1 path2 path3/path3.1 # To fetch any missing indices in those paths
+drive index -id 0CLu4lbUI9RTRM80k8EMoe5JQY2z
+```
+
+You can also fetch specific files by prefix matches
+```shell
+drive index -matches mp3 jpg
+```
+
+* prune
+
+In case you might have deleted files remotely but never using drive, and feel like you have stale indices,
+running `drive index -prune` will search your entire indices dir for index files that do not exist remotely and remove those ones
+
+```shell
+drive index -prune
+```
+
+* prune-and-index
+To combine both operations (prune and then fetch) for indices:
+
+```shell
+drive index -all-ops
+```
+
+### Drive server
+
+To enable services like qr-code sharing, you'll need to have the server running that will serve content once invoked in a web browser to allow for resources to be accessed on another device e.g your mobile phone
+
+```shell
+go get github.com/odeke-em/drive/drive-server && drive-server
+drive-server
+```
+
+Pre-requisites:
+  + DRIVE\_SERVER\_PUB\_KEY
+  + DRIVE\_SERVER\_PRIV\_KEY
+
+Optionally
+  + DRIVE\_SERVER\_PORT : default is 8010
+  + DRIVE\_SERVER\_HOST : default is localhost
+
+If the above keys are not set in your env, you can do this
+
+```shell
+DRIVE_SERVER_PUB_KEY=<pub_key> DRIVE_SERVER_PRIV_KEY=<priv_key> [DRIVE...] drive-server
+```
+
+### QR Code Share
+
+Instead of traditionally copying long links, drive can now allow you to share a link to a file by means of a QR code that is generated after a redirect through your web browser. 
+
+From then on, you can use your mobile device or any other QR code reader to get to that file.
+In order for this to run, you have to have the `drive-server` running
+
+As long as the server is running on a known domain, then you can start the qr-link getting ie
+
+```shell
+drive qr vines/kevin-hart.mp4 notes/caches.pdf
+drive qr -address http://192.168.1.113:8010 books/newest.pdf maps/infoGraphic.png
+drive qr -address https://my.server books/newest.pdf maps/infoGraphic.png
+```
+
+That should open up a browser with the QR code that when scanned will open up the desired file.
 
 ### About
 
@@ -1023,320 +1330,7 @@ To get help for all the commands
 drive help all
 ```
 
-### Copying
-
-drive allows you to copy content remotely without having to explicitly download and then reupload.
-
-```shell
-drive copy -r blobStore.py mnt flagging
-```
-
-```shell
-drive copy blobStore.py blobStoreDuplicated.py
-```
-
-+ Also supports copying by fileIds
-
-```shell
-drive copy -r -id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U ../content
-```
-
-
-### Rename
-
-drive allows you to rename a file/folder remotely.
-Two arguments are required to rename ie `<relativePath/To/source or Id>` `<newName>`.
-
-To perform a rename:
-
-```shell
-drive rename url_test url_test_results
-drive rename openSrc/2015 2015-Contributions
-```
-
-+ Also supports renaming by fileId
-
-```shell
-drive rename 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 fluxing
-```
-
-
-To turn off renaming locally or remotely, use flags
-`-local=false` or `-remote=false`. By default both are turned on.
-
-For example
-
-```shell
-drive rename -local=false -remote=true a/b/c/d/e/f flux
-```
-
-
-### Clashes
-
-You can deal with clashes by using command `drive clashes`.
-
-* To list clashes, you can do
-
-```shell
-drive clashes [-depth n] [paths...]
-drive clashes -list [-depth n] [paths...] # To be more explicit
-```
-
-* To fix clashes, you can do:
-
-```
-drive clashes -fix [-fix-mode mode] [-depth n] [paths...]
-```
-
-There are two available modes for `-fix-mode`:
-  * `rename`: this is the default behavior
-  * `trash`: trashing *both* new and old files
-
-### Move
-
-drive allows you to move content remotely between folders. To do so:
-
-```shell
-drive move photos/2015 angles library archives/storage
-```
-
-+ Also supports moving by fileId
-
-```shell
-drive move -id 0fM9rt0Yc9RTPeHRfRHRRU0dIY97 0fM9rt0Yc9kJRPSTFNk9kSTVvb0U ../../new_location
-```
-
-Google Drive supports multi-parent folder structure, where one file/folder can be placed in more than one parent folder.
-It consumes no extra disk space on the Cloud, but after pulling such structure it may double your files several times in your file structure.
-Pushing non deduplicated folder structures back may also break things, so be careful.
-
-To place file/folder into new parent folder, keeping old one as well, use `-keep-parent` option
-
-```shell
-$ drive move -keep-parent photos/2015 angles library second_parent_folder
-```
-
-
-### DriveIgnore
-
-drive allows you to specify a '.driveignore' file similar to your .gitignore, in the root
-directory of the mounted drive. Blank lines and those prefixed by '#' are considered as comments and skipped.
-
-For example:
-
-```shell
-cat << $ >> .driveignore
-> # My drive ignore file
-> \.gd$
-> \.so$
-> \.swp$
-> $
-```
-
-
-Note:
-  * Pattern matching and suffixes are done by regular expression matching so make sure to use a valid regular expression suffix.
-
-  * Go doesn't have a negative lookahead mechanism ie `exclude all but` which would
-    normally be achieved in other languages or regex engines by "?!". See https://groups.google.com/forum/#!topic/golang-nuts/7qgSDWPIh_E.
-    This was reported and requested in [issue #535](https://github.com/odeke-em/drive/issues/535).
-    A use case might be ignoring all but say .bashrc files or .dotfiles.
-    To enable this, prefix "!" at the beginning of the path to achieve this behavior.
-
-
-###### Sample .driveignore with the include and exclude clauses combined.
-```shell
-cat << $ >> .driveignore
-> ^\.
-> !^\.bashrc # .bashrc files won't be ignored
-> _export$ # _export files are to be ignored
-> !must_export$ # the exception to the clause anything with "must_export"$ won't be ignored
-```
-
-### DriveRC
-
-drive supports resource configuration files (.driverc) that you can place both globally(in your home directory)
-and locally(in the mounted drive dir) or in the directory that you are running an operation from, relative to the root.
-The entries for a .driverc file is in the form a key-value pair where the key is any of the arguments that you'd get
-from running
-```shell
-drive <command> -h
-# e.g
-drive push -h
-```
-
-and the value is the argument that you'd ordinarily supply on the commandline.
-.driverc configurations can be optionally grouped in sections. See https://github.com/odeke-em/drive/issues/778.
-
-For example:
-
-```shell
-cat << ! >> ~/.driverc
-> # My global .driverc file
-> export=doc,pdf
-> depth=100
-> no-prompt=true
->
-> # For pushes
-> [list]
-> depth=2
-> long=true
->
-> [push]
-> verbose=false
->
-> [stat]
-> depth=3
->
-> [pull/push]
-> no-clobber=true
-> !
-
-cat << ! >> ~/emm.odeke-drive/.driverc
-> # The root main .driverc
-> depth=-1
-> hidden=false
-> no-clobber=true
-> exports-dir=$HOME/exports
-> !
-
-cat << $ >> ~/emm.odeke-drive/fall2015Classes/.driverc
-> # My global .driverc file
-> exports-dir=$HOME/Desktop/exports
-> export=pdf,csv,txt
-> hidden=true
-> depth=10
-> exclude-ops=delete,update
-> $
-```
-
-
-## DesktopEntry
-
-As previously mentioned, Google Docs, Drawings, Presentations, Sheets etc and all files affiliated
-with docs.google.com cannot be downloaded raw but only exported. Due to popular demand, Linux users
-desire the ability to have \*.desktop files that enable the file to be opened appropriately by an external opener.
-Thus by default on Linux, drive will create \*.desktop files for files that fall into this category.
-
-To turn off this behavior, you can set flag `-desktop-links` to false e.g
-```shell
-drive pull -desktop-links=false
-```
-
-## Command Aliases
-
-`drive` supports a few aliases to make usage familiar to the utilities in your shell e.g:
-+ cp : copy
-+ ls : list 
-+ mv : move
-+ rm : delete
-
-
-## Index Prune
-
-* index 
-
-If you would like to fetch missing index files for files that would otherwise not need any modifications, run:
-
-```shell
-drive index path1 path2 path3/path3.1 # To fetch any missing indices in those paths
-drive index -id 0CLu4lbUI9RTRM80k8EMoe5JQY2z
-```
-
-You can also fetch specific files by prefix matches
-```shell
-drive index -matches mp3 jpg
-```
-
-* prune
-
-In case you might have deleted files remotely but never using drive, and feel like you have stale indices,
-running `drive index -prune` will search your entire indices dir for index files that do not exist remotely and remove those ones
-
-```shell
-drive index -prune
-```
-
-* prune-and-index
-To combine both operations (prune and then fetch) for indices:
-
-```shell
-drive index -all-ops
-```
-
-## Url
-
-The url command prints out the url of a file. It allows you to specify multiple paths relative to root or even by id
-
-```shell
-drive url Photos/2015/07/Releases intros/flux
-drive url -id  0Bz5qQkvRAeVEV0JtZl4zVUZFWWx  1Pwu8lzYc9RTPTEpwYjhRMnlSbDQ 0Cz5qUrvDBeX4RUFFbFZ5UXhKZm8
-```
-
-## Open
-
-The open command allows for files to be opened by the default file browser, default web browser, either by path or by id for paths that exist atleast remotely
-
-```shell
-drive open -file-browser=false -web-browser f1/f2/f3 jamaican.mp4
-drive open -file-browser -id 0Bz8qQkpZAeV9T1PObvs2Y3BMQEj 0Y9jtQkpXAeV9M1PObvs4Y3BNRFk
-```
-
-## Drive server
-
-To enable services like qr-code sharing, you'll need to have the server running that will serve content once invoked in a web browser to allow for resources to be accessed on another device e.g your mobile phone
-
-```shell
-go get github.com/odeke-em/drive/drive-server && drive-server
-drive-server
-```
-
-Pre-requisites:
-  + DRIVE\_SERVER\_PUB\_KEY
-  + DRIVE\_SERVER\_PRIV\_KEY
-
-Optionally
-  + DRIVE\_SERVER\_PORT : default is 8010
-  + DRIVE\_SERVER\_HOST : default is localhost
-
-If the above keys are not set in your env, you can do this
-
-```shell
-DRIVE_SERVER_PUB_KEY=<pub_key> DRIVE_SERVER_PRIV_KEY=<priv_key> [DRIVE...] drive-server
-```
-
-## QR Code Share
-
-Instead of traditionally copying long links, drive can now allow you to share a link to a file by means of a QR code that is generated after a redirect through your web browser. 
-
-From then on, you can use your mobile device or any other QR code reader to get to that file.
-In order for this to run, you have to have the `drive-server` running
-
-As long as the server is running on a known domain, then you can start the qr-link getting ie
-
-```shell
-drive qr vines/kevin-hart.mp4 notes/caches.pdf
-drive qr -address http://192.168.1.113:8010 books/newest.pdf maps/infoGraphic.png
-drive qr -address https://my.server books/newest.pdf maps/infoGraphic.png
-```
-
-That should open up a browser with the QR code that when scanned will open up the desired file.
-
-## Star Or Unstar
-
-To star or unstar documents,
-
-```shell
-drive star information quest/A/B/C
-drive star -id 0fM9rt0Yc9RTPaDdsNzg1dXVjM0E 0fM9rt0Yc9RTPaTVGc1pzODN1NjQ 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU
-```
-
-```shell
-drive unstar information quest/A/B/C
-drive unstar -id 0fM9rt0Yc9RTPaDdsNzg1dXVjM0E 0fM9rt0Yc9RTPaTVGc1pzODN1NjQ 0fM9rt0Yc9RTPV1NaNFp5WlV3dlU
-```
-
-## Filing Issues
+### Filing Issues
 
 In case of any issue, you can file one by using command `issue` aka `report-issue` aka `report`.
 It takes flags `-title` `-body` `-piped`.
@@ -1365,7 +1359,7 @@ To remove `drive` from your computer, you'll need to take out:
 
 * Also do not forget to revoke drive's access in case you need to uninstall it.
 
-## Applying patches 
+## Applying Patches 
 To  apply patches of code e.g in the midst of bug fixes, you'll just need a little bit of git fiddling.
 
 For example to patch your code with that on remote branch patch-1, you'll need to go into the source
@@ -1379,7 +1373,7 @@ git pull origin patch-1
 go get github.com/odeke-em/drive/cmd/drive
 ```
 
-## Why another Google Drive client?
+## Why Another Google Drive Client?
 
 Background sync is not just hard, it is stupid. Here are my technical and philosophical rants about why it is not worth to implement:
 
@@ -1408,15 +1402,14 @@ Background sync is not just hard, it is stupid. Here are my technical and philos
 
 * Possibility to support multiple accounts. Pull from or push to multiple Google Drive remotes. Possibility to support multiple backends. Why not to push to Dropbox or Box as well?
 
-## Known issues
+## Known Issues
 
 * It probably doesn't work on Windows.
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
 * Racing conditions occur if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
 * drive rejects reading from namedPipes because they could infinitely hang. See [issue #208](https://github.com/odeke-em/drive/issues/208).
 
-
-## Reach out
+## Reaching Out
 
 Doing anything interesting with drive or want to share your favorite tips and tricks? Check out the [wiki](https://github.com/odeke-em/drive/wiki) and feel free to reach out with ideas for features or requests.
 
