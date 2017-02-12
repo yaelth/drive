@@ -27,6 +27,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/jwt"
 
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/statos"
@@ -93,15 +94,36 @@ type Remote struct {
 	progressChan chan int
 }
 
-func NewRemoteContext(context *config.Context) *Remote {
+// NewRemoteContextFromServiceAccount returns a remote initialized
+// with credentials from a Google Service Account.
+// For more information about these accounts, see:
+// https://developers.google.com/identity/protocols/OAuth2ServiceAccount
+// https://developers.google.com/accounts/docs/application-default-credentials
+//
+// You'll also need to configure access to Google Drive.
+func NewRemoteContextFromServiceAccount(jwtConfig *jwt.Config) (*Remote, error) {
+	client := jwtConfig.Client(context.Background())
+	return remoteFromClient(client)
+}
+
+func NewRemoteContext(context *config.Context) (*Remote, error) {
 	client := newOAuthClient(context)
-	service, _ := drive.New(client)
+	return remoteFromClient(client)
+}
+
+func remoteFromClient(client *http.Client) (*Remote, error) {
+	service, err := drive.New(client)
+	if err != nil {
+		return nil, err
+	}
+
 	progressChan := make(chan int)
-	return &Remote{
+	rem := &Remote{
 		progressChan: progressChan,
 		service:      service,
 		client:       client,
 	}
+	return rem, nil
 }
 
 func hasExportLinks(f *File) bool {

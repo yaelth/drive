@@ -24,6 +24,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/oauth2/jwt"
+
 	"github.com/boltdb/bolt"
 )
 
@@ -49,6 +51,8 @@ const (
 )
 
 type Context struct {
+	GSAJWTConfig *jwt.Config `json:"gsa_jwt_config,omitempty"`
+
 	ClientId     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 	RefreshToken string `json:"refresh_token"`

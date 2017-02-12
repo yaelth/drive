@@ -41,6 +41,7 @@ const (
 	StatusNamedPipeReadAttempt        ErrorStatus = 22
 	StatusContentTooLarge             ErrorStatus = 23
 	StatusClashesFixed                ErrorStatus = 24
+	StatusSecurityException           ErrorStatus = 25
 )
 
 type Error struct {

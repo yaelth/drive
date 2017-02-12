@@ -16,6 +16,7 @@ package drive
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -193,9 +194,17 @@ func (opts *Options) rcPath() (string, error) {
 }
 
 func New(context *config.Context, opts *Options) *Commands {
-	var r *Remote
-	if context != nil {
-		r = NewRemoteContext(context)
+	var rem *Remote
+	var err error
+
+	if context.GSAJWTConfig != nil {
+		rem, err = NewRemoteContextFromServiceAccount(context.GSAJWTConfig)
+	} else {
+		rem, err = NewRemoteContext(context)
+	}
+
+	if err != nil {
+		panic(fmt.Errorf("failed to initialize remoteContext: %v", err))
 	}
 
 	stdin, stdout, stderr := os.Stdin, os.Stdout, os.Stderr
@@ -236,7 +245,7 @@ func New(context *config.Context, opts *Options) *Commands {
 
 	return &Commands{
 		context:       context,
-		rem:           r,
+		rem:           rem,
 		opts:          opts,
 		log:           logger,
 		mkdirAllCache: expirableCache.New(),

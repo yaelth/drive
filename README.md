@@ -173,10 +173,22 @@ A single hypen `-` can be used to specify options. However two hypens `--` can b
 
 Before you can use `drive`, you'll need to mount your Google Drive directory on your local file system:
 
+#### OAuth2.0 credentials
 ```shell
 drive init ~/gdrive
 cd ~/gdrive
 ```
+
+#### Google Service Account credentials
+```shell
+drive init --service-account-file <gsa_json_file_path> ~/gdrive
+cd ~/gdrive
+```
+
+where <gsa_json_file_path> must the GSA credentials in JSON form.
+This feature was implemented as requested by:
++ https://github.com/odeke-em/drive/issues/879
+
 
 ### De Initializing
 
