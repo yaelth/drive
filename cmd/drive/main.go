@@ -164,14 +164,23 @@ func (cmd *versionCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	exitWithError(nil)
 }
 
-type initCmd struct{}
+type initCmd struct {
+	ServiceAccountJSONFile *string `json:"-"`
+}
 
 func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.ServiceAccountJSONFile = fs.String(drive.ServiceAccountJSONFileKey, "", "points the Google Service Account JSON file")
 	return fs
 }
 
 func (cmd *initCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	exitWithError(drive.New(initContext(args), nil).Init())
+	comm := drive.New(initContext(args), nil)
+	gcsJSONFile := *cmd.ServiceAccountJSONFile
+	if gcsJSONFile == "" {
+		exitWithError(comm.Init())
+	} else {
+		exitWithError(comm.InitWithServiceAccount(gcsJSONFile))
+	}
 }
 
 type deInitCmd struct {

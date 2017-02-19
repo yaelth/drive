@@ -15,9 +15,11 @@
 package drive
 
 import (
+	"io/ioutil"
 	"os"
 
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2/google"
 )
 
 func (g *Commands) Init() error {
@@ -35,6 +37,37 @@ func (g *Commands) Init() error {
 	}
 
 	g.context.RefreshToken = refreshToken
+	return g.context.Write()
+}
+
+// We don't need to perform an OAuth2.0 exchange
+func (g *Commands) InitWithServiceAccount(gsaFilepath string) error {
+	if gsaFilepath == "" {
+		// We should be cautious enough not to blindly read in
+		// by default a Google Service account, because this
+		// could be a security breach to phish for accounts.
+		// The user has to explicitly pass in the path
+		return &Error{
+			code:   StatusSecurityException,
+			status: "a path has to be explicitly set for service accounts",
+		}
+	}
+
+	blob, err := ioutil.ReadFile(gsaFilepath)
+	if err != nil {
+		return err
+	}
+
+	jwtConfig, err := google.JWTConfigFromJSON(blob, DriveScope)
+	if err != nil {
+		return err
+	}
+
+	// Next we'll just transfer the attributes directly
+	// by means of JSON marshaling the already vetted JWTConfig
+	g.context.GSAJWTConfig = jwtConfig
+
+	// Since it validates alright, let's now write it to disk
 	return g.context.Write()
 }
 
