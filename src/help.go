@@ -258,6 +258,8 @@ const (
 	CLIOptionUploadChunkSize = "upload-chunk-size"
 
 	CLIOptionExportsDumpToSameDirectory = "same-exports-dir"
+
+	CLIOptionTrashed = TrashedKey
 )
 
 const (

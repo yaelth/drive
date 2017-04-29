@@ -28,8 +28,13 @@ func TestStructuredRC(t *testing.T) {
 			rcDir: "./testdata/zero-values",
 			want: map[string]map[string]interface{}{
 				"global": {"force": true, "verbose": true},
-				"pull":   {"desktop-links": false, "force": true, "verbose": false},
-				"open":   {"verbose": true, "file-browser": false, "export": ""},
+				"pull": {
+					"desktop-links": false, "force": true, "verbose": false,
+					"export": "pdf,doc,rtf", "same-exports-dir": true,
+				},
+				"open":    {"verbose": true, "file-browser": false, "export": ""},
+				"push":    {"trashed": true, "retry-count": 10, "destination": "/tmp"},
+				"starred": {"all": true},
 			},
 		},
 	}

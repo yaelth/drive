@@ -352,7 +352,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.LongFmt = fs.Bool(drive.CLIOptionLongFmt, false, "long listing of contents")
 	cmd.PageSize = fs.Int64(drive.PageSizeKey, 100, "number of results per pagination")
 	cmd.Shared = fs.Bool("shared", false, "show files that are shared with me")
-	cmd.InTrash = fs.Bool(drive.TrashedKey, false, "list content in the trash")
+	cmd.InTrash = fs.Bool(drive.CLIOptionTrashed, false, "list content in the trash")
 	cmd.Version = fs.Bool("version", false, "show the number of times that the file has been modified on \n\t\tthe server even with changes not visible to the user")
 	cmd.NoPrompt = fs.Bool(drive.NoPromptKey, false, "shows no prompt before pagination")
 	cmd.Owners = fs.Bool("owners", false, "shows the owner names per file")

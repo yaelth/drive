@@ -6,8 +6,18 @@ verbose=true
 force=true
 verbose=false
 desktop-links=false
+export=pdf,doc,rtf
+same-exports-dir=true
 
 [open]
 file-browser=false
 export=
 verbose=true
+
+[push]
+trashed=true
+retry-count=10
+destination=/tmp
+
+[starred]
+all=true

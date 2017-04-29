@@ -126,21 +126,26 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 				CLIOptionVerboseKey, RecursiveKey, CLIOptionFiles, CLIOptionLongFmt,
 				ForceKey, QuietKey, HiddenKey, NoPromptKey, NoClobberKey, IgnoreConflictKey,
 				CLIOptionIgnoreNameClashes, CLIOptionIgnoreChecksum, CLIOptionFixClashesKey,
-				CLIOptionDesktopLinks,
+				CLIOptionDesktopLinks, CLIOptionExportsDumpToSameDirectory, CLIOptionTrashed,
+				CLIOptionStarred, CLIOptionPiped, CLIOptionExplicitlyExport,
+				CLIOptionDirectories, CLIOptionAllStarred,
 			},
 		},
 		{
 			resolver: _intfer, keys: []string{
 				PageSizeKey,
 				DepthKey,
+				CLIOptionRetryCount,
 			},
 		},
 		{
 			resolver: _stringfer, keys: []string{
 				CLIOptionUnified, CLIOptionDiffBaseLocal,
 				ExportsKey, ExcludeOpsKey, CLIOptionUnifiedShortKey,
-				CLIOptionNotOwner, ExportsDirKey, CLIOptionExactTitle, AddressKey,
 				CLIEncryptionPassword, CLIDecryptionPassword, SortKey,
+				CLIOptionNotOwner, ExportsDirKey, CLIOptionExactTitle, AddressKey,
+				CLIOptionPushDestination, CLIOptionSkipMime, CLIOptionMatchMime,
+				ExportsKey,
 			},
 		},
 		{
