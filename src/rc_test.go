@@ -23,6 +23,20 @@ func TestStructuredRC(t *testing.T) {
 				"pull":   {"depth": 3, "no-prompt": false, "verbose": true},
 			},
 		},
+
+		1: {
+			rcDir: "./testdata/zero-values",
+			want: map[string]map[string]interface{}{
+				"global": {"force": true, "verbose": true},
+				"pull":   {"desktop-links": false, "force": true, "verbose": false},
+				"open":   {"verbose": true, "file-browser": false, "export": ""},
+			},
+		},
+	}
+
+	blobify := func(v interface{}) []byte {
+		blob, _ := json.Marshal(v)
+		return blob
 	}
 
 	for i, tt := range tests {
@@ -41,12 +55,12 @@ func TestStructuredRC(t *testing.T) {
 		}
 
 		// Not going to use reflect.DeepEqual because
-		// we've have trouble comparing any []string
-		gotBlob, _ := json.MarshalIndent(rcMap, "", "  ")
-		wantBlob, _ := json.MarshalIndent(tt.want, "", "  ")
+		// we'll then have trouble comparing any []string.
+		gotBlob := blobify(rcMap)
+		wantBlob := blobify(tt.want)
 
 		if !bytes.Equal(gotBlob, wantBlob) {
-			t.Errorf("#%d:\n\thave: %s\n\twant: %s", i, gotBlob, wantBlob)
+			t.Errorf("#%d:\n\thave:\n\t%s\n\twant:\n\t%s", i, gotBlob, wantBlob)
 		}
 	}
 }

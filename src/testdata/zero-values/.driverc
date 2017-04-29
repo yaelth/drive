@@ -1,0 +1,13 @@
+[global]
+force=true
+verbose=true
+
+[pull]
+force=true
+verbose=false
+desktop-links=false
+
+[open]
+file-browser=false
+export=
+verbose=true

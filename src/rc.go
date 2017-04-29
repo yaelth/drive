@@ -126,6 +126,7 @@ func parseRCValues(rcMap map[string]string) (valueMappings map[string]interface{
 				CLIOptionVerboseKey, RecursiveKey, CLIOptionFiles, CLIOptionLongFmt,
 				ForceKey, QuietKey, HiddenKey, NoPromptKey, NoClobberKey, IgnoreConflictKey,
 				CLIOptionIgnoreNameClashes, CLIOptionIgnoreChecksum, CLIOptionFixClashesKey,
+				CLIOptionDesktopLinks,
 			},
 		},
 		{

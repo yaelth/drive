@@ -229,8 +229,21 @@ func (cmd *openCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *openCmd) Run(args []string, definedArgs map[string]*flag.Flag) {
-	sources, context, path := preprocessArgsByToggle(args, *cmd.ById)
+func (ocmd *openCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *ocmd.ById)
+	absEntryPath := context.AbsPathOf(path)
+
+	cmd := new(openCmd)
+	df := defaultsFiller{
+		command: drive.OpenKey,
+		from:    *ocmd, to: cmd,
+		rcSourcePath: absEntryPath,
+		definedFlags: definedFlags,
+	}
+
+	if err := fillWithDefaults(df); err != nil {
+		exitWithError(err)
+	}
 
 	opts := drive.Options{
 		Path:    path,
@@ -362,7 +375,7 @@ func (lCmd *listCmd) _run(args []string, definedFlags map[string]*flag.Flag, dis
 	sources, context, path := preprocessArgsByToggle(args, (*lCmd.ById || *lCmd.Matches))
 	cmd := listCmd{}
 	df := defaultsFiller{
-		command: "list",
+		command: drive.ListKey,
 		from:    *lCmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
@@ -470,8 +483,21 @@ func (cmd *md5SumCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *md5SumCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	sources, context, path := preprocessArgsByToggle(args, *cmd.ById)
+func (mcmd *md5SumCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *mcmd.ById)
+	absEntryPath := context.AbsPathOf(path)
+
+	cmd := new(md5SumCmd)
+	df := defaultsFiller{
+		command: drive.Md5sumKey,
+		from:    *mcmd, to: cmd,
+		rcSourcePath: absEntryPath,
+		definedFlags: definedFlags,
+	}
+
+	if err := fillWithDefaults(df); err != nil {
+		exitWithError(err)
+	}
 
 	depth := *cmd.Depth
 	if *cmd.Recursive {
@@ -514,8 +540,21 @@ func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *statCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	sources, context, path := preprocessArgsByToggle(args, *cmd.ById)
+func (scmd *statCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *scmd.ById)
+	absEntryPath := context.AbsPathOf(path)
+
+	cmd := new(statCmd)
+	df := defaultsFiller{
+		command: drive.StatKey,
+		from:    *scmd, to: cmd,
+		rcSourcePath: absEntryPath,
+		definedFlags: definedFlags,
+	}
+
+	if err := fillWithDefaults(df); err != nil {
+		exitWithError(err)
+	}
 
 	depth := *cmd.Depth
 	if *cmd.Recursive {
@@ -577,10 +616,23 @@ func (cmd *indexCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *indexCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	byId := *cmd.ById
-	byMatches := *cmd.Matches
+func (icmd *indexCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	byId := *icmd.ById
+	byMatches := *icmd.Matches
 	sources, context, path := preprocessArgsByToggle(args, byMatches || byId)
+	absEntryPath := context.AbsPathOf(path)
+
+	cmd := new(indexCmd)
+	df := defaultsFiller{
+		command: drive.IndexKey,
+		from:    *icmd, to: cmd,
+		rcSourcePath: absEntryPath,
+		definedFlags: definedFlags,
+	}
+
+	if err := fillWithDefaults(df); err != nil {
+		exitWithError(err)
+	}
 
 	options := &drive.Options{
 		Path:              path,
@@ -703,7 +755,7 @@ func (pCmd *pullCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, (*pCmd.ById || *pCmd.Matches || *pCmd.Starred))
 	cmd := pullCmd{}
 	df := defaultsFiller{
-		command: "pull",
+		command: drive.PullKey,
 		from:    *pCmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
@@ -913,7 +965,7 @@ func (qCmd *qrLinkCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 
 	cmd := qrLinkCmd{}
 	df := defaultsFiller{
-		command: "qr",
+		command: drive.QRLinkKey,
 		from:    *qCmd, to: &cmd,
 		rcSourcePath: path,
 		definedFlags: definedFlags,
@@ -967,8 +1019,21 @@ func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	sources, context, path := preprocessArgsByToggle(args, *cmd.Matches || *cmd.ById)
+func (tcmd *touchCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	sources, context, path := preprocessArgsByToggle(args, *tcmd.Matches || *tcmd.ById)
+	absEntryPath := context.AbsPathOf(path)
+
+	cmd := new(touchCmd)
+	df := defaultsFiller{
+		command: drive.TouchKey,
+		from:    *tcmd, to: cmd,
+		rcSourcePath: absEntryPath,
+		definedFlags: definedFlags,
+	}
+
+	if err := fillWithDefaults(df); err != nil {
+		exitWithError(err)
+	}
 
 	depth := *cmd.Depth
 	if *cmd.Recursive {
@@ -1011,7 +1076,7 @@ func exitIfIllogicalFileAndFolder(mask int) {
 func (pCmd *pushCmd) createPushOptions(absEntryPath string, definedFlags map[string]*flag.Flag) (*drive.Options, error) {
 	cmd := pushCmd{}
 	df := defaultsFiller{
-		command: "push",
+		command: drive.PushKey,
 		from:    *pCmd, to: &cmd,
 		rcSourcePath: absEntryPath,
 		definedFlags: definedFlags,
@@ -1158,8 +1223,21 @@ func (cmd *aboutCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (cmd *aboutCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
-	_, context, _ := preprocessArgs(args)
+func (acmd *aboutCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
+	_, context, path := preprocessArgs(args)
+	absEntryPath := context.AbsPathOf(path)
+
+	cmd := new(aboutCmd)
+	df := defaultsFiller{
+		command: drive.AboutKey,
+		from:    *acmd, to: cmd,
+		rcSourcePath: absEntryPath,
+		definedFlags: definedFlags,
+	}
+
+	if err := fillWithDefaults(df); err != nil {
+		exitWithError(err)
+	}
 
 	mask := drive.AboutNone
 	if *cmd.Features {
@@ -1259,7 +1337,7 @@ func (uCmd *unpublishCmd) Run(args []string, definedFlags map[string]*flag.Flag)
 
 	cmd := unpublishCmd{}
 	df := defaultsFiller{
-		command: "unpublish",
+		command: drive.UnpubKey,
 		from:    *uCmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
@@ -1737,7 +1815,7 @@ func (icmd *idCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgs(args)
 	cmd := idCmd{}
 	df := defaultsFiller{
-		command: "id",
+		command: drive.IdKey,
 		from:    *icmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
@@ -1794,7 +1872,7 @@ func (ccmd *clashesCmd) Run(args []string, definedFlags map[string]*flag.Flag) {
 	sources, context, path := preprocessArgsByToggle(args, *ccmd.ById)
 	cmd := clashesCmd{}
 	df := defaultsFiller{
-		command: "clashes",
+		command: drive.ClashesKey,
 		from:    *ccmd, to: &cmd,
 		rcSourcePath: context.AbsPathOf(path),
 		definedFlags: definedFlags,
