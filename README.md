@@ -55,7 +55,7 @@
   - [Renaming](#renaming)
   - [Command Aliases](#command-aliases)
   - [Detecting And Fixing Clashes](#detecting-and-fixing-clashes)
-  - [.desktop Files](#.desktop-files)
+  - [.desktop Files](#desktop-files)
   - [Fetching And Pruning Missing Index Files](#fetching-and-pruning-missing-index-files)
   - [Drive Server](#drive-server)
   - [QR Code Share](#qr-code-share)
