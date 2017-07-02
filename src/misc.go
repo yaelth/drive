@@ -321,7 +321,7 @@ func nextPage() bool {
 
 func promptForChanges(args ...interface{}) Agreement {
 	argv := []interface{}{
-		"Proceed with the changes? [Y/n]:",
+		"Proceed with the changes? [Y/n]: ",
 	}
 	if len(args) >= 1 {
 		argv = args
