@@ -167,7 +167,7 @@ Optionally set the `GOOGLE_API_CLIENT_ID` and `GOOGLE_API_CLIENT_SECRET` environ
 
 ### Hyphens: - vs --
 
-A single hypen `-` can be used to specify options. However two hypens `--` can be used with any options in the provided examples below.
+A single hyphen `-` can be used to specify options. However two hyphens `--` can be used with any options in the provided examples below.
 
 ### Initializing
 
@@ -198,7 +198,7 @@ The opposite of `drive init`, it will remove your credentials locally as well as
 drive deinit [-no-prompt]
 ```
 
-For a complete deinit-ialization, don't forget to revoke account access, [please see revoking account access](#revoking-account-access)
+For a complete deinitialization, don't forget to revoke account access, [please see revoking account access](#revoking-account-access)
 
 ### Traversal Depth
 
