@@ -1096,8 +1096,14 @@ func (r *Remote) findByPathRecvRawM(parentId string, p []string, trashed bool) *
 					working = false
 					break
 				}
+
 				if f != nil {
 					chanOChan <- r.findByPathRecvRawM(f.Id, rest, trashed)
+				} else {
+					// Ensure that we properly send
+					// back nil even if files were not found.
+					// See https://github.com/odeke-em/drive/issues/933.
+					chanOChan <- wrapInPaginationPair(nil, nil)
 				}
 			}
 		}
