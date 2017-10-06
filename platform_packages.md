@@ -115,6 +115,7 @@ Platform | Author |
 ---------| -------|
 [Arch Linux](https://aur.archlinux.org/packages/drive) | [Jonathan Jenkins](https://github.com/shaggytwodope)
 [Debian Linux](http://shaggytwodope.github.io/repo) | [Jonathan Jenkins](https://github.com/shaggytwodope)
+[Automation on Debian Linux](https://gitlab.com/jean-christophe-manciot/dr) | [Jean-Christophe Manciot](https://gitlab.com/jean-christophe-manciot)
 [Fedora Linux](https://copr.fedorainfracloud.org/coprs/vaughan/drive-google/) | [Vaughan Agrez](https://github.com/agrez)
 [openSUSE Linux]() | [Grant Rostig](https://github.com/grantrostig)
 [Ubuntu Linux](https://launchpad.net/~twodopeshaggy/+archive/ubuntu/drive) | [Jonathan Jenkins](https://github.com/shaggytwodope)
