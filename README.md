@@ -25,7 +25,7 @@
   - [Excluding And Including Objects](#excluding-and-including-objects)
     - [Sample .driveignore with the exclude and include clauses combined](sample-.driveignore-with-the-exclude-and-include-clauses-combined)
   - [Pulling](#pulling)
-    - [Verifying Checksums] (#verifying-checksums)
+    - [Verifying Checksums](#verifying-checksums)
     - [Exporting Docs](#exporting-docs)
   - [Pushing](#pushing)
   - [Pulling And Pushing Notes](#pulling-and-pushing-notes)
@@ -142,8 +142,8 @@ Is your platform missing a package? Feel free to prepare / contribute an install
 
 #### Automation Scripts
 
-You can install scripts for automating major drive commands and syncing from [drive-google wiki](https://gitlab.com/jean-christophe-manciot/Drive/wikis/home), also described in [platform_packages.md](https://github.com/odeke-em/drive/blob/master/platform_packages.md)).
-Some screenshots are available [here](https://gitlab.com/jean-christophe-manciot/Drive/wikis/home#drive-menu-screenshots).
+You can install scripts for automating major drive commands and syncing from [drive-google wiki](https://gitlab.com/jean-christophe-manciot/Drive/wikis/Drive-Automation-Scripts:-Startup-Guide-and-Screenshots), also described in [platform_packages.md](https://github.com/odeke-em/drive/blob/master/platform_packages.md).
+Some screenshots are available [here](https://gitlab.com/jean-christophe-manciot/Drive/wikis/Drive-Automation-Scripts:-Startup-Guide-and-Screenshots#drive-menu-screenshots).
 
 ### Cross Compilation
 
