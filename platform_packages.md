@@ -96,10 +96,10 @@ This GitLab-hosted [PPA](https://gitlab.com/jean-christophe-manciot/ppa) offers:
 - scripts for automated drive commands including syncing
 - the latest version of many other popular packages.
 
-Replace <os_code_name> by latest Ubuntu code name, for instance zesty (only the latest Ubuntu distribution is supported):
+Replace <os_code_name> by latest Ubuntu code name, for instance artful (only the latest Ubuntu distribution is supported):
 ```sh
-sudo gpg --keyserver keyserver.ubuntu.com --recv-keys 5F0C7CD8
-sudo bash -c 'gpg --export --armor 5F0C7CD8 | apt-key add -'
+sudo gpg --keyserver keyserver.ubuntu.com --recv-keys DF7396D82BBA3684FCCADD4DB063838ED13997FD
+sudo bash -c 'gpg --export --armor DF7396D82BBA3684FCCADD4DB063838ED13997FD | apt-key add -'
 sudo bash -c $'echo "deb https://gitlab.com/jean-christophe-manciot/ppa/raw/master/Ubuntu <os_code_name> stable #JC Manciot\'s Stable PPA" >> /etc/apt/sources.list.d/jean-christophe-manciot.list'
 sudo bash -c $'echo "deb https://gitlab.com/jean-christophe-manciot/ppa/raw/master/Ubuntu <os_code_name> unstable #JC Manciot\'s Unstable PPA" >> /etc/apt/sources.list.d/jean-christophe-manciot.list'
 sudo apt-get update
