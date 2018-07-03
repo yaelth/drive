@@ -231,7 +231,7 @@ func rootLike(p string) bool {
 
 func remoteRootLike(p string) bool {
 	switch p {
-	case "My Drive", "Meine Ablage":
+	case "My Drive", "Meine Ablage", "Mon Drive":
 		// TODO: Crowd source more language translations here
 		// as per https://github.com/odeke-em/drive/issues/1015
 		return true
