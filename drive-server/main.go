@@ -22,10 +22,10 @@ import (
 
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/binding"
+	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/odeke-em/extractor"
 	"github.com/odeke-em/meddler"
-	"github.com/odeke-em/rsc/qr"
 )
 
 const (
@@ -111,13 +111,11 @@ func presentQRCode(pl meddler.Payload, res http.ResponseWriter, req *http.Reques
 	}
 
 	uri := pl.URI
-	code, err := qr.Encode(uri, qr.Q)
+	pngImage, err := qrcode.Encode(uri, 256)
 	if err != nil {
 		fmt.Fprintf(res, "%s %v\n", uri, err)
 		return
 	}
-
-	pngImage := code.PNG()
 	res.Write(pngImage)
 }
 
