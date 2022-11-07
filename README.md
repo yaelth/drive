@@ -1,3 +1,9 @@
+# Disclaimer
+
+This repo is a [fork](https://github.com/odeke-em/drive). It only exists to address issue [#1140](https://github.com/odeke-em/drive/issues/1140), which is addressed [here](https://github.com/odeke-em/drive/pull/1142).
+
+If and when the relevant pull request gets accepted, this repo will serve a purpose no more.
+
 # drive
 
 [![Build Status](https://travis-ci.org/odeke-em/drive.png?branch=master)](https://travis-ci.org/odeke-em/drive)
@@ -5,6 +11,7 @@
 `drive` is a tiny program to pull or push [Google Drive](https://drive.google.com) files.
 
 `drive` was originally developed by [Burcu Dogan](https://github.com/rakyll) while working on the Google Drive team. Since she is very busy and no longer able to maintain it, I took over drive on `Thursday, 1st January 2015`. This repository contains the latest version of the code.
+
 
 ## Table of Contents
 
